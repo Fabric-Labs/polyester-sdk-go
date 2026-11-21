@@ -56,12 +56,12 @@ func TestCandlePointFromBytesKeepsIsClosed(t *testing.T) {
 	}
 }
 
-// The columnar response carries no closed flag. Only the newest primary row
-// (the last, as columns are oldest-first) of a first page read with incomplete
-// candles is not known to be closed. Rows of a continuation page, which pages
+// From a server that predates is_closed, the column is empty and only the
+// newest primary row (the last, as columns are oldest-first) of a first page
+// read with incomplete candles is not known to be closed. Rows of a continuation page, which pages
 // only older candles, every reference row, and every row without incomplete
 // candles are closed.
-func TestCandlesColumnsFromProtoIsClosedByRequest(t *testing.T) {
+func TestCandlesColumnsFromProtoWithoutIsClosedFollowsRequest(t *testing.T) {
 	msg := &marketdatav1.GetCandlesColumnsResponse{
 		SymbolId: 1, Timeframe: marketdatav1.Timeframe_MIN_1,
 		TsSec: []uint64{60, 120, 180}, Open: []int64{1, 1, 1}, High: []int64{1, 1, 1},
@@ -90,5 +90,38 @@ func TestCandlesColumnsFromProtoIsClosedByRequest(t *testing.T) {
 				}
 			}
 		}
+	}
+}
+
+// A server that sends is_closed decides each primary row's flag, whatever the
+// request asked; reference rows stay closed, and a column of the wrong length
+// is refused.
+func TestCandlesColumnsFromProtoReadsServerIsClosed(t *testing.T) {
+	msg := &marketdatav1.GetCandlesColumnsResponse{
+		SymbolId: 1, Timeframe: marketdatav1.Timeframe_MIN_1,
+		TsSec: []uint64{60, 120, 180}, Open: []int64{1, 1, 1}, High: []int64{1, 1, 1},
+		Low: []int64{1, 1, 1}, Close: []int64{1, 1, 1}, Volume: []int64{1, 1, 1},
+		IsClosed:       []bool{true, false, true},
+		ReferenceTsSec: []uint64{60}, ReferenceOpen: []int64{1}, ReferenceHigh: []int64{1},
+		ReferenceLow: []int64{1}, ReferenceClose: []int64{1}, ReferenceVolume: []int64{1},
+	}
+	for _, includeIncomplete := range []bool{false, true} {
+		result, err := CandlesColumnsFromProto(msg, 8, 9, includeIncomplete, "")
+		if err != nil {
+			t.Fatal(err)
+		}
+		for i, row := range result.Candles {
+			if row.IsClosed != msg.IsClosed[i] {
+				t.Errorf("include_incomplete=%t candle ts %d: is_closed %t, want %t", includeIncomplete, row.TsSec, row.IsClosed, msg.IsClosed[i])
+			}
+		}
+		if !result.ReferenceCandles[0].IsClosed {
+			t.Errorf("include_incomplete=%t: reference row not closed", includeIncomplete)
+		}
+	}
+	short := proto.Clone(msg).(*marketdatav1.GetCandlesColumnsResponse)
+	short.IsClosed = []bool{true, true}
+	if _, err := CandlesColumnsFromProto(short, 8, 9, true, ""); err == nil {
+		t.Fatal("misaligned is_closed column decoded")
 	}
 }

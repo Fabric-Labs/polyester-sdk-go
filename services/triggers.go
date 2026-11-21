@@ -3,6 +3,7 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -299,6 +300,83 @@ func (s *TriggersService) BatchCancel(ctx context.Context, account AccountScope,
 		return models.BatchCancelTriggersResult{}, err
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCancelTriggers, req, decode.BatchCancelTriggersFromProto)
+}
+
+// CancelAllTriggersParams selects the triggers Triggers.CancelAll cancels.
+// Every filter is optional; together they narrow the match.
+type CancelAllTriggersParams struct {
+	SubAccountID *string
+	// Symbol, Symbols or SymbolIDs (at most one of them) select the pairs,
+	// at most codecs.MaxCancelAllTriggerSymbols; none matches every pair. A
+	// supplied symbol must name a pair: a blank Symbol, or a blank entry in
+	// Symbols, is refused rather than read as every pair. Leave Symbol nil
+	// and Symbols empty to cancel on every pair.
+	Symbol    *string
+	Symbols   []string
+	SymbolIDs []uint32
+	// Side ("buy" or "sell") matches triggers whose orders trade on that
+	// side: a sell stop-loss matches "sell". Nil matches both sides.
+	Side *string
+	// TriggerTypes lists up to codecs.MaxCancelAllTriggerTypes types
+	// (stop_loss, take_profit, trailing_stop, twap, ladder), as List reports
+	// them; empty matches every type.
+	TriggerTypes []string
+	// DryRun counts the matching triggers without canceling any.
+	DryRun bool
+	// RequestID is the idempotency key, 1 to 64 characters of
+	// [A-Za-z0-9._:/-]. Generate it once per user action and keep it: a
+	// retry needs the same key and criteria. When nil or empty a key is
+	// generated, but it is not returned, so such a request cannot be
+	// retried safely; supply your own whenever a retry may follow.
+	RequestID *string
+}
+
+// CancelAll cancels, in one request, every trigger of the account that
+// matches params, and no order (CancelAllTriggers). What it cancels is fixed
+// when its request ID is first accepted: triggers created later keep
+// running. Each matching trigger ends canceled with cancel reason
+// "cancel_all" and releases its reserved funds, and none places an order
+// after the response. A TWAP's working slice, a ladder's open levels and an
+// attached leg's working exit are canceled with their trigger; an order a
+// stop already placed stays open. An order's attached take-profit, stop-loss
+// and trailing legs end together, as do an OCO's two legs: when one matches,
+// all are canceled and counted.
+//
+// The result lists no trigger IDs: read the triggers again afterwards. Every
+// request counts 10 units of the cancel rate limit, a dry run and a retry
+// included. A retry with the same RequestID and criteria within two minutes
+// returns the original count and cancels nothing again; the same RequestID
+// with other criteria is refused with CONFLICT_IDEMPOTENCY_KEY_REUSE. After
+// an unknown outcome, retry with the same RequestID, so supply one. Request IDs are a
+// separate key space from Orders.CancelAll.
+func (s *TriggersService) CancelAll(ctx context.Context, account AccountScope, params CancelAllTriggersParams) (models.CancelAllTriggersResult, error) {
+	// A blank symbol filter would resolve to no pair and so match every pair.
+	if params.Symbol != nil && strings.TrimSpace(*params.Symbol) == "" {
+		return models.CancelAllTriggersResult{}, &sdkerrors.ValidationError{Msg: "triggers.cancel_all symbol must not be blank; leave it nil to match every pair"}
+	}
+	for i, symbol := range params.Symbols {
+		if strings.TrimSpace(symbol) == "" {
+			return models.CancelAllTriggersResult{}, &sdkerrors.ValidationError{Msg: fmt.Sprintf("triggers.cancel_all symbols[%d] must not be blank; leave symbols empty to match every pair", i)}
+		}
+	}
+	sub, err := s.scoped.ResolveSubAccountID(params.SubAccountID, account)
+	if err != nil {
+		return models.CancelAllTriggersResult{}, err
+	}
+	if namesSymbol(params.Symbol, params.Symbols...) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.CancelAllTriggersResult{}, err
+		}
+	}
+	symbolIDs, err := ResolveCancelAllSymbolIDs(s.catalogs, params.Symbol, params.Symbols, params.SymbolIDs, "triggers.cancel_all")
+	if err != nil {
+		return models.CancelAllTriggersResult{}, err
+	}
+	req, err := codecs.CancelAllTriggersToProto(sub, symbolIDs, params.Side, params.TriggerTypes, params.DryRun, params.RequestID)
+	if err != nil {
+		return models.CancelAllTriggersResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CancelAllTriggers, req, decode.CancelAllTriggersFromProto)
 }
 
 // Pause pauses a trigger. An ended trigger is refused with

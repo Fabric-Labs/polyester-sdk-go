@@ -85,6 +85,11 @@
       "supported": true
     },
     {
+      "id": "profit_and_loss",
+      "label": "Profit and loss + trading statistics",
+      "supported": true
+    },
+    {
       "id": "changelog",
       "label": "Product changelog (posts + changes)",
       "supported": true

@@ -30,7 +30,6 @@ func AssetBalanceFromProto(msg *ledgerrdv1.AssetBalance) models.AssetBalance {
 		Funding:         u128(msg.GetFunding()),
 		Reserved:        u128(msg.GetReserved()),
 		Available:       u128(msg.GetAvailable()),
-		TradingRevision: msg.GetTradingRevision(),
 		FundingRevision: msg.GetFundingRevision(),
 	}
 }
@@ -40,7 +39,12 @@ func BalancesListFromProto(msg *ledgerrdv1.GetBalancesResponse) models.BalancesL
 	for _, b := range msg.GetBalances() {
 		out = append(out, AssetBalanceFromProto(b))
 	}
-	return models.BalancesList{Balances: out}
+	return models.BalancesList{
+		Balances:                  out,
+		TradingEpoch:              msg.GetTradingEpoch(),
+		TradingSequence:           msg.GetTradingSequence(),
+		TradingAppliedThroughTsNs: msg.GetTradingAppliedThroughTsNs(),
+	}
 }
 
 // BalanceHistoryFromProto decodes balance chart series. Each point is the

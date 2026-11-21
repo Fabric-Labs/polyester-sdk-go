@@ -32,6 +32,7 @@ import (
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/notifications/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/pnl/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api/validation/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"

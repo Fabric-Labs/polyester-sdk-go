@@ -5,6 +5,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
+	marketdatav1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	marketoverviewv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -72,7 +73,51 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *cata
 	if ts := m.GetListedTsNs(); ts != 0 {
 		entry.ListedTsNs = strconv.FormatUint(ts, 10)
 	}
+	entry.PriceBand = LivePriceBandFromProto(m.GetPriceBand(), symbol)
 	return entry
+}
+
+// LivePriceBandFromProto decodes a live price band; nil when band is nil.
+// symbol labels its prices.
+func LivePriceBandFromProto(band *marketdatav1.LivePriceBand, symbol string) *models.LivePriceBand {
+	if band == nil {
+		return nil
+	}
+	price := func(ticks *int64) *models.PriceTicks {
+		if ticks == nil {
+			return nil
+		}
+		value := codecs.DecodePriceTicks(*ticks, symbol)
+		return &value
+	}
+	out := &models.LivePriceBand{
+		SymbolID:        band.GetSymbolId(),
+		State:           codecs.ProtoEnumName(band.GetState(), band.GetState().Number()),
+		ReferencePrice:  price(band.ReferencePriceTicks),
+		ReferenceSource: codecs.ProtoEnumName(band.GetReferenceSource(), band.GetReferenceSource().Number()),
+		MaxBuyPrice:     price(band.MaxBuyPriceTicks),
+		MinSellPrice:    price(band.MinSellPriceTicks),
+		MinBuyPrice:     price(band.MinBuyPriceTicks),
+		MaxSellPrice:    price(band.MaxSellPriceTicks),
+		UpdatedTsNs:     band.GetUpdatedTsNs(),
+		ReanchorPending: band.GetReanchorPending(),
+		Epoch:           band.GetEpoch(),
+		UpdateID:        band.GetUpdateId(),
+		AsOfTsNs:        band.GetAsOfTsNs(),
+		ValidUntilTsNs:  band.GetValidUntilTsNs(),
+	}
+	if band.ReanchorEligibleTsNs != nil {
+		eligible := band.GetReanchorEligibleTsNs()
+		out.ReanchorEligibleTsNs = &eligible
+	}
+	if params := band.GetParameters(); params != nil {
+		out.Parameters = &models.PriceBand{
+			LowerBps:          params.GetLowerBps(),
+			UpperBps:          params.GetUpperBps(),
+			ReferenceWindowMs: params.GetReferenceWindowMs(),
+		}
+	}
+	return out
 }
 
 // optionalPrice is a price the server sent, or nil for 0, which means none.
