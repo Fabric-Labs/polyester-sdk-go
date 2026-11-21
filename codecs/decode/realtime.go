@@ -83,13 +83,16 @@ func MarketOverviewBatchDecoder(cats *catalogs.Manager) func([]byte) (models.Mar
 	}
 }
 
-// AssetBalanceFromBytes parses a balance publication.
-func AssetBalanceFromBytes(payload []byte) (models.AssetBalance, error) {
-	var msg ledgerrdv1.AssetBalance
-	if err := unmarshalProto(payload, &msg); err != nil {
-		return models.AssetBalance{}, err
+// BalanceUpdateFromBytes parses a balance stream publication as the
+// generated ledger.read.v1.BalanceUpdate, unchanged: one TRADING step of the
+// account's Trading balances at (trading_epoch, trading_sequence), or one
+// FUNDING change with its funding_revision.
+func BalanceUpdateFromBytes(payload []byte) (*ledgerrdv1.BalanceUpdate, error) {
+	msg := &ledgerrdv1.BalanceUpdate{}
+	if err := unmarshalProto(payload, msg); err != nil {
+		return nil, err
 	}
-	return AssetBalanceFromProto(&msg), nil
+	return msg, nil
 }
 
 // UserTradeBatchFromBytes parses a private user trade publication: a batch

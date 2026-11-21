@@ -764,6 +764,67 @@ func BatchCancelTriggersToProto(triggerIDs []string, subAccountID *string, reque
 	return req, nil
 }
 
+// MaxCancelAllTriggerSymbols and MaxCancelAllTriggerTypes are the contract's
+// limits of distinct symbol IDs and trigger types per CancelAllTriggers
+// request.
+var (
+	MaxCancelAllTriggerSymbols = contractMaxRepeated(&triggersv1.CancelAllTriggersRequest{}, "symbol_ids")
+	MaxCancelAllTriggerTypes   = contractMaxRepeated(&triggersv1.CancelAllTriggersRequest{}, "trigger_types")
+)
+
+// CancelAllTriggersToProto encodes a cancel-all of triggers. Empty symbolIDs
+// match every symbol, a nil side matches both sides and empty triggerTypes
+// (stop_loss, take_profit, trailing_stop, twap or ladder) match every type;
+// repeated symbol IDs and types are sent once. A request ID is generated when
+// requestID is nil or empty.
+func CancelAllTriggersToProto(subAccountID *string, symbolIDs []uint32, side *string, triggerTypes []string, dryRun bool, requestID *string) (*triggersv1.CancelAllTriggersRequest, error) {
+	resolvedRequestID, err := coalesceRequestID(requestID, "cancel-all-triggers")
+	if err != nil {
+		return nil, err
+	}
+	req := &triggersv1.CancelAllTriggersRequest{RequestId: resolvedRequestID, DryRun: dryRun}
+	seenSymbols := make(map[uint32]struct{}, len(symbolIDs))
+	for _, id := range symbolIDs {
+		if id == 0 {
+			return nil, &errors.ValidationError{Msg: "triggers.cancel_all symbol_ids must be positive"}
+		}
+		if _, dup := seenSymbols[id]; dup {
+			continue
+		}
+		seenSymbols[id] = struct{}{}
+		req.SymbolIds = append(req.SymbolIds, id)
+	}
+	if len(req.SymbolIds) > MaxCancelAllTriggerSymbols {
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("triggers.cancel_all accepts at most %d symbol_ids", MaxCancelAllTriggerSymbols)}
+	}
+	seenTypes := make(map[triggersv1.TriggerType]struct{}, len(triggerTypes))
+	for _, label := range triggerTypes {
+		value, err := TriggerTypeFromLabel(label)
+		if err != nil {
+			return nil, err
+		}
+		if _, dup := seenTypes[value]; dup {
+			continue
+		}
+		seenTypes[value] = struct{}{}
+		req.TriggerTypes = append(req.TriggerTypes, value)
+	}
+	if len(req.TriggerTypes) > MaxCancelAllTriggerTypes {
+		return nil, &errors.ValidationError{Msg: fmt.Sprintf("triggers.cancel_all accepts at most %d trigger_types", MaxCancelAllTriggerTypes)}
+	}
+	if side != nil {
+		value, ok := orderSideToProto[strings.ToLower(strings.TrimSpace(*side))]
+		if !ok {
+			return nil, &errors.ValidationError{Msg: "side must be buy or sell"}
+		}
+		req.Side = value
+	}
+	if req.SubaccountId, err = ParseOptionalSubaccountID(subAccountID); err != nil {
+		return nil, err
+	}
+	return req, nil
+}
+
 func newTriggerRequestID() string {
 	var b [6]byte
 	_, _ = rand.Read(b[:])

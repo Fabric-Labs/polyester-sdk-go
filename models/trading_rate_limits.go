@@ -27,13 +27,20 @@ type TradingRateLimits struct {
 	EffectiveFrom *time.Time `json:"effective_from,omitempty"`
 	// Rules are the placement, cancellation and read rules enforced for the
 	// account, in that order; select one by PolicyClass, not by position.
-	// The read rule (TRADING_RATE_LIMIT_CLASS_READ) is the root account's,
-	// shared by the root account, its sub-accounts and every API key, also
-	// when a sub-account is selected; order, trade and trigger reads, the fee
-	// rates and the rate limits themselves draw on it. Budget against these.
+	// The read rule (TRADING_RATE_LIMIT_CLASS_READ) is the selected
+	// account's own: the root account and each sub-account read on separate
+	// budgets, so reading one sub-account never uses another's. Order,
+	// trade, trigger, trading-limit and fee reads, and order previews, draw
+	// on the read limit of the account they read, shared by every API key
+	// and session reading it. A sub-account reads at its own read-limit
+	// override, else at its root account's VIP tier read limit, never on the
+	// root account's override. Budget against these, per account.
 	Rules []TradingRateLimitRule `json:"rules"`
 	// APIKeyRules are the rules resolved for the calling API key, present only
-	// when the caller used one. They are informational: trading requests are
-	// not limited per API key.
+	// when the caller used one. Its read rule is enforced on top of the
+	// account's: a read is refused when either is exhausted, so pace reads per
+	// API key too when the key has its own read rule. Its placement and
+	// cancellation rules are informational: trading requests are not limited
+	// per API key.
 	APIKeyRules []TradingRateLimitRule `json:"api_key_rules"`
 }

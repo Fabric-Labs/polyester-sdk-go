@@ -42,6 +42,17 @@ func (s *HeatmapService) client() marketdatav1connect.HeatmapServiceClient {
 // itself, any other depth up to 1000 as the smallest supported depth covering
 // it, and 0 as 50; the response's "depth" names the depth requested. A depth
 // below 0 or above 1000 is a ValidationError before any request.
+//
+// The chain is a replay of the top-N view the depth selects: the base
+// keyframe holds the top N levels per side, and each bucket's deltas, applied
+// oldest first, set every listed price's quantity. A quantity of 0 deletes the
+// level: it was removed from the book or left the top N. A level that enters
+// the top N is listed even when the bucket did not change it, and changes
+// deeper than N are omitted, so the replay needs no clipping and gives the
+// same book after each bucket at every page limit. In PEAK mode the base
+// keyframe is only the replay's starting point: do not render it as a bucket.
+// The newest buckets can be read again with more updates and a higher
+// book_seq_end.
 func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint32, interval string, depth, limit int, quantityMode string, fromTsSec *int64, start, end *time.Time, pageToken ...string) (models.ApiData, error) {
 	if len(pageToken) > 1 {
 		return models.ApiData{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
@@ -130,6 +141,11 @@ func (s *HeatmapService) Get(ctx context.Context, symbol *string, symbolID *uint
 // SubscribeLive streams live heatmap buckets for interval ("1s", "1m", "5m" or
 // "1h", or its enum name such as "INTERVAL_1S") from the channel the server
 // publishes them on. Any other interval is a ValidationError.
+//
+// Key buckets by ts_sec and replace a stored bucket only with one of a higher
+// book_seq_end, final or not: a final bucket can be published again with
+// later updates and a higher book_seq_end, and the same final payload can
+// arrive more than once. Updates of a bucket still open are best effort.
 func (s *HeatmapService) SubscribeLive(ctx context.Context, symbol *string, symbolID *uint32, interval string) (*realtime.Subscription[models.ApiData], error) {
 	if namesSymbol(symbol) {
 		if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {

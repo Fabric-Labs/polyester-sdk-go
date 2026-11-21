@@ -570,6 +570,27 @@ func pairedTsNs(tsNs uint64, ts *timestamppb.Timestamp) uint64 {
 	return uint64(nanos)
 }
 
+// CancelAllTriggersFromProto decodes a cancel-all of triggers. A missing or
+// unknown status returns a *errors.ResponseContractError.
+func CancelAllTriggersFromProto(msg *triggersv1.CancelAllTriggersResponse) (models.CancelAllTriggersResult, error) {
+	var status string
+	switch msg.GetStatus() {
+	case triggersv1.CancelAllTriggersResponse_SUBMITTED:
+		status = "submitted"
+	case triggersv1.CancelAllTriggersResponse_DRY_RUN:
+		status = "dry_run"
+	default:
+		return models.CancelAllTriggersResult{}, &sdkerrors.ResponseContractError{Operation: "CancelAllTriggers",
+			Msg: fmt.Sprintf("invalid CancelAllTriggers response: unknown status %d", msg.GetStatus()),
+		}
+	}
+	return models.CancelAllTriggersResult{
+		Status:          status,
+		MatchedTriggers: int(msg.GetMatchedTriggers()),
+		TsNs:            pairedTsNs(msg.GetTsNs(), msg.GetTs()),
+	}, nil
+}
+
 // CancelOcoFromProto decodes an OCO cancel response. A reply without the OCO
 // ID returns a *errors.ResponseContractError.
 func CancelOcoFromProto(msg *triggersv1.CancelOcoResponse) (models.CancelOcoResult, error) {

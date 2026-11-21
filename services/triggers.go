@@ -301,6 +301,69 @@ func (s *TriggersService) BatchCancel(ctx context.Context, account AccountScope,
 	return UnaryAuthDecoded(ctx, s.transport, s.client().BatchCancelTriggers, req, decode.BatchCancelTriggersFromProto)
 }
 
+// CancelAllTriggersParams selects the triggers Triggers.CancelAll cancels.
+// Every filter is optional; together they narrow the match.
+type CancelAllTriggersParams struct {
+	SubAccountID *string
+	// Symbol, Symbols or SymbolIDs (at most one of them) select the pairs,
+	// at most codecs.MaxCancelAllTriggerSymbols; none matches every pair.
+	Symbol    *string
+	Symbols   []string
+	SymbolIDs []uint32
+	// Side ("buy" or "sell") matches triggers whose orders trade on that
+	// side: a sell stop-loss matches "sell". Nil matches both sides.
+	Side *string
+	// TriggerTypes lists up to codecs.MaxCancelAllTriggerTypes types
+	// (stop_loss, take_profit, trailing_stop, twap, ladder), as List reports
+	// them; empty matches every type.
+	TriggerTypes []string
+	// DryRun counts the matching triggers without canceling any.
+	DryRun bool
+	// RequestID is the idempotency key, 1 to 64 characters of
+	// [A-Za-z0-9._:/-]; one is generated when nil or empty. Keep it, with
+	// the same criteria, to retry.
+	RequestID *string
+}
+
+// CancelAll cancels, in one request, every trigger of the account that
+// matches params, and no order (CancelAllTriggers). What it cancels is fixed
+// when its request ID is first accepted: triggers created later keep
+// running. Each matching trigger ends canceled with cancel reason
+// "cancel_all" and releases its reserved funds, and none places an order
+// after the response. A TWAP's working slice, a ladder's open levels and an
+// attached leg's working exit are canceled with their trigger; an order a
+// stop already placed stays open. An order's attached take-profit, stop-loss
+// and trailing legs end together, as do an OCO's two legs: when one matches,
+// all are canceled and counted.
+//
+// The result lists no trigger IDs: read the triggers again afterwards. Every
+// request counts 10 units of the cancel rate limit, a dry run and a retry
+// included. A retry with the same RequestID and criteria within two minutes
+// returns the original count and cancels nothing again; the same RequestID
+// with other criteria is refused with CONFLICT_IDEMPOTENCY_KEY_REUSE. After
+// an unknown outcome, retry with the same RequestID. Request IDs are a
+// separate key space from Orders.CancelAll.
+func (s *TriggersService) CancelAll(ctx context.Context, account AccountScope, params CancelAllTriggersParams) (models.CancelAllTriggersResult, error) {
+	sub, err := s.scoped.ResolveSubAccountID(params.SubAccountID, account)
+	if err != nil {
+		return models.CancelAllTriggersResult{}, err
+	}
+	if namesSymbol(params.Symbol, params.Symbols...) {
+		if err := s.ensureCatalogs(ctx); err != nil {
+			return models.CancelAllTriggersResult{}, err
+		}
+	}
+	symbolIDs, err := ResolveCancelAllSymbolIDs(s.catalogs, params.Symbol, params.Symbols, params.SymbolIDs, "triggers.cancel_all")
+	if err != nil {
+		return models.CancelAllTriggersResult{}, err
+	}
+	req, err := codecs.CancelAllTriggersToProto(sub, symbolIDs, params.Side, params.TriggerTypes, params.DryRun, params.RequestID)
+	if err != nil {
+		return models.CancelAllTriggersResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().CancelAllTriggers, req, decode.CancelAllTriggersFromProto)
+}
+
 // Pause pauses a trigger. An ended trigger is refused with
 // ERROR_CODE_TRIGGER_STATUS_INVALID (errors.IsTriggerAlreadyEnded), as for
 // Cancel.

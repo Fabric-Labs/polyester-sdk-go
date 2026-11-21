@@ -38,6 +38,7 @@ Requires a recent Go toolchain (see `go.mod`).
 | VIP tiers + status | Yes |
 | Spot fee rates | Yes |
 | Trading rate limits | Yes |
+| Profit and loss + trading statistics | Yes |
 | Product changelog (posts + changes) | Yes |
 | Server build version | Yes |
 | Price alerts (devnet) | Yes |
@@ -1119,8 +1120,13 @@ when unset. `SettledVolumeQuality` and `AverageAopQuality` report how complete e
 `VIPTier` (`json:"vip_tier"`), matching the proto field rename. Trading
 limits apply per account: the root account and each sub-account have their own,
 and every API key and session trading for an account shares them, so adding a
-key adds no capacity. Budget against `Rules`; `APIKeyRules` are informational
-only and not enforced.
+key adds no capacity. That includes the read limit: order, fill, trigger,
+trading-limit and fee reads cost units of the read limit of the account they
+read, so reading one sub-account never uses another's budget. Call
+`GetTradingRateLimits` for each sub-account you read and pace its reads to its
+own `READ` rule. Budget against `Rules`. In `APIKeyRules`, the key's `READ`
+rule is enforced on top of the account's (a read is refused when either is
+exhausted); its placement and cancellation rules are informational only.
 
 ```go
 tiers, err := client.VIP.ListVIPTiers(ctx)
@@ -1128,6 +1134,52 @@ status, err := client.VIP.GetVIPStatus(ctx)
 fees, err := client.Fees.GetSpotFeeRates(ctx, nil, nil, nil)
 catalog, err := client.RateLimits.GetRateLimitConfig(ctx)
 limits, err := client.RateLimits.GetTradingRateLimits(ctx, nil, nil)
+```
+
+## Profit and loss
+
+`client.ProfitAndLoss` reads the profit and loss of the main account or one
+sub-account in USD. The API key's policy needs `READ_PNL`. Without a
+sub-account, a main-account key reads the main account together with every
+sub-account it owns, and a sub-account key its own sub-account.
+
+- `Get` returns PnL over a window (`today`, `days_7`, `days_30` or
+  `lifetime`): realized PnL after fees, the change in unrealized PnL, fees and
+  volume, by product and by market, and every asset held now with its cost,
+  entry price, mark and unrealized PnL.
+- `GetTradingStatistics` returns the trade count, volume, fees and realized
+  PnL over a window, with the time-weighted return (`ReturnPct`), maximum
+  drawdown and Sharpe ratio of its closed UTC days. Percentages are percent
+  strings (`"1.25"` is 1.25%); the Sharpe ratio needs at least 7 daily
+  returns (`ReturnDays`).
+- `ListDaily` returns one page of days, oldest first, every day of the range
+  included, with each day's equity at its start and end and its net
+  deposits and withdrawals; `AllDaily` iterates every page.
+
+Amounts are exact decimal strings: parse them with a decimal type, never a
+float. A figure that needs an unavailable price is nil, which is not `"0"`,
+and `Notices` says why (`mark_unavailable`, `price_unavailable`,
+`equity_unavailable` and so on). Figures follow settled trades within seconds;
+`AsOf` is when they were last published.
+
+```go
+pnl, err := client.ProfitAndLoss.Get(ctx, services.ProfitAndLossParams{Window: "days_7"})
+if err != nil {
+	log.Fatal(err)
+}
+if pnl.PnLUSD != nil {
+	fmt.Println("7-day PnL:", *pnl.PnLUSD, "USD")
+}
+stats, err := client.ProfitAndLoss.GetTradingStatistics(ctx, services.ProfitAndLossParams{Window: "days_30"})
+start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
+for day, err := range client.ProfitAndLoss.AllDaily(ctx, services.ListDailyProfitAndLossParams{
+	StartTime: start, EndTime: start.AddDate(0, 1, 0),
+}) {
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(day.Day, day.RealizedPnLUSD)
+}
 ```
 
 ## Price alerts
@@ -1357,6 +1409,26 @@ legs, err := client.Triggers.List(ctx, nil, nil, nil, nil, 50, nil,
 With the catalogs loaded, `Triggers.Get`, `Triggers.List` and the trigger
 stream set `Trigger.Symbol` to the pair name (`BTC-USDT`) as well as
 `SymbolID`; without them `Symbol` is empty.
+
+`Triggers.CancelAll` cancels every trigger that matches a list of pairs, a
+side and a list of trigger types in one request, and no order. Each filter is
+optional: an empty one matches everything. What it cancels is fixed when its
+request ID is first accepted, so triggers created later keep running. The
+result is `submitted` or `dry_run` with `MatchedTriggers`, which counts the
+legs canceled along with a matching one (an attached leg's siblings, an OCO's
+other leg); it lists no trigger IDs, so read the triggers again afterwards.
+Every request counts 10 units of the cancel rate limit. Keep the request ID
+to retry: a retry with the same ID and criteria within two minutes returns the
+original count and cancels nothing again.
+
+```go
+side := "sell"
+result, err := client.Triggers.CancelAll(ctx, nil, services.CancelAllTriggersParams{
+	Symbols:      []string{"BTC-USDT"},
+	Side:         &side,
+	TriggerTypes: []string{"stop_loss", "take_profit"},
+})
+```
 
 `Triggers.Get` and `Triggers.List` retry `UNAVAILABLE` (HTTP 503) and `DEADLINE_EXCEEDED` with the
 same request: 25 ms, doubling up to 500 ms, for about 2 s, then return the
@@ -1713,6 +1785,76 @@ for _, bal := range balances.Balances {
 }
 ```
 
+### Keeping exact balances with the balance stream
+
+`Balances.List` returns the position its Trading values are at:
+`TradingEpoch` and `TradingSequence`, with `TradingAppliedThroughTsNs`, a
+receipt that every Trading transfer at or before that time is in the
+balances. `Balances.Subscribe` delivers each publication of the balance stream
+as the generated `ledgerrdv1.BalanceUpdate`, exactly as published; the SDK
+does not buffer, reorder or merge them.
+
+A TRADING update (`Account` is `ledgerv1.AccountCode_TRADING`) is one numbered
+step of the Trading balances: its position, `Complete`, the assets it changed
+with their Trading fields only, and the transfer legs it applied. A FUNDING
+update carries one asset's Funding balance and `FundingRevision`. Tell them
+apart by `Account`, never by the epoch. To keep exact balances:
+
+1. Subscribe first and buffer the updates.
+2. Call `Balances.List`, apply its balances and remember its position (E, Q).
+   Retry an unavailable answer with a short backoff.
+3. Drop TRADING updates of epoch E at or below Q, then apply E's sequences
+   Q+1, Q+2, ... in order, taking only their Trading fields.
+4. Keep the epochs you held before E as dropped, and drop their late updates
+   without reloading. Reload from step 2 when a TRADING update's epoch is
+   neither E nor dropped, when a sequence is skipped, when the next sequence
+   after an update with `Complete` false does not arrive within 2 seconds, or
+   when `TakeResubscribed()` reports true (the stream reconnected and may
+   have missed publications).
+5. Apply a FUNDING update when its `FundingRevision` is higher than the
+   asset's, taking only its Funding fields.
+
+Show Trading values only after an update with `Complete` set: until then the
+same step continues in the next update. Compare epochs only for equality.
+`services.BalancesService.Subscribe` documents the details, such as late legs
+after an epoch change.
+
+```go
+import ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
+
+sub, err := client.Balances.Subscribe(ctx, nil)
+if err != nil {
+	log.Fatal(err)
+}
+defer sub.Close()
+// Buffer sub.Messages() from here until the List answer arrives.
+snapshot, err := client.Balances.List(ctx, nil, nil)
+if err != nil {
+	log.Fatal(err)
+}
+epoch, seq := snapshot.TradingEpoch, snapshot.TradingSequence
+for update := range sub.Messages() {
+	if sub.TakeResubscribed() {
+		// Reload: call List again and continue from its position.
+	}
+	if update.GetAccount() != ledgerv1.AccountCode_TRADING {
+		// FUNDING: apply each asset whose FundingRevision is higher.
+		continue
+	}
+	switch {
+	case update.GetTradingEpoch() != epoch:
+		// Drop it if the epoch is one you dropped; otherwise reload.
+	case update.GetTradingSequence() <= seq:
+		// Already in the balances: drop it.
+	case update.GetTradingSequence() != seq+1:
+		// A gap: reload.
+	default:
+		seq = update.GetTradingSequence()
+		// Apply update.GetBalances() Trading fields; show them if update.GetComplete().
+	}
+}
+```
+
 `SubAccounts.Get` with `includeAPIKeys` also returns the API keys scoped to
 the sub-account in `APIKeys`, read as `APIKeys.List` reads them. The server
 sends them to an owner or admin of the sub-account only; `APIKeys` is nil when
@@ -1966,12 +2108,12 @@ open candle is prepended; `GetCurrentCandle` therefore returns the first row, or
 `nil` when no candle rows exist. `Candle.IsClosed` tells the open candle from a
 finished one: it is false only while the bucket is still open, and true for
 every closed row and for the terminal `SubscribeCandles` update of a bucket.
-The columnar response carries no closed flag, so `GetCandlesColumns` rows read
-true, except the newest primary row of a first page (no page token) read with
-incomplete candles, which reads false, meaning not known to be closed.
-Continuation pages hold only older closed candles, and reference rows are
-always closed buckets. Read candles with `GetCandles` for the flag the server
-sends.
+`GetCandlesColumns` rows carry the server's `is_closed` flag the same way:
+with incomplete candles, the open candle is the last row of the first page and
+the only one that reads false. Reference rows are always closed buckets. From
+a server that predates the columnar flag, every row reads true except the
+newest primary row of a first page (no page token) read with incomplete
+candles, which reads false, meaning not known to be closed.
 
 Merged market overview stream (snapshot + live updates). With `Symbols` set,
 only those markets are emitted, from the snapshot and from live updates:

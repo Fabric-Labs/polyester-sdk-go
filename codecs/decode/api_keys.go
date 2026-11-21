@@ -38,6 +38,7 @@ func apiKey(msg *authv1.ApiKey) *models.ApiKeySummary {
 		CreatedByActor:   msg.GetCreatedByActor(),
 		Status:           msg.GetStatus().String(),
 		Purpose:          msg.GetPurpose().String(),
+		StrategyBotID:    optionalID(msg.GetStrategyBotId()),
 		PublicKeyEd25519: hex.EncodeToString(msg.GetPublicKeyEd25519()),
 		SubaccountID:     optionalID(msg.GetSubaccountId()),
 		PolicyID:         optionalID(msg.GetPolicyId()),

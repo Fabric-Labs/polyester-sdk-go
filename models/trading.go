@@ -489,6 +489,22 @@ type BatchReplaceAdmissionItem struct {
 	Violations []OrderFieldViolation `json:"violations,omitempty"`
 }
 
+// CancelAllTriggersResult is the outcome of Triggers.CancelAll. It lists no
+// trigger IDs: read the triggers again to see what ended.
+type CancelAllTriggersResult struct {
+	// Status is "submitted" (every matching trigger was stopped and its
+	// cancellation submitted) or "dry_run" (counted, nothing canceled).
+	Status string `json:"status"`
+	// MatchedTriggers counts the matching triggers, each leg canceled along
+	// with a matching one included (an attached leg's siblings, an OCO's
+	// other leg).
+	MatchedTriggers int `json:"matched_triggers"`
+	// TsNs is when the cancel-all was accepted, in nanoseconds since the Unix
+	// epoch: the contract's ts_ns, or ts when only that is sent; 0 when
+	// neither is.
+	TsNs uint64 `json:"ts_ns,omitempty"`
+}
+
 // BatchReplaceOrdersResult is the durable admission receipt from batch_replace.
 type BatchReplaceOrdersResult struct {
 	BatchRequestID string                      `json:"batch_request_id"`
@@ -654,22 +670,39 @@ type DeadManSwitchScope struct {
 	Side      string `json:"side,omitempty"`
 }
 
-// AssetBalance is a ledger balance row.
+// AssetBalance is a ledger balance row. Amounts are exact decimal strings at
+// the 18-decimal ledger scale. Trading values have no revision of their own:
+// BalancesList.TradingEpoch and TradingSequence give their position.
 type AssetBalance struct {
 	AssetID   uint32 `json:"asset_id"`
 	Trading   string `json:"trading,omitempty"`
 	Funding   string `json:"funding,omitempty"`
 	Reserved  string `json:"reserved,omitempty"`
 	Available string `json:"available,omitempty"`
-	// TradingRevision orders the atomic trading/reserved/available state.
-	TradingRevision uint64 `json:"trading_revision,omitempty"`
-	// FundingRevision orders funding state independently of trading.
+	// FundingRevision orders funding state independently of trading: higher
+	// is newer, and zero means no funding state was observed.
 	FundingRevision uint64 `json:"funding_revision,omitempty"`
 }
 
-// BalancesList holds balance rows.
+// BalancesList holds balance rows. Its Trading values (trading, reserved and
+// available) are one atomic cut, every asset at the single position
+// (TradingEpoch, TradingSequence), so a client can continue from it with the
+// balance stream; see BalancesService.Subscribe.
 type BalancesList struct {
 	Balances []AssetBalance `json:"balances"`
+	// TradingEpoch is the Trading numbering the balances are in. It changes
+	// when the numbering restarts. Compare it only for equality: its value
+	// has no order. Zero, with TradingSequence zero, when the account has no
+	// Trading balances yet.
+	TradingEpoch uint64 `json:"trading_epoch,omitempty"`
+	// TradingSequence is the position of the Trading values within
+	// TradingEpoch: the stream's Trading updates apply from TradingSequence+1.
+	TradingSequence uint64 `json:"trading_sequence,omitempty"`
+	// TradingAppliedThroughTsNs is a receipt within TradingEpoch, in
+	// nanoseconds since the Unix epoch: every Trading transfer of the account
+	// whose TsNs is at or below it is applied in these balances. It never
+	// passes a transfer that is not applied.
+	TradingAppliedThroughTsNs uint64 `json:"trading_applied_through_ts_ns,omitempty"`
 }
 
 // BalanceHistorySeries is one balance history series.
@@ -742,11 +775,19 @@ type LedgerTransfer struct {
 	// withdrawal, not as a fee. 1075 (WITHDRAW_FAILED) is the same debit for a
 	// Funding-account withdrawal. A rejected withdrawal is refunded, less the
 	// request fee, to the account's own wallet; one that failed to execute is
-	// not refunded.
-	TransferType int   `json:"transfer_type,omitempty"`
-	AccountCode  int   `json:"account_code,omitempty"`
-	Timestamp    int64 `json:"timestamp,omitempty"`
-	Pending      bool  `json:"pending,omitempty"`
+	// not refunded. 1064 (FUNDING_OPENING_BALANCE) is the opening balance of
+	// a funding account, credited from a system account when its transfer
+	// history starts: show it as an incoming balance, like a deposit.
+	TransferType int `json:"transfer_type,omitempty"`
+	AccountCode  int `json:"account_code,omitempty"`
+	// Timestamp is the transfer time in microseconds since the Unix epoch.
+	Timestamp int64 `json:"timestamp,omitempty"`
+	// TsNs is the exact transfer time in nanoseconds since the Unix epoch;
+	// 0 when the server did not send it. A transfer whose TsNs is at or below
+	// the TradingAppliedThroughTsNs of a balance read or Trading update of the
+	// account's current epoch is applied in those balances.
+	TsNs    uint64 `json:"ts_ns,omitempty"`
+	Pending bool   `json:"pending,omitempty"`
 	// TxID is the transfer's lifecycle flow ID (the contract's flow_id), the
 	// ID Lifecycle.GetFlow accepts; empty when the transfer belongs to no
 	// flow. A Trading-to-Funding transfer carries it from its first realtime
@@ -1261,11 +1302,18 @@ type ApiKeySummary struct {
 	CreatedByActor string `json:"created_by_actor,omitempty"`
 	Status         string `json:"status,omitempty"`
 	// Purpose is "STANDARD" for the user's own keys, "ASSISTANT" for keys
-	// the user created for the Polyester assistant and "ADMIN_KEY" for an
+	// the user created for the Polyester assistant, "ADMIN_KEY" for an
 	// admin key, an elevated key of the main account that manages the
-	// account's other API keys and its sub-accounts' policies;
-	// "PURPOSE_UNSPECIFIED" from a server that predates the field.
-	Purpose          string `json:"purpose,omitempty"`
+	// account's other API keys and its sub-accounts' policies, and
+	// "STRATEGY_BOT" for the key a strategy bot trades with on its own
+	// sub-account; "PURPOSE_UNSPECIFIED" from a server that predates the
+	// field. A strategy bot manages its key until its access ends: changing,
+	// deleting or re-binding it is refused with AUTH_STRATEGY_BOT_MANAGED, so
+	// offer no edit for it.
+	Purpose string `json:"purpose,omitempty"`
+	// StrategyBotID is the public ID of the strategy bot a "STRATEGY_BOT"
+	// key trades for; empty for every other key.
+	StrategyBotID    string `json:"strategy_bot_id,omitempty"`
 	PublicKeyEd25519 string `json:"public_key_ed25519,omitempty"`
 	// SubaccountID is the public ID of the sub-account the key is scoped to;
 	// empty for a key of the main account.

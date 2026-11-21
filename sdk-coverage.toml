@@ -190,3 +190,11 @@ reason = "The public live price band read is not wrapped in this SDK yet; call i
 [[allowlist]]
 service = "strategies.v1.StrategiesService"
 reason = "preview, not served yet"
+
+[[allowlist]]
+procedure = "/auth.v1.ApiKeyService/SetStrategyBotAccess"
+reason = "Strategy bot access is managed in the web app; not part of this SDK yet."
+
+[[allowlist]]
+procedure = "/auth.v1.ApiKeyService/EndStrategyBotAccess"
+reason = "Strategy bot access is managed in the web app; not part of this SDK yet."
