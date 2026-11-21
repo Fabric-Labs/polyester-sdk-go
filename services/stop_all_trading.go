@@ -20,7 +20,9 @@ var stopAllLiveTriggerStatuses = []string{"created", "armed", "running", "paused
 // StopAllTradingScope selects what StopAllTrading stops. SubAccountID and
 // Symbol narrow both the triggers and the orders; nil means every sub-account
 // the account scope reaches and every market. RequestID is the cancel-all
-// request ID (its idempotency key).
+// request ID (its idempotency key). A blank Symbol, or a RequestID that is
+// empty or padded, is refused before anything is canceled, as
+// OrdersService.CancelAllWith refuses it.
 type StopAllTradingScope struct {
 	SubAccountID *string
 	Symbol       *string
@@ -65,6 +67,16 @@ type StopAllTradingResult struct {
 // when ListTriggers answers with a page token it already sent in this run.
 func StopAllTrading(ctx context.Context, triggers *TriggersService, orders *OrdersService, account AccountScope, scope StopAllTradingScope) (StopAllTradingResult, error) {
 	var result StopAllTradingResult
+	cancelAllParams := CancelAllParams{
+		SubAccountID: scope.SubAccountID,
+		Symbol:       scope.Symbol,
+		RequestID:    scope.RequestID,
+	}
+	// The final cancel-all refuses a blank symbol or a request ID it would
+	// not send as given: refuse it here, before any trigger is canceled.
+	if err := checkCancelAllOrders(cancelAllParams); err != nil {
+		return result, err
+	}
 	var targets []stopAllTarget
 	seen := map[string]bool{}
 	ocoTarget := map[string]int{}
@@ -124,11 +136,7 @@ func StopAllTrading(ctx context.Context, triggers *TriggersService, orders *Orde
 		}
 		result.CanceledTriggers = append(result.CanceledTriggers, canceled...)
 	}
-	cancelAll, err := orders.CancelAllWith(ctx, account, CancelAllParams{
-		SubAccountID: scope.SubAccountID,
-		Symbol:       scope.Symbol,
-		RequestID:    scope.RequestID,
-	})
+	cancelAll, err := orders.CancelAllWith(ctx, account, cancelAllParams)
 	if err != nil {
 		return result, err
 	}
