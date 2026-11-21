@@ -592,8 +592,11 @@ const (
 	ErrorCode_ERROR_CODE_GATEWAY_MISCONFIGURED ErrorCode = 77
 	// The order identifier or the replacement order identifier is not valid.
 	ErrorCode_ERROR_CODE_INVALID_ORDER_ID ErrorCode = 80
-	// The quantity of a trigger's child order or a ladder order can't be raised
-	// above its planned quantity. Nothing changed.
+	// A ladder level or the exit order of a take-profit, stop-loss or trailing
+	// leg can't be raised above its cap. Nothing changed. A ladder level's cap
+	// is its planned quantity, even after the level was reduced. An exit
+	// order's cap is its current quantity: reducing an exit returns the reduced
+	// quantity to the legs that protect the position.
 	ErrorCode_ERROR_CODE_CHILD_QTY_RAISE_NOT_ALLOWED ErrorCode = 81
 	// Attached take-profit, stop-loss or trailing legs can't be applied to this
 	// order: it was placed by a triggered take-profit, stop-loss or
@@ -690,6 +693,10 @@ const (
 	// refresh of the same order can get this code. Retry after a short backoff.
 	// For a batch item, resend only that item in a new batch under a fresh request
 	// ID, because the rejected batch's request ID returns this rejection again.
+	// A modify that adds or changes an attached take-profit, stop-loss or
+	// trailing leg also gets this code while a cancel of triggers is ending
+	// the order's attached legs, which end together; retry it once they have
+	// ended.
 	ErrorCode_ERROR_CODE_ORDER_MODIFY_IN_PROGRESS ErrorCode = 226
 	// The placement of the order, or of the replacement an earlier replace
 	// created, has not been confirmed yet, so it cannot be modified. It may already
@@ -4218,10 +4225,11 @@ func (*RiskPolicy_StopLoss) isRiskPolicy_StopLeg() {}
 
 func (*RiskPolicy_TrailingStop) isRiskPolicy_StopLeg() {}
 
-// CancelAllOrdersRequest cancels all matching open orders for an account.
-// It cancels orders only, never triggers: see CancelAllOrders for what
-// happens to stop-loss, take-profit and trailing stops, TWAPs, ladders and
-// attached legs, and how to stop them too.
+// CancelAllOrdersRequest cancels all matching open orders for an account,
+// and with `include_triggers` its matching triggers too: see CancelAllOrders
+// for what happens to stop-loss, take-profit and trailing stops, TWAPs,
+// ladders and attached legs without it. To cancel triggers without
+// canceling orders, use triggers.v1.TriggersService.CancelAllTriggers.
 type CancelAllOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -4547,7 +4555,8 @@ func (x *CancelAllOrdersResponse) GetMatchedTriggers() uint32 {
 
 // CancelAllAfterRequest arms/disables a dead-man switch for automatic cancel-all.
 // When the switch fires, it cancels what a CancelAllOrders with the same
-// scope cancels: open orders, never triggers. See CancelAllAfter.
+// scope cancels: open orders, and triggers only with `include_triggers`.
+// See CancelAllAfter.
 type CancelAllAfterRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -4653,9 +4662,10 @@ func (x *CancelAllAfterRequest) GetIncludeTriggers() bool {
 
 // DeadManSwitchScope describes the recorded scope of an armed dead-man switch.
 // Expiry cancels working orders in this scope, including orders that
-// triggers placed. It cancels no trigger: armed stop-loss, take-profit and
-// trailing stops and running TWAPs remain active and may create further
-// orders after expiry. Cancel them with TriggersService.CancelTrigger.
+// triggers placed. Unless the switch was armed with `include_triggers`, it
+// cancels no trigger: armed stop-loss, take-profit and trailing stops and
+// running TWAPs remain active and may create further orders after expiry.
+// Cancel them with triggers.v1.TriggersService.CancelAllTriggers.
 type DeadManSwitchScope struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public ID of the account or sub-account whose orders are canceled.
@@ -6910,16 +6920,16 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xce&\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xc5'\n" +
 	"\rOrdersService\x12\x9a\x02\n" +
 	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc8\x01\xbaG\xbe\x01\n" +
 	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\xa2\xb5\x18\x02\x01\x02\x12\xb0\x02\n" +
 	"\vCreateOrder\x12\x1d.orders.v1.CreateOrderRequest\x1a\x1e.orders.v1.CreateOrderResponse\"\xe1\x01\xbaG\xd7\x01\n" +
 	"\x0eOrders Service\x12\fCreate Order\x1a\xb6\x01Create a single order with side, type, quantity, and optional price fields. Supports optional client order IDs and attached risk instructions (take-profit, stop-loss, trailing stop).\xa2\xb5\x18\x02\x01\x02\x12\xe4\x01\n" +
 	"\vCancelOrder\x12\x1d.orders.v1.CancelOrderRequest\x1a\x1e.orders.v1.CancelOrderResponse\"\x95\x01\xbaG\x8b\x01\n" +
-	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\xa2\xb5\x18\x02\x01\x02\x12\x92\r\n" +
-	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xb7\f\xbaG\xad\f\n" +
-	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\x87\fCancel all matching open orders for an account. Supports an optional list of symbols and a side filter plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count. Unless it is a dry run, it covers every matching order admitted before its requestId was first admitted, from any interface, including orders not yet open and replacement orders: an order whose create or replace response arrived before the first request with this requestId was sent is covered, while requests still in flight or with an unknown outcome have no defined order with it. A retry with the same requestId keeps the original scope and covers no order admitted since; use a fresh requestId for a new cancellation. Each covered order eventually ends; any still open when the cancellation applies is canceled. It cancels open orders, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, in the same request; matched_triggers counts them.\xa2\xb5\x18\x02\x01\x02\x12\xf5\a\n" +
+	"\x0eOrders Service\x12\fCancel Order\x1akCancel a single open order by order ID or client order ID. Supports optional subaccount and symbol scoping.\xa2\xb5\x18\x02\x01\x02\x12\x89\x0e\n" +
+	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xae\r\xbaG\xa4\r\n" +
+	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\xfe\fCancel all matching open orders for an account. Supports an optional list of symbols and a side filter plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count. Unless it is a dry run, it covers every matching order admitted before its requestId was first admitted, from any interface, including orders not yet open and replacement orders: an order whose create or replace response arrived before the first request with this requestId was sent is covered, while requests still in flight or with an unknown outcome have no defined order with it. A retry with the same requestId keeps the original scope and covers no order admitted since; use a fresh requestId for a new cancellation. Each covered order eventually ends; any still open when the cancellation applies is canceled. It cancels open orders, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, in the same request; matched_triggers counts them. Every request counts 10 against the cancel rate limit, however many orders it cancels, a dry run and a retry included.\xa2\xb5\x18\x02\x01\x02\x12\xf5\a\n" +
 	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\x9d\a\xbaG\x93\a\n" +
 	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\xdc\x06Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh. On expiry it cancels open orders in scope, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, when the switch fires.\xa2\xb5\x18\x02\x01\x02\x12\xa5\x02\n" +
 	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xc4\x01\xbaG\xba\x01\n" +

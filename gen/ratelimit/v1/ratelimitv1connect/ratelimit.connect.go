@@ -49,7 +49,7 @@ type RateLimitServiceClient interface {
 	GetRateLimitConfig(context.Context, *connect.Request[v1.GetRateLimitConfigRequest]) (*connect.Response[v1.GetRateLimitConfigResponse], error)
 	// Get the effective placement, cancellation and read limits for the
 	// authenticated caller's root account or selected subaccount. Costs one
-	// unit of the root account's read limit.
+	// unit of the account's read limit.
 	GetTradingRateLimits(context.Context, *connect.Request[v1.GetTradingRateLimitsRequest]) (*connect.Response[v1.GetTradingRateLimitsResponse], error)
 }
 
@@ -104,7 +104,7 @@ type RateLimitServiceHandler interface {
 	GetRateLimitConfig(context.Context, *connect.Request[v1.GetRateLimitConfigRequest]) (*connect.Response[v1.GetRateLimitConfigResponse], error)
 	// Get the effective placement, cancellation and read limits for the
 	// authenticated caller's root account or selected subaccount. Costs one
-	// unit of the root account's read limit.
+	// unit of the account's read limit.
 	GetTradingRateLimits(context.Context, *connect.Request[v1.GetTradingRateLimitsRequest]) (*connect.Response[v1.GetTradingRateLimitsResponse], error)
 }
 

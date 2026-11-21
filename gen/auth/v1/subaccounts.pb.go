@@ -224,6 +224,12 @@ const (
 	// View the sub-account's deposit, withdrawal, and transfer flows, including
 	// those without a public chain transaction.
 	SubaccountPermission_SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS SubaccountPermission = 31
+	// View the sub-account's profit and loss: realized and unrealized PnL,
+	// holdings with their entry price, trading statistics and the daily series.
+	SubaccountPermission_SUBACCOUNT_PERMISSION_READ_PNL SubaccountPermission = 32
+	// Stop the bot that runs on the sub-account, keeping or cancelling its
+	// orders.
+	SubaccountPermission_SUBACCOUNT_PERMISSION_STOP_STRATEGIES SubaccountPermission = 33
 )
 
 // Enum value maps for SubaccountPermission.
@@ -261,6 +267,8 @@ var (
 		29: "SUBACCOUNT_PERMISSION_READ_STATEMENTS",
 		30: "SUBACCOUNT_PERMISSION_CONVERT_DUST",
 		31: "SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS",
+		32: "SUBACCOUNT_PERMISSION_READ_PNL",
+		33: "SUBACCOUNT_PERMISSION_STOP_STRATEGIES",
 	}
 	SubaccountPermission_value = map[string]int32{
 		"SUBACCOUNT_PERMISSION_UNSPECIFIED":                    0,
@@ -295,6 +303,8 @@ var (
 		"SUBACCOUNT_PERMISSION_READ_STATEMENTS":                29,
 		"SUBACCOUNT_PERMISSION_CONVERT_DUST":                   30,
 		"SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS":             31,
+		"SUBACCOUNT_PERMISSION_READ_PNL":                       32,
+		"SUBACCOUNT_PERMISSION_STOP_STRATEGIES":                33,
 	}
 )
 
@@ -3562,7 +3572,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x10LEVERAGED_TRADER\x10\x03\x12\f\n" +
 	"\bTREASURY\x10\x04\x12\t\n" +
 	"\x05ADMIN\x10\x05\x12\t\n" +
-	"\x05OWNER\x10\x06*\xb2\v\n" +
+	"\x05OWNER\x10\x06*\x81\f\n" +
 	"\x14SubaccountPermission\x12%\n" +
 	"!SUBACCOUNT_PERMISSION_UNSPECIFIED\x10\x00\x12)\n" +
 	"%SUBACCOUNT_PERMISSION_READ_SUBACCOUNT\x10\x01\x12+\n" +
@@ -3596,7 +3606,9 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x1aSUBACCOUNT_PERMISSION_SWAP\x10\x1c\x12)\n" +
 	"%SUBACCOUNT_PERMISSION_READ_STATEMENTS\x10\x1d\x12&\n" +
 	"\"SUBACCOUNT_PERMISSION_CONVERT_DUST\x10\x1e\x12,\n" +
-	"(SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS\x10\x1f*\xde\x01\n" +
+	"(SUBACCOUNT_PERMISSION_READ_FUNDING_FLOWS\x10\x1f\x12\"\n" +
+	"\x1eSUBACCOUNT_PERMISSION_READ_PNL\x10 \x12)\n" +
+	"%SUBACCOUNT_PERMISSION_STOP_STRATEGIES\x10!*\xde\x01\n" +
 	"\x16SubaccountInviteStatus\x12(\n" +
 	"$SUBACCOUNT_INVITE_STATUS_UNSPECIFIED\x10\x00\x12$\n" +
 	" SUBACCOUNT_INVITE_STATUS_PENDING\x10\x01\x12%\n" +

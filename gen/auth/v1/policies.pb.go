@@ -208,6 +208,15 @@ const (
 	// never deploys a bot, creates a subaccount or moves funds. Main-account
 	// permission.
 	PolicyAction_PROPOSE_STRATEGY_DEPLOY PolicyAction = 48
+	// Allow reading the account's profit and loss: realized and unrealized PnL,
+	// holdings with their entry price, trading statistics and the daily
+	// series. It grants no balance or trade read. Like READ_BALANCES, it is
+	// part of every sub-account's read floor.
+	PolicyAction_READ_PNL PolicyAction = 49
+	// Allow stopping the main account's bots, keeping or cancelling their
+	// orders. Stopping only reduces what a bot does: it never deploys a bot,
+	// changes its money rules or moves funds. Main-account permission.
+	PolicyAction_STOP_STRATEGIES PolicyAction = 50
 )
 
 // Enum value maps for PolicyAction.
@@ -258,6 +267,8 @@ var (
 		46: "READ_STRATEGIES",
 		47: "DRAFT_STRATEGIES",
 		48: "PROPOSE_STRATEGY_DEPLOY",
+		49: "READ_PNL",
+		50: "STOP_STRATEGIES",
 	}
 	PolicyAction_value = map[string]int32{
 		"UNSPECIFIED":                 0,
@@ -305,6 +316,8 @@ var (
 		"READ_STRATEGIES":             46,
 		"DRAFT_STRATEGIES":            47,
 		"PROPOSE_STRATEGY_DEPLOY":     48,
+		"READ_PNL":                    49,
+		"STOP_STRATEGIES":             50,
 	}
 )
 
@@ -2527,7 +2540,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"6\n" +
 	"\x17SetApiKeyPolicyResponse\x12\x1b\n" +
-	"\tpolicy_id\x18\x01 \x01(\x06R\bpolicyId*\xc7\b\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06R\bpolicyId*\xea\b\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2575,7 +2588,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x1aMANAGE_SUBACCOUNT_POLICIES\x10-\x12\x13\n" +
 	"\x0fREAD_STRATEGIES\x10.\x12\x14\n" +
 	"\x10DRAFT_STRATEGIES\x10/\x12\x1b\n" +
-	"\x17PROPOSE_STRATEGY_DEPLOY\x1002\x9b\x1e\n" +
+	"\x17PROPOSE_STRATEGY_DEPLOY\x100\x12\f\n" +
+	"\bREAD_PNL\x101\x12\x13\n" +
+	"\x0fSTOP_STRATEGIES\x1022\x9b\x1e\n" +
 	"\rPolicyService\x12\xfc\x02\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x90\x02\xbaG\xe1\x01\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a\xb6\x01List sub-account policy templates available to the caller. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x02\n" +

@@ -1292,7 +1292,8 @@ type GetCandlesColumnsResponse struct {
 	// market_data_volume_scale from GetSpotConfig.
 	Volume []int64 `protobuf:"varint,8,rep,packed,name=volume,proto3" json:"volume,omitempty"`
 	// Reference candle series in columnar form (same ordering as ts_sec: oldest-first).
-	// Only populated when request.include_reference=true.
+	// Only populated when request.include_reference=true. Reference rows are
+	// always closed buckets, also with include_incomplete=true.
 	ReferenceTsSec []uint64 `protobuf:"varint,9,rep,packed,name=reference_ts_sec,json=referenceTsSec,proto3" json:"reference_ts_sec,omitempty"`
 	// Reference opening prices use the pair's reference_price_scale.
 	ReferenceOpen []int64 `protobuf:"varint,10,rep,packed,name=reference_open,json=referenceOpen,proto3" json:"reference_open,omitempty"`
@@ -1308,7 +1309,12 @@ type GetCandlesColumnsResponse struct {
 	// Opaque cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,15,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
 	// Exact traded quote-asset volumes, oldest-first and aligned with ts_sec.
-	QuoteVolume   []string `protobuf:"bytes,16,rep,name=quote_volume,json=quoteVolume,proto3" json:"quote_volume,omitempty"`
+	QuoteVolume []string `protobuf:"bytes,16,rep,name=quote_volume,json=quoteVolume,proto3" json:"quote_volume,omitempty"`
+	// Closed-bucket flags, oldest-first and aligned with ts_sec: true when the
+	// bucket is closed; with include_incomplete=false every row is closed. With
+	// include_incomplete=true, only the current open candle, appended last, is
+	// false.
+	IsClosed      []bool `protobuf:"varint,17,rep,packed,name=is_closed,json=isClosed,proto3" json:"is_closed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1451,6 +1457,13 @@ func (x *GetCandlesColumnsResponse) GetNextPageToken() string {
 func (x *GetCandlesColumnsResponse) GetQuoteVolume() []string {
 	if x != nil {
 		return x.QuoteVolume
+	}
+	return nil
+}
+
+func (x *GetCandlesColumnsResponse) GetIsClosed() []bool {
+	if x != nil {
+		return x.IsClosed
 	}
 	return nil
 }
@@ -2601,7 +2614,7 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x124\n" +
 	"\acandles\x18\x03 \x03(\v2\x1a.marketdata.v1.CandlePointR\acandles\x12G\n" +
 	"\x11reference_candles\x18\x04 \x03(\v2\x1a.marketdata.v1.CandlePointR\x10referenceCandles\x120\n" +
-	"\x0fnext_page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xb5\x04\n" +
+	"\x0fnext_page_token\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\xd2\x04\n" +
 	"\x19GetCandlesColumnsResponse\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x12\x15\n" +
@@ -2619,7 +2632,8 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x0freference_close\x18\r \x03(\x03R\x0ereferenceClose\x12)\n" +
 	"\x10reference_volume\x18\x0e \x03(\x03R\x0freferenceVolume\x120\n" +
 	"\x0fnext_page_token\x18\x0f \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x12!\n" +
-	"\fquote_volume\x18\x10 \x03(\tR\vquoteVolume\"\xff\x01\n" +
+	"\fquote_volume\x18\x10 \x03(\tR\vquoteVolume\x12\x1b\n" +
+	"\tis_closed\x18\x11 \x03(\bR\bisClosed\"\xff\x01\n" +
 	"\x06Candle\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x126\n" +
 	"\ttimeframe\x18\x02 \x01(\x0e2\x18.marketdata.v1.TimeframeR\ttimeframe\x12\x15\n" +

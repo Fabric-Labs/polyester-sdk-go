@@ -8,6 +8,7 @@ package marketoverviewv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	_ "github.com/google/gnostic/openapiv3"
 	_ "google.golang.org/genproto/googleapis/api/annotations"
@@ -408,8 +409,16 @@ type MarketOverview struct {
 	// Current multi-venue index price in quote units scaled by 1e9.
 	// Zero when no fresh, valid index price is available.
 	IndexPriceTicks int64 `protobuf:"varint,16,opt,name=index_price_ticks,json=indexPriceTicks,proto3" json:"index_price_ticks,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// The pair's live price band, as GetPriceBand returns it, present only
+	// while a band was confirmed current within the last 5 seconds. Absent
+	// means no fresh band is known, not that the pair has no band. This is a
+	// convenience copy: the market overview stream sends a row again when its
+	// band changes, appears or lapses, not on each confirmation, so a copy whose
+	// valid_until_ts_ns has passed is unknown. Check order prices against
+	// GetPriceBand or the price band stream.
+	PriceBand     *v1.LivePriceBand `protobuf:"bytes,18,opt,name=price_band,json=priceBand,proto3" json:"price_band,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *MarketOverview) Reset() {
@@ -552,6 +561,13 @@ func (x *MarketOverview) GetIndexPriceTicks() int64 {
 		return x.IndexPriceTicks
 	}
 	return 0
+}
+
+func (x *MarketOverview) GetPriceBand() *v1.LivePriceBand {
+	if x != nil {
+		return x.PriceBand
+	}
+	return nil
 }
 
 type ListMarketOverviewRequest struct {
@@ -1446,13 +1462,13 @@ var File_marketoverview_v1_marketoverview_proto protoreflect.FileDescriptor
 
 const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\n" +
-	"&marketoverview/v1/marketoverview.proto\x12\x11marketoverview.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1bpolyester/api/options.proto\"?\n" +
+	"&marketoverview/v1/marketoverview.proto\x12\x11marketoverview.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1emarketdata/v1/marketdata.proto\x1a\x1bpolyester/api/options.proto\"?\n" +
 	"\vErrorDetail\x120\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x1c.marketoverview.v1.ErrorCodeR\x04code\"x\n" +
 	"\tSparkline\x12J\n" +
 	"\binterval\x18\x01 \x01(\x0e2$.marketoverview.v1.SparklineIntervalB\b\xbaH\x05\x82\x01\x02\x10\x01R\binterval\x12\x1f\n" +
 	"\vclose_ticks\x18\x02 \x03(\x03R\n" +
-	"closeTicks\"\xa5\x06\n" +
+	"closeTicks\"\xe2\x06\n" +
 	"\x0eMarketOverview\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12(\n" +
 	"\x10last_price_ticks\x18\x03 \x01(\x03R\x0elastPriceTicks\x12'\n" +
@@ -1473,7 +1489,9 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\n" +
 	"sparklines\x18\r \x03(\v2\x1c.marketoverview.v1.SparklineR\n" +
 	"sparklines\x12*\n" +
-	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicksB\x19\n" +
+	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicks\x12;\n" +
+	"\n" +
+	"price_band\x18\x12 \x01(\v2\x1c.marketdata.v1.LivePriceBandR\tpriceBandB\x19\n" +
 	"\x17_volume_24h_base_scaledB\x1a\n" +
 	"\x18_volume_24h_quote_scaledB\x18\n" +
 	"\x16_volume_24h_usd_scaled\"\xb0\x03\n" +
@@ -1604,35 +1622,37 @@ var file_marketoverview_v1_marketoverview_proto_goTypes = []any{
 	(*StablecoinConversionRate)(nil),            // 18: marketoverview.v1.StablecoinConversionRate
 	(*GetCurrencyConversionRatesRequest)(nil),   // 19: marketoverview.v1.GetCurrencyConversionRatesRequest
 	(*GetCurrencyConversionRatesResponse)(nil),  // 20: marketoverview.v1.GetCurrencyConversionRatesResponse
+	(*v1.LivePriceBand)(nil),                    // 21: marketdata.v1.LivePriceBand
 }
 var file_marketoverview_v1_marketoverview_proto_depIdxs = []int32{
 	3,  // 0: marketoverview.v1.ErrorDetail.code:type_name -> marketoverview.v1.ErrorCode
 	0,  // 1: marketoverview.v1.Sparkline.interval:type_name -> marketoverview.v1.SparklineInterval
 	5,  // 2: marketoverview.v1.MarketOverview.sparklines:type_name -> marketoverview.v1.Sparkline
-	1,  // 3: marketoverview.v1.ListMarketOverviewRequest.order_by:type_name -> marketoverview.v1.MarketOrderBy
-	2,  // 4: marketoverview.v1.ListMarketOverviewRequest.sort:type_name -> marketoverview.v1.SortDirection
-	0,  // 5: marketoverview.v1.ListMarketOverviewRequest.sparkline_intervals:type_name -> marketoverview.v1.SparklineInterval
-	6,  // 6: marketoverview.v1.ListMarketOverviewResponse.markets:type_name -> marketoverview.v1.MarketOverview
-	6,  // 7: marketoverview.v1.MarketOverviewBatch.markets:type_name -> marketoverview.v1.MarketOverview
-	11, // 8: marketoverview.v1.GetSpotVolumeHistoryResponse.pairs:type_name -> marketoverview.v1.SpotPairVolumeSeries
-	13, // 9: marketoverview.v1.GetCurrencyConversionConfigResponse.fiat:type_name -> marketoverview.v1.CurrencyMetadata
-	13, // 10: marketoverview.v1.GetCurrencyConversionConfigResponse.stablecoins:type_name -> marketoverview.v1.CurrencyMetadata
-	16, // 11: marketoverview.v1.FiatConversionSnapshot.rates:type_name -> marketoverview.v1.FiatConversionRate
-	17, // 12: marketoverview.v1.GetCurrencyConversionRatesResponse.fiat:type_name -> marketoverview.v1.FiatConversionSnapshot
-	18, // 13: marketoverview.v1.GetCurrencyConversionRatesResponse.stablecoins:type_name -> marketoverview.v1.StablecoinConversionRate
-	14, // 14: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:input_type -> marketoverview.v1.GetCurrencyConversionConfigRequest
-	19, // 15: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:input_type -> marketoverview.v1.GetCurrencyConversionRatesRequest
-	10, // 16: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:input_type -> marketoverview.v1.GetSpotVolumeHistoryRequest
-	7,  // 17: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
-	15, // 18: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:output_type -> marketoverview.v1.GetCurrencyConversionConfigResponse
-	20, // 19: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:output_type -> marketoverview.v1.GetCurrencyConversionRatesResponse
-	12, // 20: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:output_type -> marketoverview.v1.GetSpotVolumeHistoryResponse
-	8,  // 21: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
-	18, // [18:22] is the sub-list for method output_type
-	14, // [14:18] is the sub-list for method input_type
-	14, // [14:14] is the sub-list for extension type_name
-	14, // [14:14] is the sub-list for extension extendee
-	0,  // [0:14] is the sub-list for field type_name
+	21, // 3: marketoverview.v1.MarketOverview.price_band:type_name -> marketdata.v1.LivePriceBand
+	1,  // 4: marketoverview.v1.ListMarketOverviewRequest.order_by:type_name -> marketoverview.v1.MarketOrderBy
+	2,  // 5: marketoverview.v1.ListMarketOverviewRequest.sort:type_name -> marketoverview.v1.SortDirection
+	0,  // 6: marketoverview.v1.ListMarketOverviewRequest.sparkline_intervals:type_name -> marketoverview.v1.SparklineInterval
+	6,  // 7: marketoverview.v1.ListMarketOverviewResponse.markets:type_name -> marketoverview.v1.MarketOverview
+	6,  // 8: marketoverview.v1.MarketOverviewBatch.markets:type_name -> marketoverview.v1.MarketOverview
+	11, // 9: marketoverview.v1.GetSpotVolumeHistoryResponse.pairs:type_name -> marketoverview.v1.SpotPairVolumeSeries
+	13, // 10: marketoverview.v1.GetCurrencyConversionConfigResponse.fiat:type_name -> marketoverview.v1.CurrencyMetadata
+	13, // 11: marketoverview.v1.GetCurrencyConversionConfigResponse.stablecoins:type_name -> marketoverview.v1.CurrencyMetadata
+	16, // 12: marketoverview.v1.FiatConversionSnapshot.rates:type_name -> marketoverview.v1.FiatConversionRate
+	17, // 13: marketoverview.v1.GetCurrencyConversionRatesResponse.fiat:type_name -> marketoverview.v1.FiatConversionSnapshot
+	18, // 14: marketoverview.v1.GetCurrencyConversionRatesResponse.stablecoins:type_name -> marketoverview.v1.StablecoinConversionRate
+	14, // 15: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:input_type -> marketoverview.v1.GetCurrencyConversionConfigRequest
+	19, // 16: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:input_type -> marketoverview.v1.GetCurrencyConversionRatesRequest
+	10, // 17: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:input_type -> marketoverview.v1.GetSpotVolumeHistoryRequest
+	7,  // 18: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
+	15, // 19: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:output_type -> marketoverview.v1.GetCurrencyConversionConfigResponse
+	20, // 20: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:output_type -> marketoverview.v1.GetCurrencyConversionRatesResponse
+	12, // 21: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:output_type -> marketoverview.v1.GetSpotVolumeHistoryResponse
+	8,  // 22: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
+	19, // [19:23] is the sub-list for method output_type
+	15, // [15:19] is the sub-list for method input_type
+	15, // [15:15] is the sub-list for extension type_name
+	15, // [15:15] is the sub-list for extension extendee
+	0,  // [0:15] is the sub-list for field type_name
 }
 
 func init() { file_marketoverview_v1_marketoverview_proto_init() }

@@ -140,7 +140,12 @@ type OrdersServiceClient interface {
 	// To stop all automated trading in one request, set `include_triggers`:
 	// every matching trigger ends canceled with reason
 	// TRIGGER_CANCEL_REASON_CANCEL_ALL, none places an order after the
-	// response, and `matched_triggers` counts them.
+	// response, and `matched_triggers` counts them. To cancel triggers without
+	// canceling orders, use triggers.v1.TriggersService.CancelAllTriggers.
+	//
+	// Every request counts 10 against the account's cancel rate limit,
+	// however many orders it cancels: a dry run and a retry with the same
+	// request_id count the same.
 	CancelAllOrders(context.Context, *connect.Request[v1.CancelAllOrdersRequest]) (*connect.Response[v1.CancelAllOrdersResponse], error)
 	// Set cancel-all-after (dead-man switch).
 	// Arms or disables automatic cancel-all if heartbeat is not refreshed before expiry.
@@ -381,7 +386,12 @@ type OrdersServiceHandler interface {
 	// To stop all automated trading in one request, set `include_triggers`:
 	// every matching trigger ends canceled with reason
 	// TRIGGER_CANCEL_REASON_CANCEL_ALL, none places an order after the
-	// response, and `matched_triggers` counts them.
+	// response, and `matched_triggers` counts them. To cancel triggers without
+	// canceling orders, use triggers.v1.TriggersService.CancelAllTriggers.
+	//
+	// Every request counts 10 against the account's cancel rate limit,
+	// however many orders it cancels: a dry run and a retry with the same
+	// request_id count the same.
 	CancelAllOrders(context.Context, *connect.Request[v1.CancelAllOrdersRequest]) (*connect.Response[v1.CancelAllOrdersResponse], error)
 	// Set cancel-all-after (dead-man switch).
 	// Arms or disables automatic cancel-all if heartbeat is not refreshed before expiry.

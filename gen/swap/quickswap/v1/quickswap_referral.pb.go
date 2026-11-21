@@ -1719,6 +1719,236 @@ func (x *ListReferralLedgerResponse) GetNextPageToken() string {
 	return ""
 }
 
+// GetReferralStatsRequest reads the activity of the QuickSwaps the caller
+// referred, and the commission they credited it, in a time window, in
+// buckets of one UTC hour, day or month, with an optional breakdown.
+//
+// Both bounds are rounded down to the minute before the read. Every time a
+// referral partner sees is minute-granular, as in ListReferredQuickSwaps:
+// a referred QuickSwap's exact time could be matched to its on-chain
+// deposit or payout, and so to the person who swapped, and second-precise
+// bounds would reveal it by narrowing the window. So a QuickSwap created in
+// the window's last partial minute, the current minute when end_time is
+// now, counts from the first request whose end_time is in the next minute
+// or later. Changes to QuickSwaps already counted show within seconds.
+type GetReferralStatsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bucket length.
+	GroupBy StatsPeriod `protobuf:"varint,1,opt,name=group_by,json=groupBy,proto3,enum=swap.quickswap.v1.StatsPeriod" json:"group_by,omitempty"`
+	// Start of the window, inclusive, rounded down to the minute. For "All",
+	// ReferralPartner.created_at with MONTH.
+	StartTime *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
+	// End of the window, exclusive, rounded down to the minute. The window is
+	// checked once rounded: it must end after it starts and be at most 7 days
+	// long for HOUR, 366 days for DAY and 3660 days for MONTH, else
+	// INVALID_ARGUMENT.
+	EndTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// ROUTE, SOURCE_ASSET or DESTINATION_ASSET; unset for the totals series
+	// only. VAULT is refused.
+	Breakdown StatsBreakdown `protobuf:"varint,4,opt,name=breakdown,proto3,enum=swap.quickswap.v1.StatsBreakdown" json:"breakdown,omitempty"`
+	// One group of the breakdown to return with its per-bucket columns even
+	// when it is not among the 10 that get them. A group with no activity in
+	// the window is returned at zero, after the groups with activity; it
+	// never takes one of the 10.
+	//
+	// Types that are valid to be assigned to DrillDown:
+	//
+	//	*GetReferralStatsRequest_Route
+	//	*GetReferralStatsRequest_SourceZippedAssetId
+	//	*GetReferralStatsRequest_DestinationZippedAssetId
+	DrillDown isGetReferralStatsRequest_DrillDown `protobuf_oneof:"drill_down"`
+	// Also return the totals series' exact amounts per bucket and asset:
+	// cell_deposited, cell_delivered and cell_referral_fee (the commission).
+	// They grow with the buckets times the assets, so leave this unset
+	// unless they are needed.
+	IncludeCells  bool `protobuf:"varint,8,opt,name=include_cells,json=includeCells,proto3" json:"include_cells,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReferralStatsRequest) Reset() {
+	*x = GetReferralStatsRequest{}
+	mi := &file_swap_quickswap_v1_quickswap_referral_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReferralStatsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReferralStatsRequest) ProtoMessage() {}
+
+func (x *GetReferralStatsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_referral_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReferralStatsRequest.ProtoReflect.Descriptor instead.
+func (*GetReferralStatsRequest) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_referral_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *GetReferralStatsRequest) GetGroupBy() StatsPeriod {
+	if x != nil {
+		return x.GroupBy
+	}
+	return StatsPeriod_PERIOD_UNSPECIFIED
+}
+
+func (x *GetReferralStatsRequest) GetStartTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartTime
+	}
+	return nil
+}
+
+func (x *GetReferralStatsRequest) GetEndTime() *timestamppb.Timestamp {
+	if x != nil {
+		return x.EndTime
+	}
+	return nil
+}
+
+func (x *GetReferralStatsRequest) GetBreakdown() StatsBreakdown {
+	if x != nil {
+		return x.Breakdown
+	}
+	return StatsBreakdown_BREAKDOWN_UNSPECIFIED
+}
+
+func (x *GetReferralStatsRequest) GetDrillDown() isGetReferralStatsRequest_DrillDown {
+	if x != nil {
+		return x.DrillDown
+	}
+	return nil
+}
+
+func (x *GetReferralStatsRequest) GetRoute() *StatsRoute {
+	if x != nil {
+		if x, ok := x.DrillDown.(*GetReferralStatsRequest_Route); ok {
+			return x.Route
+		}
+	}
+	return nil
+}
+
+func (x *GetReferralStatsRequest) GetSourceZippedAssetId() uint32 {
+	if x != nil {
+		if x, ok := x.DrillDown.(*GetReferralStatsRequest_SourceZippedAssetId); ok {
+			return x.SourceZippedAssetId
+		}
+	}
+	return 0
+}
+
+func (x *GetReferralStatsRequest) GetDestinationZippedAssetId() uint32 {
+	if x != nil {
+		if x, ok := x.DrillDown.(*GetReferralStatsRequest_DestinationZippedAssetId); ok {
+			return x.DestinationZippedAssetId
+		}
+	}
+	return 0
+}
+
+func (x *GetReferralStatsRequest) GetIncludeCells() bool {
+	if x != nil {
+		return x.IncludeCells
+	}
+	return false
+}
+
+type isGetReferralStatsRequest_DrillDown interface {
+	isGetReferralStatsRequest_DrillDown()
+}
+
+type GetReferralStatsRequest_Route struct {
+	// The route, for the ROUTE breakdown.
+	Route *StatsRoute `protobuf:"bytes,5,opt,name=route,proto3,oneof"`
+}
+
+type GetReferralStatsRequest_SourceZippedAssetId struct {
+	// The source asset and network, for the SOURCE_ASSET breakdown.
+	SourceZippedAssetId uint32 `protobuf:"varint,6,opt,name=source_zipped_asset_id,json=sourceZippedAssetId,proto3,oneof"`
+}
+
+type GetReferralStatsRequest_DestinationZippedAssetId struct {
+	// The destination asset and network, for the DESTINATION_ASSET
+	// breakdown.
+	DestinationZippedAssetId uint32 `protobuf:"varint,7,opt,name=destination_zipped_asset_id,json=destinationZippedAssetId,proto3,oneof"`
+}
+
+func (*GetReferralStatsRequest_Route) isGetReferralStatsRequest_DrillDown() {}
+
+func (*GetReferralStatsRequest_SourceZippedAssetId) isGetReferralStatsRequest_DrillDown() {}
+
+func (*GetReferralStatsRequest_DestinationZippedAssetId) isGetReferralStatsRequest_DrillDown() {}
+
+// GetReferralStatsResponse is the activity of the QuickSwaps the caller
+// referred, in GetBrokerStats' columns.
+//
+// Every fee in it is the caller's commission: fees, fees_usd_q4 and
+// fees_usd count only the commission, referral_fee_usd and
+// cell_referral_fee carry it, and the service, broker and affiliate fee
+// columns are empty.
+//
+// as_of_ts_sec is minute-granular for the same reason as the window
+// bounds, and rounded up so the answer holds nothing newer: the end of the
+// minute the newest change counted was published in, or the time of the
+// read while that minute is the current one. The newest change counted was
+// published in the 60 seconds before it; zero when the answer counts none.
+type GetReferralStatsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The stats.
+	Stats         *GetBrokerStatsResponse `protobuf:"bytes,1,opt,name=stats,proto3" json:"stats,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetReferralStatsResponse) Reset() {
+	*x = GetReferralStatsResponse{}
+	mi := &file_swap_quickswap_v1_quickswap_referral_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetReferralStatsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetReferralStatsResponse) ProtoMessage() {}
+
+func (x *GetReferralStatsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_referral_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetReferralStatsResponse.ProtoReflect.Descriptor instead.
+func (*GetReferralStatsResponse) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_referral_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *GetReferralStatsResponse) GetStats() *GetBrokerStatsResponse {
+	if x != nil {
+		return x.Stats
+	}
+	return nil
+}
+
 var File_swap_quickswap_v1_quickswap_referral_proto protoreflect.FileDescriptor
 
 const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
@@ -1835,7 +2065,23 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"#list_referral_ledger_request.window\x12!end_time must be after start_time\x1aO!has(this.start_time) || !has(this.end_time) || this.end_time > this.start_time\"\x83\x01\n" +
 	"\x1aListReferralLedgerResponse\x12=\n" +
 	"\aentries\x18\x01 \x03(\v2#.swap.quickswap.v1.VaultLedgerEntryR\aentries\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*v\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xa1\x06\n" +
+	"\x17GetReferralStatsRequest\x12F\n" +
+	"\bgroup_by\x18\x01 \x01(\x0e2\x1e.swap.quickswap.v1.StatsPeriodB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\agroupBy\x12A\n" +
+	"\n" +
+	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
+	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12K\n" +
+	"\tbreakdown\x18\x04 \x01(\x0e2!.swap.quickswap.v1.StatsBreakdownB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\tbreakdown\x125\n" +
+	"\x05route\x18\x05 \x01(\v2\x1d.swap.quickswap.v1.StatsRouteH\x00R\x05route\x125\n" +
+	"\x16source_zipped_asset_id\x18\x06 \x01(\rH\x00R\x13sourceZippedAssetId\x12?\n" +
+	"\x1bdestination_zipped_asset_id\x18\a \x01(\rH\x00R\x18destinationZippedAssetId\x12#\n" +
+	"\rinclude_cells\x18\b \x01(\bR\fincludeCells:\x8c\x02\xbaH\x88\x02\x1a\x85\x02\n" +
+	"%get_referral_stats_request.drill_down\x12/a drill-down must name a group of the breakdown\x1a\xaa\x01(!has(this.route) || this.breakdown == 1) && (!has(this.source_zipped_asset_id) || this.breakdown == 3) && (!has(this.destination_zipped_asset_id) || this.breakdown == 4)B\f\n" +
+	"\n" +
+	"drill_down\"[\n" +
+	"\x18GetReferralStatsResponse\x12?\n" +
+	"\x05stats\x18\x01 \x01(\v2).swap.quickswap.v1.GetBrokerStatsResponseR\x05stats*v\n" +
 	"\x15ReferralPartnerStatus\x12\x1e\n" +
 	"\x1aPARTNER_STATUS_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fPARTNER_PENDING\x10\x01\x12\x12\n" +
@@ -1851,7 +2097,7 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"\fCODE_INVALID\x10\x05*Q\n" +
 	"\x17ReferralCommissionBasis\x12 \n" +
 	"\x1cCOMMISSION_BASIS_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10PRE_DISCOUNT_FEE\x10\x012\xd9\x11\n" +
+	"\x10PRE_DISCOUNT_FEE\x10\x012\xa9\x14\n" +
 	"\x18QuickSwapReferralService\x12\xcb\x02\n" +
 	"\x15EnrollReferralPartner\x12/.swap.quickswap.v1.EnrollReferralPartnerRequest\x1a0.swap.quickswap.v1.EnrollReferralPartnerResponse\"\xce\x01\xbaG~\n" +
 	"\x12QuickSwap Referral\x12\x17Enroll referral partner\x1aOApply to become a referral partner, paid into one of the caller's sub-accounts.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x18EARNINGS_ACCOUNT_INVALID\xaa\xb5\x18\x17REFERRAL_PARTNER_EXISTS\x12\x9c\x02\n" +
@@ -1866,8 +2112,10 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"\x14GetReferredQuickSwap\x12..swap.quickswap.v1.GetReferredQuickSwapRequest\x1a/.swap.quickswap.v1.GetReferredQuickSwapResponse\"\xc4\x01\xbaG{\n" +
 	"\x12QuickSwap Referral\x12\x16Get referred QuickSwap\x1aMGet one QuickSwap the caller referred, with its fee and commission breakdown.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\xaa\xb5\x18\x0eSWAP_NOT_FOUND\x12\xb3\x02\n" +
 	"\x12ListReferralLedger\x12,.swap.quickswap.v1.ListReferralLedgerRequest\x1a-.swap.quickswap.v1.ListReferralLedgerResponse\"\xbf\x01\xbaG\x87\x01\n" +
-	"\x12QuickSwap Referral\x12\x14List referral ledger\x1a[List the commission credits and payouts of the caller's earnings sub-account, newest first.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x1a\r\x8a\xb5\x18\tquickswapB\xe9\x01\xbaG\x9a\x01:\x97\x01\n" +
-	"\x12QuickSwap Referral\x12\x80\x01A referral partner's own record: enrollment, status, rates, referral code, the QuickSwaps it referred and its commission ledger.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
+	"\x12QuickSwap Referral\x12\x14List referral ledger\x1a[List the commission credits and payouts of the caller's earnings sub-account, newest first.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x12\xcd\x02\n" +
+	"\x10GetReferralStats\x12*.swap.quickswap.v1.GetReferralStatsRequest\x1a+.swap.quickswap.v1.GetReferralStatsResponse\"\xdf\x01\xbaG\x97\x01\n" +
+	"\x12QuickSwap Referral\x12\x12Get referral stats\x1amGet the activity and commission of the QuickSwaps the caller referred, over time, with an optional breakdown.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x1a\r\x8a\xb5\x18\tquickswapB\xf4\x01\xbaG\xa5\x01:\xa2\x01\n" +
+	"\x12QuickSwap Referral\x12\x8b\x01A referral partner's own record: enrollment, status, rates, referral code, the QuickSwaps it referred, its commission ledger and its stats.ZIgithub.com/Fabric-Labs/polyester-sdk-go/gen/swap/quickswap/v1;quickswapv1b\x06proto3"
 
 var (
 	file_swap_quickswap_v1_quickswap_referral_proto_rawDescOnce sync.Once
@@ -1882,7 +2130,7 @@ func file_swap_quickswap_v1_quickswap_referral_proto_rawDescGZIP() []byte {
 }
 
 var file_swap_quickswap_v1_quickswap_referral_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_swap_quickswap_v1_quickswap_referral_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_swap_quickswap_v1_quickswap_referral_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_swap_quickswap_v1_quickswap_referral_proto_goTypes = []any{
 	(ReferralPartnerStatus)(0),             // 0: swap.quickswap.v1.ReferralPartnerStatus
 	(ReferralCodeAvailability)(0),          // 1: swap.quickswap.v1.ReferralCodeAvailability
@@ -1909,10 +2157,16 @@ var file_swap_quickswap_v1_quickswap_referral_proto_goTypes = []any{
 	(*GetReferredQuickSwapResponse)(nil),   // 22: swap.quickswap.v1.GetReferredQuickSwapResponse
 	(*ListReferralLedgerRequest)(nil),      // 23: swap.quickswap.v1.ListReferralLedgerRequest
 	(*ListReferralLedgerResponse)(nil),     // 24: swap.quickswap.v1.ListReferralLedgerResponse
-	(*timestamppb.Timestamp)(nil),          // 25: google.protobuf.Timestamp
-	(*TokenAmount)(nil),                    // 26: swap.quickswap.v1.TokenAmount
-	(QuickSwapStatus)(0),                   // 27: swap.quickswap.v1.QuickSwapStatus
-	(*VaultLedgerEntry)(nil),               // 28: swap.quickswap.v1.VaultLedgerEntry
+	(*GetReferralStatsRequest)(nil),        // 25: swap.quickswap.v1.GetReferralStatsRequest
+	(*GetReferralStatsResponse)(nil),       // 26: swap.quickswap.v1.GetReferralStatsResponse
+	(*timestamppb.Timestamp)(nil),          // 27: google.protobuf.Timestamp
+	(*TokenAmount)(nil),                    // 28: swap.quickswap.v1.TokenAmount
+	(QuickSwapStatus)(0),                   // 29: swap.quickswap.v1.QuickSwapStatus
+	(*VaultLedgerEntry)(nil),               // 30: swap.quickswap.v1.VaultLedgerEntry
+	(StatsPeriod)(0),                       // 31: swap.quickswap.v1.StatsPeriod
+	(StatsBreakdown)(0),                    // 32: swap.quickswap.v1.StatsBreakdown
+	(*StatsRoute)(nil),                     // 33: swap.quickswap.v1.StatsRoute
+	(*GetBrokerStatsResponse)(nil),         // 34: swap.quickswap.v1.GetBrokerStatsResponse
 }
 var file_swap_quickswap_v1_quickswap_referral_proto_depIdxs = []int32{
 	3,  // 0: swap.quickswap.v1.ReferralProgram.normal:type_name -> swap.quickswap.v1.ReferralRates
@@ -1920,54 +2174,62 @@ var file_swap_quickswap_v1_quickswap_referral_proto_depIdxs = []int32{
 	3,  // 2: swap.quickswap.v1.ReferralProgram.bridging:type_name -> swap.quickswap.v1.ReferralRates
 	0,  // 3: swap.quickswap.v1.ReferralPartner.status:type_name -> swap.quickswap.v1.ReferralPartnerStatus
 	4,  // 4: swap.quickswap.v1.ReferralPartner.program:type_name -> swap.quickswap.v1.ReferralProgram
-	25, // 5: swap.quickswap.v1.ReferralPartner.created_at:type_name -> google.protobuf.Timestamp
+	27, // 5: swap.quickswap.v1.ReferralPartner.created_at:type_name -> google.protobuf.Timestamp
 	5,  // 6: swap.quickswap.v1.EnrollReferralPartnerResponse.partner:type_name -> swap.quickswap.v1.ReferralPartner
 	5,  // 7: swap.quickswap.v1.GetReferralPartnerResponse.partner:type_name -> swap.quickswap.v1.ReferralPartner
 	1,  // 8: swap.quickswap.v1.CheckReferralCodeResponse.availability:type_name -> swap.quickswap.v1.ReferralCodeAvailability
 	5,  // 9: swap.quickswap.v1.SetReferralCodeResponse.partner:type_name -> swap.quickswap.v1.ReferralPartner
-	26, // 10: swap.quickswap.v1.ReferralCommission.amount:type_name -> swap.quickswap.v1.TokenAmount
-	26, // 11: swap.quickswap.v1.ReferralCredit.amount:type_name -> swap.quickswap.v1.TokenAmount
-	25, // 12: swap.quickswap.v1.ReferralCredit.accrued_at:type_name -> google.protobuf.Timestamp
-	27, // 13: swap.quickswap.v1.ReferredQuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	25, // 14: swap.quickswap.v1.ReferredQuickSwap.created_at:type_name -> google.protobuf.Timestamp
-	25, // 15: swap.quickswap.v1.ReferredQuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
-	26, // 16: swap.quickswap.v1.ReferredQuickSwap.quoted_source_amount:type_name -> swap.quickswap.v1.TokenAmount
-	26, // 17: swap.quickswap.v1.ReferredQuickSwap.quoted_destination_amount:type_name -> swap.quickswap.v1.TokenAmount
-	26, // 18: swap.quickswap.v1.ReferredQuickSwap.source_amount:type_name -> swap.quickswap.v1.TokenAmount
-	26, // 19: swap.quickswap.v1.ReferredQuickSwap.destination_amount:type_name -> swap.quickswap.v1.TokenAmount
+	28, // 10: swap.quickswap.v1.ReferralCommission.amount:type_name -> swap.quickswap.v1.TokenAmount
+	28, // 11: swap.quickswap.v1.ReferralCredit.amount:type_name -> swap.quickswap.v1.TokenAmount
+	27, // 12: swap.quickswap.v1.ReferralCredit.accrued_at:type_name -> google.protobuf.Timestamp
+	29, // 13: swap.quickswap.v1.ReferredQuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
+	27, // 14: swap.quickswap.v1.ReferredQuickSwap.created_at:type_name -> google.protobuf.Timestamp
+	27, // 15: swap.quickswap.v1.ReferredQuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
+	28, // 16: swap.quickswap.v1.ReferredQuickSwap.quoted_source_amount:type_name -> swap.quickswap.v1.TokenAmount
+	28, // 17: swap.quickswap.v1.ReferredQuickSwap.quoted_destination_amount:type_name -> swap.quickswap.v1.TokenAmount
+	28, // 18: swap.quickswap.v1.ReferredQuickSwap.source_amount:type_name -> swap.quickswap.v1.TokenAmount
+	28, // 19: swap.quickswap.v1.ReferredQuickSwap.destination_amount:type_name -> swap.quickswap.v1.TokenAmount
 	14, // 20: swap.quickswap.v1.ReferredQuickSwap.commission:type_name -> swap.quickswap.v1.ReferralCommission
-	25, // 21: swap.quickswap.v1.ReferralCommissionValue.as_of:type_name -> google.protobuf.Timestamp
+	27, // 21: swap.quickswap.v1.ReferralCommissionValue.as_of:type_name -> google.protobuf.Timestamp
 	2,  // 22: swap.quickswap.v1.ReferralBreakdown.basis:type_name -> swap.quickswap.v1.ReferralCommissionBasis
 	15, // 23: swap.quickswap.v1.ReferralBreakdown.credited:type_name -> swap.quickswap.v1.ReferralCredit
 	17, // 24: swap.quickswap.v1.ReferralBreakdown.commission_value:type_name -> swap.quickswap.v1.ReferralCommissionValue
-	25, // 25: swap.quickswap.v1.ListReferredQuickSwapsRequest.start_time:type_name -> google.protobuf.Timestamp
-	25, // 26: swap.quickswap.v1.ListReferredQuickSwapsRequest.end_time:type_name -> google.protobuf.Timestamp
-	27, // 27: swap.quickswap.v1.ListReferredQuickSwapsRequest.statuses:type_name -> swap.quickswap.v1.QuickSwapStatus
+	27, // 25: swap.quickswap.v1.ListReferredQuickSwapsRequest.start_time:type_name -> google.protobuf.Timestamp
+	27, // 26: swap.quickswap.v1.ListReferredQuickSwapsRequest.end_time:type_name -> google.protobuf.Timestamp
+	29, // 27: swap.quickswap.v1.ListReferredQuickSwapsRequest.statuses:type_name -> swap.quickswap.v1.QuickSwapStatus
 	16, // 28: swap.quickswap.v1.ListReferredQuickSwapsResponse.quick_swaps:type_name -> swap.quickswap.v1.ReferredQuickSwap
 	16, // 29: swap.quickswap.v1.GetReferredQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.ReferredQuickSwap
 	18, // 30: swap.quickswap.v1.GetReferredQuickSwapResponse.breakdown:type_name -> swap.quickswap.v1.ReferralBreakdown
-	25, // 31: swap.quickswap.v1.ListReferralLedgerRequest.start_time:type_name -> google.protobuf.Timestamp
-	25, // 32: swap.quickswap.v1.ListReferralLedgerRequest.end_time:type_name -> google.protobuf.Timestamp
-	28, // 33: swap.quickswap.v1.ListReferralLedgerResponse.entries:type_name -> swap.quickswap.v1.VaultLedgerEntry
-	6,  // 34: swap.quickswap.v1.QuickSwapReferralService.EnrollReferralPartner:input_type -> swap.quickswap.v1.EnrollReferralPartnerRequest
-	8,  // 35: swap.quickswap.v1.QuickSwapReferralService.GetReferralPartner:input_type -> swap.quickswap.v1.GetReferralPartnerRequest
-	10, // 36: swap.quickswap.v1.QuickSwapReferralService.CheckReferralCode:input_type -> swap.quickswap.v1.CheckReferralCodeRequest
-	12, // 37: swap.quickswap.v1.QuickSwapReferralService.SetReferralCode:input_type -> swap.quickswap.v1.SetReferralCodeRequest
-	19, // 38: swap.quickswap.v1.QuickSwapReferralService.ListReferredQuickSwaps:input_type -> swap.quickswap.v1.ListReferredQuickSwapsRequest
-	21, // 39: swap.quickswap.v1.QuickSwapReferralService.GetReferredQuickSwap:input_type -> swap.quickswap.v1.GetReferredQuickSwapRequest
-	23, // 40: swap.quickswap.v1.QuickSwapReferralService.ListReferralLedger:input_type -> swap.quickswap.v1.ListReferralLedgerRequest
-	7,  // 41: swap.quickswap.v1.QuickSwapReferralService.EnrollReferralPartner:output_type -> swap.quickswap.v1.EnrollReferralPartnerResponse
-	9,  // 42: swap.quickswap.v1.QuickSwapReferralService.GetReferralPartner:output_type -> swap.quickswap.v1.GetReferralPartnerResponse
-	11, // 43: swap.quickswap.v1.QuickSwapReferralService.CheckReferralCode:output_type -> swap.quickswap.v1.CheckReferralCodeResponse
-	13, // 44: swap.quickswap.v1.QuickSwapReferralService.SetReferralCode:output_type -> swap.quickswap.v1.SetReferralCodeResponse
-	20, // 45: swap.quickswap.v1.QuickSwapReferralService.ListReferredQuickSwaps:output_type -> swap.quickswap.v1.ListReferredQuickSwapsResponse
-	22, // 46: swap.quickswap.v1.QuickSwapReferralService.GetReferredQuickSwap:output_type -> swap.quickswap.v1.GetReferredQuickSwapResponse
-	24, // 47: swap.quickswap.v1.QuickSwapReferralService.ListReferralLedger:output_type -> swap.quickswap.v1.ListReferralLedgerResponse
-	41, // [41:48] is the sub-list for method output_type
-	34, // [34:41] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	27, // 31: swap.quickswap.v1.ListReferralLedgerRequest.start_time:type_name -> google.protobuf.Timestamp
+	27, // 32: swap.quickswap.v1.ListReferralLedgerRequest.end_time:type_name -> google.protobuf.Timestamp
+	30, // 33: swap.quickswap.v1.ListReferralLedgerResponse.entries:type_name -> swap.quickswap.v1.VaultLedgerEntry
+	31, // 34: swap.quickswap.v1.GetReferralStatsRequest.group_by:type_name -> swap.quickswap.v1.StatsPeriod
+	27, // 35: swap.quickswap.v1.GetReferralStatsRequest.start_time:type_name -> google.protobuf.Timestamp
+	27, // 36: swap.quickswap.v1.GetReferralStatsRequest.end_time:type_name -> google.protobuf.Timestamp
+	32, // 37: swap.quickswap.v1.GetReferralStatsRequest.breakdown:type_name -> swap.quickswap.v1.StatsBreakdown
+	33, // 38: swap.quickswap.v1.GetReferralStatsRequest.route:type_name -> swap.quickswap.v1.StatsRoute
+	34, // 39: swap.quickswap.v1.GetReferralStatsResponse.stats:type_name -> swap.quickswap.v1.GetBrokerStatsResponse
+	6,  // 40: swap.quickswap.v1.QuickSwapReferralService.EnrollReferralPartner:input_type -> swap.quickswap.v1.EnrollReferralPartnerRequest
+	8,  // 41: swap.quickswap.v1.QuickSwapReferralService.GetReferralPartner:input_type -> swap.quickswap.v1.GetReferralPartnerRequest
+	10, // 42: swap.quickswap.v1.QuickSwapReferralService.CheckReferralCode:input_type -> swap.quickswap.v1.CheckReferralCodeRequest
+	12, // 43: swap.quickswap.v1.QuickSwapReferralService.SetReferralCode:input_type -> swap.quickswap.v1.SetReferralCodeRequest
+	19, // 44: swap.quickswap.v1.QuickSwapReferralService.ListReferredQuickSwaps:input_type -> swap.quickswap.v1.ListReferredQuickSwapsRequest
+	21, // 45: swap.quickswap.v1.QuickSwapReferralService.GetReferredQuickSwap:input_type -> swap.quickswap.v1.GetReferredQuickSwapRequest
+	23, // 46: swap.quickswap.v1.QuickSwapReferralService.ListReferralLedger:input_type -> swap.quickswap.v1.ListReferralLedgerRequest
+	25, // 47: swap.quickswap.v1.QuickSwapReferralService.GetReferralStats:input_type -> swap.quickswap.v1.GetReferralStatsRequest
+	7,  // 48: swap.quickswap.v1.QuickSwapReferralService.EnrollReferralPartner:output_type -> swap.quickswap.v1.EnrollReferralPartnerResponse
+	9,  // 49: swap.quickswap.v1.QuickSwapReferralService.GetReferralPartner:output_type -> swap.quickswap.v1.GetReferralPartnerResponse
+	11, // 50: swap.quickswap.v1.QuickSwapReferralService.CheckReferralCode:output_type -> swap.quickswap.v1.CheckReferralCodeResponse
+	13, // 51: swap.quickswap.v1.QuickSwapReferralService.SetReferralCode:output_type -> swap.quickswap.v1.SetReferralCodeResponse
+	20, // 52: swap.quickswap.v1.QuickSwapReferralService.ListReferredQuickSwaps:output_type -> swap.quickswap.v1.ListReferredQuickSwapsResponse
+	22, // 53: swap.quickswap.v1.QuickSwapReferralService.GetReferredQuickSwap:output_type -> swap.quickswap.v1.GetReferredQuickSwapResponse
+	24, // 54: swap.quickswap.v1.QuickSwapReferralService.ListReferralLedger:output_type -> swap.quickswap.v1.ListReferralLedgerResponse
+	26, // 55: swap.quickswap.v1.QuickSwapReferralService.GetReferralStats:output_type -> swap.quickswap.v1.GetReferralStatsResponse
+	48, // [48:56] is the sub-list for method output_type
+	40, // [40:48] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_referral_proto_init() }
@@ -1977,13 +2239,18 @@ func file_swap_quickswap_v1_quickswap_referral_proto_init() {
 	}
 	file_swap_quickswap_v1_quickswap_proto_init()
 	file_swap_quickswap_v1_quickswap_broker_proto_init()
+	file_swap_quickswap_v1_quickswap_referral_proto_msgTypes[22].OneofWrappers = []any{
+		(*GetReferralStatsRequest_Route)(nil),
+		(*GetReferralStatsRequest_SourceZippedAssetId)(nil),
+		(*GetReferralStatsRequest_DestinationZippedAssetId)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swap_quickswap_v1_quickswap_referral_proto_rawDesc), len(file_swap_quickswap_v1_quickswap_referral_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   22,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

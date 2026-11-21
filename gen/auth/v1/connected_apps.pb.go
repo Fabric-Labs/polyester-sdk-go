@@ -88,8 +88,11 @@ type AppConnectionRequest struct {
 	Client *ConnectedAppClient `protobuf:"bytes,1,opt,name=client,proto3" json:"client,omitempty"`
 	// OAuth scopes the app asks for. "account:read" lets the app read the
 	// account as the signed-in website does: balances, orders, trades and
-	// account settings. A connected app never moves money out of the account
-	// and never changes its security settings.
+	// account settings. "strategies:manage", which an app asks for only
+	// together with "account:read": Build, test and propose trading bots, and
+	// stop running bots. It can't deploy a bot or move funds. A connected app
+	// never moves money out of the account and never changes its security
+	// settings.
 	Scopes []string `protobuf:"bytes,2,rep,name=scopes,proto3" json:"scopes,omitempty"`
 	// The server the app will use the account through, as an absolute URL.
 	Resource string `protobuf:"bytes,3,opt,name=resource,proto3" json:"resource,omitempty"`

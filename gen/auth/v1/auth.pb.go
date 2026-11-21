@@ -278,6 +278,22 @@ const (
 	// The account already has the most connected apps it may have. Disconnect
 	// an app before connecting another. FailedPrecondition.
 	AuthErrorCode_AUTH_CONNECTED_APP_LIMIT_REACHED AuthErrorCode = 73
+	// A strategy bot manages this API key, policy or sub-account: until
+	// EndStrategyBotAccess ends the bot's access, no other call changes the
+	// bot's key or its policy, or the sub-account's policy, keys, members or
+	// invites, or enables the sub-account again. Disabling the sub-account,
+	// renaming it and removing its members stay available. HTTP 412,
+	// AUTH_STRATEGY_BOT_MANAGED.
+	AuthErrorCode_AUTH_STRATEGY_BOT_MANAGED AuthErrorCode = 74
+	// The sub-account cannot be given to a strategy bot: it is disabled,
+	// already a bot's or a QuickSwap broker vault, or has a policy, an API key
+	// that is not revoked, a member or a pending invite. HTTP 412,
+	// AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE.
+	AuthErrorCode_AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE AuthErrorCode = 75
+	// The deploy operation identifier names a different strategy bot access
+	// request, or an operation that already ended. HTTP 409,
+	// AUTH_STRATEGY_BOT_OPERATION_CONFLICT.
+	AuthErrorCode_AUTH_STRATEGY_BOT_OPERATION_CONFLICT AuthErrorCode = 76
 )
 
 // Enum value maps for AuthErrorCode.
@@ -355,6 +371,9 @@ var (
 		71: "AUTH_ADMIN_KEY_ALLOWLIST_INVALID",
 		72: "AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED",
 		73: "AUTH_CONNECTED_APP_LIMIT_REACHED",
+		74: "AUTH_STRATEGY_BOT_MANAGED",
+		75: "AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE",
+		76: "AUTH_STRATEGY_BOT_OPERATION_CONFLICT",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                        0,
@@ -429,6 +448,9 @@ var (
 		"AUTH_ADMIN_KEY_ALLOWLIST_INVALID":        71,
 		"AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED":       72,
 		"AUTH_CONNECTED_APP_LIMIT_REACHED":        73,
+		"AUTH_STRATEGY_BOT_MANAGED":               74,
+		"AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE": 75,
+		"AUTH_STRATEGY_BOT_OPERATION_CONFLICT":    76,
 	}
 )
 
@@ -1204,7 +1226,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\xac\x12\n" +
+	"\x05LOGIN\x10\x01*\xa2\x13\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1278,7 +1300,10 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x1fAUTH_ADMIN_KEY_FORBIDDEN_TARGET\x10F\x12$\n" +
 	" AUTH_ADMIN_KEY_ALLOWLIST_INVALID\x10G\x12%\n" +
 	"!AUTH_ADMIN_KEY_ACTION_NOT_ALLOWED\x10H\x12$\n" +
-	" AUTH_CONNECTED_APP_LIMIT_REACHED\x10I2\xa6\b\n" +
+	" AUTH_CONNECTED_APP_LIMIT_REACHED\x10I\x12\x1d\n" +
+	"\x19AUTH_STRATEGY_BOT_MANAGED\x10J\x12+\n" +
+	"'AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE\x10K\x12(\n" +
+	"$AUTH_STRATEGY_BOT_OPERATION_CONFLICT\x10L2\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +

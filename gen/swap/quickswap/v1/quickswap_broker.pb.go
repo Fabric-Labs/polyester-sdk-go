@@ -8,8 +8,9 @@ package quickswapv1
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
-	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
+	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
+	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -211,16 +212,20 @@ func (FeeTotalsGrouping) EnumDescriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{2}
 }
 
-// StatsPeriod is the UTC calendar period GetBrokerStats groups by.
+// StatsPeriod is the length of one GetBrokerStats bucket. Buckets are UTC
+// hours, days or calendar months.
 type StatsPeriod int32
 
 const (
 	// No period; rejected.
 	StatsPeriod_PERIOD_UNSPECIFIED StatsPeriod = 0
-	// A UTC day.
+	// A UTC day. The window is at most 366 days long.
 	StatsPeriod_DAY StatsPeriod = 1
-	// A UTC month.
+	// A UTC calendar month. The window is at most 3660 days long, so one
+	// request covers a broker's whole history.
 	StatsPeriod_MONTH StatsPeriod = 2
+	// A UTC hour. The window is at most 7 days long.
+	StatsPeriod_HOUR StatsPeriod = 3
 )
 
 // Enum value maps for StatsPeriod.
@@ -229,11 +234,13 @@ var (
 		0: "PERIOD_UNSPECIFIED",
 		1: "DAY",
 		2: "MONTH",
+		3: "HOUR",
 	}
 	StatsPeriod_value = map[string]int32{
 		"PERIOD_UNSPECIFIED": 0,
 		"DAY":                1,
 		"MONTH":              2,
+		"HOUR":               3,
 	}
 )
 
@@ -262,6 +269,70 @@ func (x StatsPeriod) Number() protoreflect.EnumNumber {
 // Deprecated: Use StatsPeriod.Descriptor instead.
 func (StatsPeriod) EnumDescriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{3}
+}
+
+// StatsBreakdown is what GetBrokerStats groups a broker's QuickSwaps by,
+// beside their totals.
+type StatsBreakdown int32
+
+const (
+	// No breakdown: the totals series only.
+	StatsBreakdown_BREAKDOWN_UNSPECIFIED StatsBreakdown = 0
+	// By route: source and destination asset and network.
+	StatsBreakdown_ROUTE StatsBreakdown = 1
+	// By the vault the QuickSwaps credited a broker or affiliate fee to. A
+	// QuickSwap that credited several vaults counts in each, so vault groups
+	// overlap.
+	StatsBreakdown_VAULT StatsBreakdown = 2
+	// By source asset and network.
+	StatsBreakdown_SOURCE_ASSET StatsBreakdown = 3
+	// By destination asset and network.
+	StatsBreakdown_DESTINATION_ASSET StatsBreakdown = 4
+)
+
+// Enum value maps for StatsBreakdown.
+var (
+	StatsBreakdown_name = map[int32]string{
+		0: "BREAKDOWN_UNSPECIFIED",
+		1: "ROUTE",
+		2: "VAULT",
+		3: "SOURCE_ASSET",
+		4: "DESTINATION_ASSET",
+	}
+	StatsBreakdown_value = map[string]int32{
+		"BREAKDOWN_UNSPECIFIED": 0,
+		"ROUTE":                 1,
+		"VAULT":                 2,
+		"SOURCE_ASSET":          3,
+		"DESTINATION_ASSET":     4,
+	}
+)
+
+func (x StatsBreakdown) Enum() *StatsBreakdown {
+	p := new(StatsBreakdown)
+	*p = x
+	return p
+}
+
+func (x StatsBreakdown) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StatsBreakdown) Descriptor() protoreflect.EnumDescriptor {
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[4].Descriptor()
+}
+
+func (StatsBreakdown) Type() protoreflect.EnumType {
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[4]
+}
+
+func (x StatsBreakdown) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StatsBreakdown.Descriptor instead.
+func (StatsBreakdown) EnumDescriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{4}
 }
 
 // PayoutStatus is what one payout run of a broker vault came to, from the
@@ -344,11 +415,11 @@ func (x PayoutStatus) String() string {
 }
 
 func (PayoutStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[4].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[5].Descriptor()
 }
 
 func (PayoutStatus) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[4]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[5]
 }
 
 func (x PayoutStatus) Number() protoreflect.EnumNumber {
@@ -357,7 +428,7 @@ func (x PayoutStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PayoutStatus.Descriptor instead.
 func (PayoutStatus) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{4}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{5}
 }
 
 // PayoutStage is where an in-progress payout run stands.
@@ -407,11 +478,11 @@ func (x PayoutStage) String() string {
 }
 
 func (PayoutStage) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[5].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[6].Descriptor()
 }
 
 func (PayoutStage) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[5]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[6]
 }
 
 func (x PayoutStage) Number() protoreflect.EnumNumber {
@@ -420,7 +491,7 @@ func (x PayoutStage) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PayoutStage.Descriptor instead.
 func (PayoutStage) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{5}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{6}
 }
 
 // PayoutStepState is where one asset's payout in a run stands.
@@ -478,11 +549,11 @@ func (x PayoutStepState) String() string {
 }
 
 func (PayoutStepState) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[6].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[7].Descriptor()
 }
 
 func (PayoutStepState) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[6]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[7]
 }
 
 func (x PayoutStepState) Number() protoreflect.EnumNumber {
@@ -491,7 +562,7 @@ func (x PayoutStepState) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PayoutStepState.Descriptor instead.
 func (PayoutStepState) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{6}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{7}
 }
 
 // VaultLedgerEntryKind is what moved in a vault ledger entry.
@@ -541,11 +612,11 @@ func (x VaultLedgerEntryKind) String() string {
 }
 
 func (VaultLedgerEntryKind) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[7].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[8].Descriptor()
 }
 
 func (VaultLedgerEntryKind) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[7]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[8]
 }
 
 func (x VaultLedgerEntryKind) Number() protoreflect.EnumNumber {
@@ -554,7 +625,7 @@ func (x VaultLedgerEntryKind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use VaultLedgerEntryKind.Descriptor instead.
 func (VaultLedgerEntryKind) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{7}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{8}
 }
 
 // PayoutClose is how a debited payout's withdrawal ended.
@@ -612,11 +683,11 @@ func (x PayoutClose) String() string {
 }
 
 func (PayoutClose) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[8].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[9].Descriptor()
 }
 
 func (PayoutClose) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[8]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[9]
 }
 
 func (x PayoutClose) Number() protoreflect.EnumNumber {
@@ -625,7 +696,7 @@ func (x PayoutClose) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use PayoutClose.Descriptor instead.
 func (PayoutClose) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{8}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{9}
 }
 
 // AllowlistAction is what a payout address allowlist change does.
@@ -665,11 +736,11 @@ func (x AllowlistAction) String() string {
 }
 
 func (AllowlistAction) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[9].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[10].Descriptor()
 }
 
 func (AllowlistAction) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[9]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[10]
 }
 
 func (x AllowlistAction) Number() protoreflect.EnumNumber {
@@ -678,7 +749,7 @@ func (x AllowlistAction) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AllowlistAction.Descriptor instead.
 func (AllowlistAction) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{9}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{10}
 }
 
 // AllowlistChangeStatus is where a payout address allowlist change stands.
@@ -726,11 +797,11 @@ func (x AllowlistChangeStatus) String() string {
 }
 
 func (AllowlistChangeStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[10].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[11].Descriptor()
 }
 
 func (AllowlistChangeStatus) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[10]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[11]
 }
 
 func (x AllowlistChangeStatus) Number() protoreflect.EnumNumber {
@@ -739,7 +810,7 @@ func (x AllowlistChangeStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AllowlistChangeStatus.Descriptor instead.
 func (AllowlistChangeStatus) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{10}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{11}
 }
 
 // AllowlistChangeFailure is why a change ended NOT_APPLIED.
@@ -794,11 +865,11 @@ func (x AllowlistChangeFailure) String() string {
 }
 
 func (AllowlistChangeFailure) Descriptor() protoreflect.EnumDescriptor {
-	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[11].Descriptor()
+	return file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[12].Descriptor()
 }
 
 func (AllowlistChangeFailure) Type() protoreflect.EnumType {
-	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[11]
+	return &file_swap_quickswap_v1_quickswap_broker_proto_enumTypes[12]
 }
 
 func (x AllowlistChangeFailure) Number() protoreflect.EnumNumber {
@@ -807,7 +878,7 @@ func (x AllowlistChangeFailure) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use AllowlistChangeFailure.Descriptor instead.
 func (AllowlistChangeFailure) EnumDescriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{11}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{12}
 }
 
 // Broker is a broker org.
@@ -3844,26 +3915,103 @@ func (x *GetFeeTotalsResponse) GetTotals() []*FeeTotal {
 	return nil
 }
 
+// StatsRoute is a route: the source and destination asset and network, as
+// AssetChainVariant.zipped_asset_id values from
+// GET /v1/chain/deposit-withdraw/config.
+type StatsRoute struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Source asset and network.
+	SourceZippedAssetId uint32 `protobuf:"varint,1,opt,name=source_zipped_asset_id,json=sourceZippedAssetId,proto3" json:"source_zipped_asset_id,omitempty"`
+	// Destination asset and network.
+	DestinationZippedAssetId uint32 `protobuf:"varint,2,opt,name=destination_zipped_asset_id,json=destinationZippedAssetId,proto3" json:"destination_zipped_asset_id,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
+}
+
+func (x *StatsRoute) Reset() {
+	*x = StatsRoute{}
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StatsRoute) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StatsRoute) ProtoMessage() {}
+
+func (x *StatsRoute) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StatsRoute.ProtoReflect.Descriptor instead.
+func (*StatsRoute) Descriptor() ([]byte, []int) {
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *StatsRoute) GetSourceZippedAssetId() uint32 {
+	if x != nil {
+		return x.SourceZippedAssetId
+	}
+	return 0
+}
+
+func (x *StatsRoute) GetDestinationZippedAssetId() uint32 {
+	if x != nil {
+		return x.DestinationZippedAssetId
+	}
+	return 0
+}
+
 // GetBrokerStatsRequest reads the broker's QuickSwap activity in a time
-// window, per UTC day or month.
+// window, in buckets of one UTC hour, day or month, with an optional
+// breakdown.
 type GetBrokerStatsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Broker name. A broker API key may name only its own broker.
 	Broker string `protobuf:"bytes,1,opt,name=broker,proto3" json:"broker,omitempty"`
-	// The period to group by.
+	// The bucket length.
 	GroupBy StatsPeriod `protobuf:"varint,2,opt,name=group_by,json=groupBy,proto3,enum=swap.quickswap.v1.StatsPeriod" json:"group_by,omitempty"`
 	// Start of the window, inclusive. A window that starts or ends inside a
-	// period counts only the part of that period inside the window.
+	// bucket counts only the part of that bucket inside the window.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
-	// End of the window, exclusive, at most 366 days after start_time.
-	EndTime       *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// End of the window, exclusive.
+	EndTime *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=end_time,json=endTime,proto3" json:"end_time,omitempty"`
+	// The breakdown; unset for the totals series only.
+	Breakdown StatsBreakdown `protobuf:"varint,5,opt,name=breakdown,proto3,enum=swap.quickswap.v1.StatsBreakdown" json:"breakdown,omitempty"`
+	// One group of the breakdown to return with its per-bucket columns even
+	// when it is not among the 10 groups that get them, for a drill-down.
+	// A group with no activity in the window is returned at zero, after the
+	// groups with activity; it never takes one of the 10.
+	//
+	// Types that are valid to be assigned to DrillDown:
+	//
+	//	*GetBrokerStatsRequest_Route
+	//	*GetBrokerStatsRequest_VaultAccountId
+	//	*GetBrokerStatsRequest_SourceZippedAssetId
+	//	*GetBrokerStatsRequest_DestinationZippedAssetId
+	DrillDown isGetBrokerStatsRequest_DrillDown `protobuf_oneof:"drill_down"`
+	// Also return the totals series' exact amounts per bucket and asset
+	// (BrokerStatsSeries.cell_bucket and the cell lists), for charts of one
+	// asset's amounts. They grow with the buckets times the assets, so leave
+	// this unset unless they are needed.
+	IncludeCells  bool `protobuf:"varint,10,opt,name=include_cells,json=includeCells,proto3" json:"include_cells,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *GetBrokerStatsRequest) Reset() {
 	*x = GetBrokerStatsRequest{}
-	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[47]
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[48]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3875,7 +4023,7 @@ func (x *GetBrokerStatsRequest) String() string {
 func (*GetBrokerStatsRequest) ProtoMessage() {}
 
 func (x *GetBrokerStatsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[47]
+	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[48]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3888,7 +4036,7 @@ func (x *GetBrokerStatsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBrokerStatsRequest.ProtoReflect.Descriptor instead.
 func (*GetBrokerStatsRequest) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{47}
+	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{48}
 }
 
 func (x *GetBrokerStatsRequest) GetBroker() string {
@@ -3919,60 +4067,95 @@ func (x *GetBrokerStatsRequest) GetEndTime() *timestamppb.Timestamp {
 	return nil
 }
 
-// StatusCount is how many QuickSwaps are in one status.
-type StatusCount struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// The status.
-	Status QuickSwapStatus `protobuf:"varint,1,opt,name=status,proto3,enum=swap.quickswap.v1.QuickSwapStatus" json:"status,omitempty"`
-	// QuickSwaps in it.
-	Count         uint64 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *StatusCount) Reset() {
-	*x = StatusCount{}
-	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[48]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *StatusCount) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*StatusCount) ProtoMessage() {}
-
-func (x *StatusCount) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[48]
+func (x *GetBrokerStatsRequest) GetBreakdown() StatsBreakdown {
 	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
+		return x.Breakdown
+	}
+	return StatsBreakdown_BREAKDOWN_UNSPECIFIED
+}
+
+func (x *GetBrokerStatsRequest) GetDrillDown() isGetBrokerStatsRequest_DrillDown {
+	if x != nil {
+		return x.DrillDown
+	}
+	return nil
+}
+
+func (x *GetBrokerStatsRequest) GetRoute() *StatsRoute {
+	if x != nil {
+		if x, ok := x.DrillDown.(*GetBrokerStatsRequest_Route); ok {
+			return x.Route
 		}
-		return ms
 	}
-	return mi.MessageOf(x)
+	return nil
 }
 
-// Deprecated: Use StatusCount.ProtoReflect.Descriptor instead.
-func (*StatusCount) Descriptor() ([]byte, []int) {
-	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{48}
-}
-
-func (x *StatusCount) GetStatus() QuickSwapStatus {
+func (x *GetBrokerStatsRequest) GetVaultAccountId() uint64 {
 	if x != nil {
-		return x.Status
-	}
-	return QuickSwapStatus_STATUS_UNSPECIFIED
-}
-
-func (x *StatusCount) GetCount() uint64 {
-	if x != nil {
-		return x.Count
+		if x, ok := x.DrillDown.(*GetBrokerStatsRequest_VaultAccountId); ok {
+			return x.VaultAccountId
+		}
 	}
 	return 0
 }
+
+func (x *GetBrokerStatsRequest) GetSourceZippedAssetId() uint32 {
+	if x != nil {
+		if x, ok := x.DrillDown.(*GetBrokerStatsRequest_SourceZippedAssetId); ok {
+			return x.SourceZippedAssetId
+		}
+	}
+	return 0
+}
+
+func (x *GetBrokerStatsRequest) GetDestinationZippedAssetId() uint32 {
+	if x != nil {
+		if x, ok := x.DrillDown.(*GetBrokerStatsRequest_DestinationZippedAssetId); ok {
+			return x.DestinationZippedAssetId
+		}
+	}
+	return 0
+}
+
+func (x *GetBrokerStatsRequest) GetIncludeCells() bool {
+	if x != nil {
+		return x.IncludeCells
+	}
+	return false
+}
+
+type isGetBrokerStatsRequest_DrillDown interface {
+	isGetBrokerStatsRequest_DrillDown()
+}
+
+type GetBrokerStatsRequest_Route struct {
+	// The route, for the ROUTE breakdown.
+	Route *StatsRoute `protobuf:"bytes,6,opt,name=route,proto3,oneof"`
+}
+
+type GetBrokerStatsRequest_VaultAccountId struct {
+	// Public sub-account ID of the vault, for the VAULT breakdown.
+	VaultAccountId uint64 `protobuf:"fixed64,7,opt,name=vault_account_id,json=vaultAccountId,proto3,oneof"`
+}
+
+type GetBrokerStatsRequest_SourceZippedAssetId struct {
+	// The source asset and network, for the SOURCE_ASSET breakdown.
+	SourceZippedAssetId uint32 `protobuf:"varint,8,opt,name=source_zipped_asset_id,json=sourceZippedAssetId,proto3,oneof"`
+}
+
+type GetBrokerStatsRequest_DestinationZippedAssetId struct {
+	// The destination asset and network, for the DESTINATION_ASSET
+	// breakdown.
+	DestinationZippedAssetId uint32 `protobuf:"varint,9,opt,name=destination_zipped_asset_id,json=destinationZippedAssetId,proto3,oneof"`
+}
+
+func (*GetBrokerStatsRequest_Route) isGetBrokerStatsRequest_DrillDown() {}
+
+func (*GetBrokerStatsRequest_VaultAccountId) isGetBrokerStatsRequest_DrillDown() {}
+
+func (*GetBrokerStatsRequest_SourceZippedAssetId) isGetBrokerStatsRequest_DrillDown() {}
+
+func (*GetBrokerStatsRequest_DestinationZippedAssetId) isGetBrokerStatsRequest_DrillDown() {}
 
 // AssetVolume is a total amount in one asset.
 type AssetVolume struct {
@@ -4195,55 +4378,129 @@ func (x *FeeSplit) GetUnvaluedCount() uint64 {
 	return 0
 }
 
-// BrokerStatsPeriod is a broker's QuickSwap activity in one UTC day or
-// month. A QuickSwap counts in the period it was created in, with its
-// current status, its credited deposit and its destination payout, so a
-// period's numbers keep moving until its QuickSwaps end. A fee counts in the
-// period it was charged in, as in GetFeeTotals, which can be later than the
-// period its QuickSwap was created in.
-type BrokerStatsPeriod struct {
+// BrokerStatsSeries is the activity of the broker's QuickSwaps, or of the
+// QuickSwaps a referral partner referred (GetReferralStats), or of one
+// group of them, in columns.
+//
+// A QuickSwap counts in the bucket it was created in, with its current
+// status, its credited deposit and its destination payout, so a bucket's
+// numbers keep moving until its QuickSwaps end. On the totals series a fee
+// counts in the bucket it was charged in, as in GetFeeTotals. On a group
+// series the fees charged to the group's QuickSwaps count in the bucket the
+// QuickSwap was created in.
+//
+// Deposited counts the deposits credited to the QuickSwaps and taken in for
+// execution: including a deposit later found ineligible and returned,
+// excluding a deposit held for review before credit, each valued in USD
+// when it was taken in, as QuickSwap.deposited_value_usd. Delivered counts
+// what was paid to the destination of the QuickSwaps whose DESTINATION
+// withdrawal is FINALIZED: after service, broker and affiliate fees, before
+// the destination network fee, each valued in USD when it was requested, as
+// QuickSwap.delivered_value_usd. A fee is valued in USD when it was charged.
+// Each value is fixed once, within minutes, and never repriced, so a past
+// bucket keeps its value.
+//
+// Amounts are exact, in base units of 18 decimals, each list parallel to
+// GetBrokerStatsResponse.asset_ids. USD values are scaled by 1e4 (4
+// decimals), summed exactly and then rounded down. A value without a USD
+// value counts in unvalued_count and is left out of the USD totals.
+type BrokerStatsSeries struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Start of the UTC day or month.
-	PeriodStart *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=period_start,json=periodStart,proto3" json:"period_start,omitempty"`
-	// QuickSwaps created in the period, inside the window.
-	CreatedCount uint64 `protobuf:"varint,2,opt,name=created_count,json=createdCount,proto3" json:"created_count,omitempty"`
-	// Those QuickSwaps by current status, in QuickSwapStatus number order;
-	// statuses with none are omitted. The counts total created_count.
-	Statuses []*StatusCount `protobuf:"bytes,3,rep,name=statuses,proto3" json:"statuses,omitempty"`
-	// Deposits credited to those QuickSwaps and taken in for execution, per
-	// asset, in asset_id order: including a deposit later found ineligible
-	// and returned, excluding a deposit held for review before credit. Each
-	// deposit's USD value is fixed when it was taken in, as
-	// QuickSwap.deposited_value_usd.
-	Deposited []*AssetVolume `protobuf:"bytes,4,rep,name=deposited,proto3" json:"deposited,omitempty"`
-	// Paid to the destination of those QuickSwaps whose DESTINATION
-	// withdrawal is FINALIZED, per asset, in asset_id order: after service,
-	// broker and affiliate fees, before the destination network fee. Each
-	// payout's USD value is fixed when it was requested, as
-	// QuickSwap.delivered_value_usd.
-	Delivered []*AssetVolume `protobuf:"bytes,5,rep,name=delivered,proto3" json:"delivered,omitempty"`
-	// Fees charged to the broker's QuickSwaps in the period, per asset, in
-	// asset_id order. broker_fee plus affiliate_fee equals the GetFeeTotals
-	// total of the same window, period and asset.
-	Fees          []*FeeSplit `protobuf:"bytes,6,rep,name=fees,proto3" json:"fees,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// What the series counts.
+	//
+	// Types that are valid to be assigned to Grouping:
+	//
+	//	*BrokerStatsSeries_Totals
+	//	*BrokerStatsSeries_Route
+	//	*BrokerStatsSeries_VaultAccountId
+	//	*BrokerStatsSeries_SourceZippedAssetId
+	//	*BrokerStatsSeries_DestinationZippedAssetId
+	//	*BrokerStatsSeries_Others
+	Grouping isBrokerStatsSeries_Grouping `protobuf_oneof:"grouping"`
+	// QuickSwaps created in the window.
+	CreatedCount uint32 `protobuf:"varint,7,opt,name=created_count,json=createdCount,proto3" json:"created_count,omitempty"`
+	// Those QuickSwaps by current status, indexed by QuickSwapStatus number;
+	// trailing zero counts are omitted. The counts total created_count.
+	StatusCounts []uint32 `protobuf:"varint,8,rep,packed,name=status_counts,json=statusCounts,proto3" json:"status_counts,omitempty"`
+	// Deposited per asset, parallel to GetBrokerStatsResponse.asset_ids.
+	Deposited []*v1.U128 `protobuf:"bytes,9,rep,name=deposited,proto3" json:"deposited,omitempty"`
+	// Delivered per asset, parallel to GetBrokerStatsResponse.asset_ids.
+	Delivered []*v1.U128 `protobuf:"bytes,10,rep,name=delivered,proto3" json:"delivered,omitempty"`
+	// Fees per asset, every share together, parallel to
+	// GetBrokerStatsResponse.asset_ids.
+	Fees []*v1.U128 `protobuf:"bytes,11,rep,name=fees,proto3" json:"fees,omitempty"`
+	// USD value of deposited, scaled by 1e4.
+	DepositedUsdQ4 uint64 `protobuf:"varint,12,opt,name=deposited_usd_q4,json=depositedUsdQ4,proto3" json:"deposited_usd_q4,omitempty"`
+	// USD value of delivered, scaled by 1e4.
+	DeliveredUsdQ4 uint64 `protobuf:"varint,13,opt,name=delivered_usd_q4,json=deliveredUsdQ4,proto3" json:"delivered_usd_q4,omitempty"`
+	// USD value of fees, scaled by 1e4.
+	FeesUsdQ4 uint64 `protobuf:"varint,14,opt,name=fees_usd_q4,json=feesUsdQ4,proto3" json:"fees_usd_q4,omitempty"`
+	// Deposits, payouts and fees summed above without a USD value, and so
+	// left out of the USD totals: from the last few minutes, not valued by a
+	// current price in time, or from before USD values existed.
+	UnvaluedCount uint32 `protobuf:"varint,15,opt,name=unvalued_count,json=unvaluedCount,proto3" json:"unvalued_count,omitempty"`
+	// Per-bucket columns, each GetBrokerStatsResponse.points long: set only on
+	// the totals series, the first 10 groups in GetBrokerStatsResponse.series
+	// order, the drill-down group and others; empty otherwise.
+	// QuickSwaps created per bucket.
+	Created []uint32 `protobuf:"varint,16,rep,packed,name=created,proto3" json:"created,omitempty"`
+	// Those QuickSwaps that are now COMPLETED, per bucket.
+	Completed []uint32 `protobuf:"varint,17,rep,packed,name=completed,proto3" json:"completed,omitempty"`
+	// USD value deposited per bucket, scaled by 1e4.
+	DepositedUsd []uint64 `protobuf:"varint,18,rep,packed,name=deposited_usd,json=depositedUsd,proto3" json:"deposited_usd,omitempty"`
+	// USD value delivered per bucket, scaled by 1e4.
+	DeliveredUsd []uint64 `protobuf:"varint,19,rep,packed,name=delivered_usd,json=deliveredUsd,proto3" json:"delivered_usd,omitempty"`
+	// USD value of the fees per bucket, scaled by 1e4.
+	FeesUsd []uint64 `protobuf:"varint,20,rep,packed,name=fees_usd,json=feesUsd,proto3" json:"fees_usd,omitempty"`
+	// Values without a USD value per bucket, as unvalued_count.
+	Unvalued []uint32 `protobuf:"varint,21,rep,packed,name=unvalued,proto3" json:"unvalued,omitempty"`
+	// Totals series only: the fees per bucket by who they credit, USD scaled
+	// by 1e4. Service fees, credited to Polyester.
+	ServiceFeeUsd []uint64 `protobuf:"varint,22,rep,packed,name=service_fee_usd,json=serviceFeeUsd,proto3" json:"service_fee_usd,omitempty"`
+	// Broker fees, credited to the broker's default vault.
+	BrokerFeeUsd []uint64 `protobuf:"varint,23,rep,packed,name=broker_fee_usd,json=brokerFeeUsd,proto3" json:"broker_fee_usd,omitempty"`
+	// Affiliate fees, credited to the broker's affiliate vaults.
+	AffiliateFeeUsd []uint64 `protobuf:"varint,24,rep,packed,name=affiliate_fee_usd,json=affiliateFeeUsd,proto3" json:"affiliate_fee_usd,omitempty"`
+	// Referral commissions, credited to referral partners rather than to a
+	// vault of the broker.
+	ReferralFeeUsd []uint64 `protobuf:"varint,25,rep,packed,name=referral_fee_usd,json=referralFeeUsd,proto3" json:"referral_fee_usd,omitempty"`
+	// Totals series only, with GetBrokerStatsRequest.include_cells: the exact
+	// amounts per bucket and asset, as sparse cells. Cell i is bucket
+	// cell_bucket[i] and asset asset_ids[cell_asset[i]]; only cells with an
+	// amount are listed, in bucket and then asset order.
+	CellBucket []uint32 `protobuf:"varint,26,rep,packed,name=cell_bucket,json=cellBucket,proto3" json:"cell_bucket,omitempty"`
+	// Index into GetBrokerStatsResponse.asset_ids of each cell.
+	CellAsset []uint32 `protobuf:"varint,27,rep,packed,name=cell_asset,json=cellAsset,proto3" json:"cell_asset,omitempty"`
+	// Deposited per cell.
+	CellDeposited []*v1.U128 `protobuf:"bytes,28,rep,name=cell_deposited,json=cellDeposited,proto3" json:"cell_deposited,omitempty"`
+	// Delivered per cell.
+	CellDelivered []*v1.U128 `protobuf:"bytes,29,rep,name=cell_delivered,json=cellDelivered,proto3" json:"cell_delivered,omitempty"`
+	// Service fees per cell.
+	CellServiceFee []*v1.U128 `protobuf:"bytes,30,rep,name=cell_service_fee,json=cellServiceFee,proto3" json:"cell_service_fee,omitempty"`
+	// Broker fees per cell.
+	CellBrokerFee []*v1.U128 `protobuf:"bytes,31,rep,name=cell_broker_fee,json=cellBrokerFee,proto3" json:"cell_broker_fee,omitempty"`
+	// Affiliate fees per cell.
+	CellAffiliateFee []*v1.U128 `protobuf:"bytes,32,rep,name=cell_affiliate_fee,json=cellAffiliateFee,proto3" json:"cell_affiliate_fee,omitempty"`
+	// Referral commissions per cell.
+	CellReferralFee []*v1.U128 `protobuf:"bytes,33,rep,name=cell_referral_fee,json=cellReferralFee,proto3" json:"cell_referral_fee,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
-func (x *BrokerStatsPeriod) Reset() {
-	*x = BrokerStatsPeriod{}
+func (x *BrokerStatsSeries) Reset() {
+	*x = BrokerStatsSeries{}
 	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *BrokerStatsPeriod) String() string {
+func (x *BrokerStatsSeries) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*BrokerStatsPeriod) ProtoMessage() {}
+func (*BrokerStatsSeries) ProtoMessage() {}
 
-func (x *BrokerStatsPeriod) ProtoReflect() protoreflect.Message {
+func (x *BrokerStatsSeries) ProtoReflect() protoreflect.Message {
 	mi := &file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -4255,60 +4512,342 @@ func (x *BrokerStatsPeriod) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use BrokerStatsPeriod.ProtoReflect.Descriptor instead.
-func (*BrokerStatsPeriod) Descriptor() ([]byte, []int) {
+// Deprecated: Use BrokerStatsSeries.ProtoReflect.Descriptor instead.
+func (*BrokerStatsSeries) Descriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{51}
 }
 
-func (x *BrokerStatsPeriod) GetPeriodStart() *timestamppb.Timestamp {
+func (x *BrokerStatsSeries) GetGrouping() isBrokerStatsSeries_Grouping {
 	if x != nil {
-		return x.PeriodStart
+		return x.Grouping
 	}
 	return nil
 }
 
-func (x *BrokerStatsPeriod) GetCreatedCount() uint64 {
+func (x *BrokerStatsSeries) GetTotals() bool {
+	if x != nil {
+		if x, ok := x.Grouping.(*BrokerStatsSeries_Totals); ok {
+			return x.Totals
+		}
+	}
+	return false
+}
+
+func (x *BrokerStatsSeries) GetRoute() *StatsRoute {
+	if x != nil {
+		if x, ok := x.Grouping.(*BrokerStatsSeries_Route); ok {
+			return x.Route
+		}
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetVaultAccountId() uint64 {
+	if x != nil {
+		if x, ok := x.Grouping.(*BrokerStatsSeries_VaultAccountId); ok {
+			return x.VaultAccountId
+		}
+	}
+	return 0
+}
+
+func (x *BrokerStatsSeries) GetSourceZippedAssetId() uint32 {
+	if x != nil {
+		if x, ok := x.Grouping.(*BrokerStatsSeries_SourceZippedAssetId); ok {
+			return x.SourceZippedAssetId
+		}
+	}
+	return 0
+}
+
+func (x *BrokerStatsSeries) GetDestinationZippedAssetId() uint32 {
+	if x != nil {
+		if x, ok := x.Grouping.(*BrokerStatsSeries_DestinationZippedAssetId); ok {
+			return x.DestinationZippedAssetId
+		}
+	}
+	return 0
+}
+
+func (x *BrokerStatsSeries) GetOthers() bool {
+	if x != nil {
+		if x, ok := x.Grouping.(*BrokerStatsSeries_Others); ok {
+			return x.Others
+		}
+	}
+	return false
+}
+
+func (x *BrokerStatsSeries) GetCreatedCount() uint32 {
 	if x != nil {
 		return x.CreatedCount
 	}
 	return 0
 }
 
-func (x *BrokerStatsPeriod) GetStatuses() []*StatusCount {
+func (x *BrokerStatsSeries) GetStatusCounts() []uint32 {
 	if x != nil {
-		return x.Statuses
+		return x.StatusCounts
 	}
 	return nil
 }
 
-func (x *BrokerStatsPeriod) GetDeposited() []*AssetVolume {
+func (x *BrokerStatsSeries) GetDeposited() []*v1.U128 {
 	if x != nil {
 		return x.Deposited
 	}
 	return nil
 }
 
-func (x *BrokerStatsPeriod) GetDelivered() []*AssetVolume {
+func (x *BrokerStatsSeries) GetDelivered() []*v1.U128 {
 	if x != nil {
 		return x.Delivered
 	}
 	return nil
 }
 
-func (x *BrokerStatsPeriod) GetFees() []*FeeSplit {
+func (x *BrokerStatsSeries) GetFees() []*v1.U128 {
 	if x != nil {
 		return x.Fees
 	}
 	return nil
 }
 
-// GetBrokerStatsResponse lists every period of the window with a QuickSwap
-// created or a fee charged, oldest first, complete (the window is bounded).
-// Periods with neither are omitted.
+func (x *BrokerStatsSeries) GetDepositedUsdQ4() uint64 {
+	if x != nil {
+		return x.DepositedUsdQ4
+	}
+	return 0
+}
+
+func (x *BrokerStatsSeries) GetDeliveredUsdQ4() uint64 {
+	if x != nil {
+		return x.DeliveredUsdQ4
+	}
+	return 0
+}
+
+func (x *BrokerStatsSeries) GetFeesUsdQ4() uint64 {
+	if x != nil {
+		return x.FeesUsdQ4
+	}
+	return 0
+}
+
+func (x *BrokerStatsSeries) GetUnvaluedCount() uint32 {
+	if x != nil {
+		return x.UnvaluedCount
+	}
+	return 0
+}
+
+func (x *BrokerStatsSeries) GetCreated() []uint32 {
+	if x != nil {
+		return x.Created
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCompleted() []uint32 {
+	if x != nil {
+		return x.Completed
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetDepositedUsd() []uint64 {
+	if x != nil {
+		return x.DepositedUsd
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetDeliveredUsd() []uint64 {
+	if x != nil {
+		return x.DeliveredUsd
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetFeesUsd() []uint64 {
+	if x != nil {
+		return x.FeesUsd
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetUnvalued() []uint32 {
+	if x != nil {
+		return x.Unvalued
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetServiceFeeUsd() []uint64 {
+	if x != nil {
+		return x.ServiceFeeUsd
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetBrokerFeeUsd() []uint64 {
+	if x != nil {
+		return x.BrokerFeeUsd
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetAffiliateFeeUsd() []uint64 {
+	if x != nil {
+		return x.AffiliateFeeUsd
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetReferralFeeUsd() []uint64 {
+	if x != nil {
+		return x.ReferralFeeUsd
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellBucket() []uint32 {
+	if x != nil {
+		return x.CellBucket
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellAsset() []uint32 {
+	if x != nil {
+		return x.CellAsset
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellDeposited() []*v1.U128 {
+	if x != nil {
+		return x.CellDeposited
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellDelivered() []*v1.U128 {
+	if x != nil {
+		return x.CellDelivered
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellServiceFee() []*v1.U128 {
+	if x != nil {
+		return x.CellServiceFee
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellBrokerFee() []*v1.U128 {
+	if x != nil {
+		return x.CellBrokerFee
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellAffiliateFee() []*v1.U128 {
+	if x != nil {
+		return x.CellAffiliateFee
+	}
+	return nil
+}
+
+func (x *BrokerStatsSeries) GetCellReferralFee() []*v1.U128 {
+	if x != nil {
+		return x.CellReferralFee
+	}
+	return nil
+}
+
+type isBrokerStatsSeries_Grouping interface {
+	isBrokerStatsSeries_Grouping()
+}
+
+type BrokerStatsSeries_Totals struct {
+	// All of the broker's (or referral partner's) QuickSwaps and fees.
+	// Always the first series.
+	Totals bool `protobuf:"varint,1,opt,name=totals,proto3,oneof"`
+}
+
+type BrokerStatsSeries_Route struct {
+	// The QuickSwaps of one route, for the ROUTE breakdown.
+	Route *StatsRoute `protobuf:"bytes,2,opt,name=route,proto3,oneof"`
+}
+
+type BrokerStatsSeries_VaultAccountId struct {
+	// Public sub-account ID of a vault, for the VAULT breakdown: the
+	// QuickSwaps that credited it a broker or affiliate fee. Its fees are
+	// the fees credited to the vault.
+	VaultAccountId uint64 `protobuf:"fixed64,3,opt,name=vault_account_id,json=vaultAccountId,proto3,oneof"`
+}
+
+type BrokerStatsSeries_SourceZippedAssetId struct {
+	// The QuickSwaps of one source asset and network, for the SOURCE_ASSET
+	// breakdown.
+	SourceZippedAssetId uint32 `protobuf:"varint,4,opt,name=source_zipped_asset_id,json=sourceZippedAssetId,proto3,oneof"`
+}
+
+type BrokerStatsSeries_DestinationZippedAssetId struct {
+	// The QuickSwaps of one destination asset and network, for the
+	// DESTINATION_ASSET breakdown.
+	DestinationZippedAssetId uint32 `protobuf:"varint,5,opt,name=destination_zipped_asset_id,json=destinationZippedAssetId,proto3,oneof"`
+}
+
+type BrokerStatsSeries_Others struct {
+	// Every group without per-bucket columns, summed. Absent when every
+	// group has them.
+	Others bool `protobuf:"varint,6,opt,name=others,proto3,oneof"`
+}
+
+func (*BrokerStatsSeries_Totals) isBrokerStatsSeries_Grouping() {}
+
+func (*BrokerStatsSeries_Route) isBrokerStatsSeries_Grouping() {}
+
+func (*BrokerStatsSeries_VaultAccountId) isBrokerStatsSeries_Grouping() {}
+
+func (*BrokerStatsSeries_SourceZippedAssetId) isBrokerStatsSeries_Grouping() {}
+
+func (*BrokerStatsSeries_DestinationZippedAssetId) isBrokerStatsSeries_Grouping() {}
+
+func (*BrokerStatsSeries_Others) isBrokerStatsSeries_Grouping() {}
+
+// GetBrokerStatsResponse is the broker's (or, in GetReferralStatsResponse,
+// the referral partner's) QuickSwap activity in the window,
+// in columns aligned to implicit bucket timestamps: bucket i starts i hours
+// or days after start_ts_sec, or i calendar months after it for MONTH.
 type GetBrokerStatsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The periods.
-	Periods       []*BrokerStatsPeriod `protobuf:"bytes,1,rep,name=periods,proto3" json:"periods,omitempty"`
+	// The bucket length.
+	Period StatsPeriod `protobuf:"varint,1,opt,name=period,proto3,enum=swap.quickswap.v1.StatsPeriod" json:"period,omitempty"`
+	// Start of the first bucket, in seconds since the epoch (UTC): the UTC
+	// hour, day or month start_time falls in.
+	StartTsSec uint32 `protobuf:"fixed32,2,opt,name=start_ts_sec,json=startTsSec,proto3" json:"start_ts_sec,omitempty"`
+	// Number of buckets: every bucket the window touches.
+	Points uint32 `protobuf:"varint,3,opt,name=points,proto3" json:"points,omitempty"`
+	// In GetBrokerStats and HQ's broker stats: when the newest change this
+	// answer counts was published, in seconds since the epoch. In
+	// GetReferralStatsResponse it is rounded up to the minute instead (see
+	// there). Zero when the answer counts none. Changes reach the statistics
+	// within seconds.
+	AsOfTsSec uint32 `protobuf:"fixed32,4,opt,name=as_of_ts_sec,json=asOfTsSec,proto3" json:"as_of_ts_sec,omitempty"`
+	// Every asset with an amount in the answer, ascending, as AssetConfig.ledger_id
+	// values from GET /v1/chain/deposit-withdraw/config.
+	AssetIds []uint32 `protobuf:"varint,5,rep,packed,name=asset_ids,json=assetIds,proto3" json:"asset_ids,omitempty"`
+	// The totals series first; then every group of the breakdown with
+	// activity in the window, with no limit, by deposited USD from highest,
+	// compared exactly before rounding to deposited_usd_q4, and at equal value
+	// by the identifier in grouping, ascending (a route by source, then
+	// destination); then the drill-down group when it had no activity; then
+	// others.
+	Series        []*BrokerStatsSeries `protobuf:"bytes,6,rep,name=series,proto3" json:"series,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -4343,9 +4882,44 @@ func (*GetBrokerStatsResponse) Descriptor() ([]byte, []int) {
 	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP(), []int{52}
 }
 
-func (x *GetBrokerStatsResponse) GetPeriods() []*BrokerStatsPeriod {
+func (x *GetBrokerStatsResponse) GetPeriod() StatsPeriod {
 	if x != nil {
-		return x.Periods
+		return x.Period
+	}
+	return StatsPeriod_PERIOD_UNSPECIFIED
+}
+
+func (x *GetBrokerStatsResponse) GetStartTsSec() uint32 {
+	if x != nil {
+		return x.StartTsSec
+	}
+	return 0
+}
+
+func (x *GetBrokerStatsResponse) GetPoints() uint32 {
+	if x != nil {
+		return x.Points
+	}
+	return 0
+}
+
+func (x *GetBrokerStatsResponse) GetAsOfTsSec() uint32 {
+	if x != nil {
+		return x.AsOfTsSec
+	}
+	return 0
+}
+
+func (x *GetBrokerStatsResponse) GetAssetIds() []uint32 {
+	if x != nil {
+		return x.AssetIds
+	}
+	return nil
+}
+
+func (x *GetBrokerStatsResponse) GetSeries() []*BrokerStatsSeries {
+	if x != nil {
+		return x.Series
 	}
 	return nil
 }
@@ -5409,7 +5983,7 @@ type UpcomingPayout struct {
 	// Public sub-account ID of the vault.
 	VaultAccountId uint64 `protobuf:"fixed64,1,opt,name=vault_account_id,json=vaultAccountId,proto3" json:"vault_account_id,omitempty"`
 	// Whether the next run would pay.
-	Status v1.AutoWithdrawPreviewStatus `protobuf:"varint,2,opt,name=status,proto3,enum=chain.withdraw.v1.AutoWithdrawPreviewStatus" json:"status,omitempty"`
+	Status v11.AutoWithdrawPreviewStatus `protobuf:"varint,2,opt,name=status,proto3,enum=chain.withdraw.v1.AutoWithdrawPreviewStatus" json:"status,omitempty"`
 	// When the next run starts: its UTC slot, or, while a due slot waits to
 	// start, that slot. For an hourly rule, the next hourly check. Unset when
 	// the vault has no rule or the rule is paused.
@@ -5417,7 +5991,7 @@ type UpcomingPayout struct {
 	// The rule's latest version; zero when the vault has no rule.
 	RuleVersion uint32 `protobuf:"varint,4,opt,name=rule_version,json=ruleVersion,proto3" json:"rule_version,omitempty"`
 	// Set when the rule paused itself; a rule paused by a member has none.
-	Pause *v1.AutoWithdrawPause `protobuf:"bytes,5,opt,name=pause,proto3" json:"pause,omitempty"`
+	Pause *v11.AutoWithdrawPause `protobuf:"bytes,5,opt,name=pause,proto3" json:"pause,omitempty"`
 	// The rule's least USD value of one payout, in base units of 18 decimals;
 	// unset when the vault has no rule or the rule has no USD minimum.
 	MinUsdValue *TokenAmount `protobuf:"bytes,6,opt,name=min_usd_value,json=minUsdValue,proto3" json:"min_usd_value,omitempty"`
@@ -5468,11 +6042,11 @@ func (x *UpcomingPayout) GetVaultAccountId() uint64 {
 	return 0
 }
 
-func (x *UpcomingPayout) GetStatus() v1.AutoWithdrawPreviewStatus {
+func (x *UpcomingPayout) GetStatus() v11.AutoWithdrawPreviewStatus {
 	if x != nil {
 		return x.Status
 	}
-	return v1.AutoWithdrawPreviewStatus(0)
+	return v11.AutoWithdrawPreviewStatus(0)
 }
 
 func (x *UpcomingPayout) GetNextRunAt() *timestamppb.Timestamp {
@@ -5489,7 +6063,7 @@ func (x *UpcomingPayout) GetRuleVersion() uint32 {
 	return 0
 }
 
-func (x *UpcomingPayout) GetPause() *v1.AutoWithdrawPause {
+func (x *UpcomingPayout) GetPause() *v11.AutoWithdrawPause {
 	if x != nil {
 		return x.Pause
 	}
@@ -5838,11 +6412,11 @@ type VaultPayoutRule struct {
 	// Whether the rule runs: it runs only while enabled and without a pause.
 	Enabled bool `protobuf:"varint,3,opt,name=enabled,proto3" json:"enabled,omitempty"`
 	// When the rule runs.
-	Schedule *v1.AutoWithdrawSchedule `protobuf:"bytes,4,opt,name=schedule,proto3" json:"schedule,omitempty"`
+	Schedule *v11.AutoWithdrawSchedule `protobuf:"bytes,4,opt,name=schedule,proto3" json:"schedule,omitempty"`
 	// One destination per paid asset, in asset_id order.
 	Destinations []*PayoutRuleDestination `protobuf:"bytes,5,rep,name=destinations,proto3" json:"destinations,omitempty"`
 	// Set when the rule paused itself; an Owner or Finance member resumes it.
-	Pause *v1.AutoWithdrawPause `protobuf:"bytes,6,opt,name=pause,proto3" json:"pause,omitempty"`
+	Pause *v11.AutoWithdrawPause `protobuf:"bytes,6,opt,name=pause,proto3" json:"pause,omitempty"`
 	// Least USD value one payout of the rule pays, in base units of 18
 	// decimals; unset when the rule has no USD minimum.
 	MinUsdValue *TokenAmount `protobuf:"bytes,7,opt,name=min_usd_value,json=minUsdValue,proto3" json:"min_usd_value,omitempty"`
@@ -5907,7 +6481,7 @@ func (x *VaultPayoutRule) GetEnabled() bool {
 	return false
 }
 
-func (x *VaultPayoutRule) GetSchedule() *v1.AutoWithdrawSchedule {
+func (x *VaultPayoutRule) GetSchedule() *v11.AutoWithdrawSchedule {
 	if x != nil {
 		return x.Schedule
 	}
@@ -5921,7 +6495,7 @@ func (x *VaultPayoutRule) GetDestinations() []*PayoutRuleDestination {
 	return nil
 }
 
-func (x *VaultPayoutRule) GetPause() *v1.AutoWithdrawPause {
+func (x *VaultPayoutRule) GetPause() *v11.AutoWithdrawPause {
 	if x != nil {
 		return x.Pause
 	}
@@ -7378,7 +7952,7 @@ var File_swap_quickswap_v1_quickswap_broker_proto protoreflect.FileDescriptor
 
 const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\n" +
-	"(swap/quickswap/v1/quickswap_broker.proto\x12\x11swap.quickswap.v1\x1a\x1bbuf/validate/validate.proto\x1a%chain/withdraw/v1/auto_withdraw.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a!swap/quickswap/v1/quickswap.proto\"\xdd\x03\n" +
+	"(swap/quickswap/v1/quickswap_broker.proto\x12\x11swap.quickswap.v1\x1a\x1bbuf/validate/validate.proto\x1a%chain/withdraw/v1/auto_withdraw.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\x1a!swap/quickswap/v1/quickswap.proto\"\xdd\x03\n" +
 	"\x06Broker\x12\x12\n" +
 	"\x04name\x18\x01 \x01(\tR\x04name\x12!\n" +
 	"\fdisplay_name\x18\x02 \x01(\tR\vdisplayName\x12\x18\n" +
@@ -7596,17 +8170,28 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\tvalue_usd\x18\x06 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\bvalueUsd\x12%\n" +
 	"\x0eunvalued_count\x18\a \x01(\x04R\runvaluedCount\"K\n" +
 	"\x14GetFeeTotalsResponse\x123\n" +
-	"\x06totals\x18\x01 \x03(\v2\x1b.swap.quickswap.v1.FeeTotalR\x06totals\"\xde\x03\n" +
+	"\x06totals\x18\x01 \x03(\v2\x1b.swap.quickswap.v1.FeeTotalR\x06totals\"\x80\x01\n" +
+	"\n" +
+	"StatsRoute\x123\n" +
+	"\x16source_zipped_asset_id\x18\x01 \x01(\rR\x13sourceZippedAssetId\x12=\n" +
+	"\x1bdestination_zipped_asset_id\x18\x02 \x01(\rR\x18destinationZippedAssetId\"\xf8\t\n" +
 	"\x15GetBrokerStatsRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12F\n" +
 	"\bgroup_by\x18\x02 \x01(\x0e2\x1e.swap.quickswap.v1.StatsPeriodB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\agroupBy\x12A\n" +
 	"\n" +
 	"start_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
-	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime:\xbf\x01\xbaH\xbb\x01\x1a\xb8\x01\n" +
-	"\x1fget_broker_stats_request.window\x12<end_time must be after start_time and at most 366 days later\x1aWthis.end_time > this.start_time && this.end_time - this.start_time <= duration('8784h')\"_\n" +
-	"\vStatusCount\x12:\n" +
-	"\x06status\x18\x01 \x01(\x0e2\".swap.quickswap.v1.QuickSwapStatusR\x06status\x12\x14\n" +
-	"\x05count\x18\x02 \x01(\x04R\x05count\"\xc4\x01\n" +
+	"\bend_time\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12I\n" +
+	"\tbreakdown\x18\x05 \x01(\x0e2!.swap.quickswap.v1.StatsBreakdownB\b\xbaH\x05\x82\x01\x02\x10\x01R\tbreakdown\x125\n" +
+	"\x05route\x18\x06 \x01(\v2\x1d.swap.quickswap.v1.StatsRouteH\x00R\x05route\x12*\n" +
+	"\x10vault_account_id\x18\a \x01(\x06H\x00R\x0evaultAccountId\x125\n" +
+	"\x16source_zipped_asset_id\x18\b \x01(\rH\x00R\x13sourceZippedAssetId\x12?\n" +
+	"\x1bdestination_zipped_asset_id\x18\t \x01(\rH\x00R\x18destinationZippedAssetId\x12#\n" +
+	"\rinclude_cells\x18\n" +
+	" \x01(\bR\fincludeCells:\x80\x05\xbaH\xfc\x04\x1a\xbb\x02\n" +
+	"\x1fget_broker_stats_request.window\x12jend_time must be after start_time, at most 7 days later for HOUR, 366 days for DAY and 3660 days for MONTH\x1a\xab\x01this.end_time > this.start_time && this.end_time - this.start_time <= (this.group_by == 3 ? duration('168h') : this.group_by == 1 ? duration('8784h') : duration('87840h'))\x1a\xbb\x02\n" +
+	"#get_broker_stats_request.drill_down\x12/a drill-down must name a group of the breakdown\x1a\xe2\x01(!has(this.route) || this.breakdown == 1) && (!has(this.vault_account_id) || this.breakdown == 2) && (!has(this.source_zipped_asset_id) || this.breakdown == 3) && (!has(this.destination_zipped_asset_id) || this.breakdown == 4)B\f\n" +
+	"\n" +
+	"drill_down\"\xc4\x01\n" +
 	"\vAssetVolume\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x126\n" +
 	"\x06amount\x18\x02 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\x12;\n" +
@@ -7625,16 +8210,54 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\x11affiliate_fee_usd\x18\b \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x0faffiliateFeeUsd\x12H\n" +
 	"\x10referral_fee_usd\x18\t \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x0ereferralFeeUsd\x12%\n" +
 	"\x0eunvalued_count\x18\n" +
-	" \x01(\x04R\runvaluedCount\"\xe0\x02\n" +
-	"\x11BrokerStatsPeriod\x12=\n" +
-	"\fperiod_start\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\vperiodStart\x12#\n" +
-	"\rcreated_count\x18\x02 \x01(\x04R\fcreatedCount\x12:\n" +
-	"\bstatuses\x18\x03 \x03(\v2\x1e.swap.quickswap.v1.StatusCountR\bstatuses\x12<\n" +
-	"\tdeposited\x18\x04 \x03(\v2\x1e.swap.quickswap.v1.AssetVolumeR\tdeposited\x12<\n" +
-	"\tdelivered\x18\x05 \x03(\v2\x1e.swap.quickswap.v1.AssetVolumeR\tdelivered\x12/\n" +
-	"\x04fees\x18\x06 \x03(\v2\x1b.swap.quickswap.v1.FeeSplitR\x04fees\"X\n" +
-	"\x16GetBrokerStatsResponse\x12>\n" +
-	"\aperiods\x18\x01 \x03(\v2$.swap.quickswap.v1.BrokerStatsPeriodR\aperiods\"\xc8\x01\n" +
+	" \x01(\x04R\runvaluedCount\"\xdb\v\n" +
+	"\x11BrokerStatsSeries\x12\x18\n" +
+	"\x06totals\x18\x01 \x01(\bH\x00R\x06totals\x125\n" +
+	"\x05route\x18\x02 \x01(\v2\x1d.swap.quickswap.v1.StatsRouteH\x00R\x05route\x12*\n" +
+	"\x10vault_account_id\x18\x03 \x01(\x06H\x00R\x0evaultAccountId\x125\n" +
+	"\x16source_zipped_asset_id\x18\x04 \x01(\rH\x00R\x13sourceZippedAssetId\x12?\n" +
+	"\x1bdestination_zipped_asset_id\x18\x05 \x01(\rH\x00R\x18destinationZippedAssetId\x12\x18\n" +
+	"\x06others\x18\x06 \x01(\bH\x00R\x06others\x12#\n" +
+	"\rcreated_count\x18\a \x01(\rR\fcreatedCount\x12#\n" +
+	"\rstatus_counts\x18\b \x03(\rR\fstatusCounts\x125\n" +
+	"\tdeposited\x18\t \x03(\v2\x17.polyester.type.v1.U128R\tdeposited\x125\n" +
+	"\tdelivered\x18\n" +
+	" \x03(\v2\x17.polyester.type.v1.U128R\tdelivered\x12+\n" +
+	"\x04fees\x18\v \x03(\v2\x17.polyester.type.v1.U128R\x04fees\x12(\n" +
+	"\x10deposited_usd_q4\x18\f \x01(\x04R\x0edepositedUsdQ4\x12(\n" +
+	"\x10delivered_usd_q4\x18\r \x01(\x04R\x0edeliveredUsdQ4\x12\x1e\n" +
+	"\vfees_usd_q4\x18\x0e \x01(\x04R\tfeesUsdQ4\x12%\n" +
+	"\x0eunvalued_count\x18\x0f \x01(\rR\runvaluedCount\x12\x18\n" +
+	"\acreated\x18\x10 \x03(\rR\acreated\x12\x1c\n" +
+	"\tcompleted\x18\x11 \x03(\rR\tcompleted\x12#\n" +
+	"\rdeposited_usd\x18\x12 \x03(\x04R\fdepositedUsd\x12#\n" +
+	"\rdelivered_usd\x18\x13 \x03(\x04R\fdeliveredUsd\x12\x19\n" +
+	"\bfees_usd\x18\x14 \x03(\x04R\afeesUsd\x12\x1a\n" +
+	"\bunvalued\x18\x15 \x03(\rR\bunvalued\x12&\n" +
+	"\x0fservice_fee_usd\x18\x16 \x03(\x04R\rserviceFeeUsd\x12$\n" +
+	"\x0ebroker_fee_usd\x18\x17 \x03(\x04R\fbrokerFeeUsd\x12*\n" +
+	"\x11affiliate_fee_usd\x18\x18 \x03(\x04R\x0faffiliateFeeUsd\x12(\n" +
+	"\x10referral_fee_usd\x18\x19 \x03(\x04R\x0ereferralFeeUsd\x12\x1f\n" +
+	"\vcell_bucket\x18\x1a \x03(\rR\n" +
+	"cellBucket\x12\x1d\n" +
+	"\n" +
+	"cell_asset\x18\x1b \x03(\rR\tcellAsset\x12>\n" +
+	"\x0ecell_deposited\x18\x1c \x03(\v2\x17.polyester.type.v1.U128R\rcellDeposited\x12>\n" +
+	"\x0ecell_delivered\x18\x1d \x03(\v2\x17.polyester.type.v1.U128R\rcellDelivered\x12A\n" +
+	"\x10cell_service_fee\x18\x1e \x03(\v2\x17.polyester.type.v1.U128R\x0ecellServiceFee\x12?\n" +
+	"\x0fcell_broker_fee\x18\x1f \x03(\v2\x17.polyester.type.v1.U128R\rcellBrokerFee\x12E\n" +
+	"\x12cell_affiliate_fee\x18  \x03(\v2\x17.polyester.type.v1.U128R\x10cellAffiliateFee\x12C\n" +
+	"\x11cell_referral_fee\x18! \x03(\v2\x17.polyester.type.v1.U128R\x0fcellReferralFeeB\n" +
+	"\n" +
+	"\bgrouping\"\x86\x02\n" +
+	"\x16GetBrokerStatsResponse\x126\n" +
+	"\x06period\x18\x01 \x01(\x0e2\x1e.swap.quickswap.v1.StatsPeriodR\x06period\x12 \n" +
+	"\fstart_ts_sec\x18\x02 \x01(\aR\n" +
+	"startTsSec\x12\x16\n" +
+	"\x06points\x18\x03 \x01(\rR\x06points\x12\x1f\n" +
+	"\fas_of_ts_sec\x18\x04 \x01(\aR\tasOfTsSec\x12\x1b\n" +
+	"\tasset_ids\x18\x05 \x03(\rR\bassetIds\x12<\n" +
+	"\x06series\x18\x06 \x03(\v2$.swap.quickswap.v1.BrokerStatsSeriesR\x06series\"\xc8\x01\n" +
 	"\x18ListVaultBalancesRequest\x129\n" +
 	"\x06broker\x18\x01 \x01(\tB!\xbaH\x1er\x1c2\x1a^[a-z0-9][a-z0-9_-]{0,62}$R\x06broker\x12(\n" +
 	"\x10vault_account_id\x18\x02 \x01(\x06R\x0evaultAccountId\x12\x1e\n" +
@@ -7890,11 +8513,18 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\bBY_VAULT\x10\x01\x12\n" +
 	"\n" +
 	"\x06BY_DAY\x10\x02\x12\f\n" +
-	"\bBY_MONTH\x10\x03*9\n" +
+	"\bBY_MONTH\x10\x03*C\n" +
 	"\vStatsPeriod\x12\x16\n" +
 	"\x12PERIOD_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03DAY\x10\x01\x12\t\n" +
-	"\x05MONTH\x10\x02*\xad\x01\n" +
+	"\x05MONTH\x10\x02\x12\b\n" +
+	"\x04HOUR\x10\x03*j\n" +
+	"\x0eStatsBreakdown\x12\x19\n" +
+	"\x15BREAKDOWN_UNSPECIFIED\x10\x00\x12\t\n" +
+	"\x05ROUTE\x10\x01\x12\t\n" +
+	"\x05VAULT\x10\x02\x12\x10\n" +
+	"\fSOURCE_ASSET\x10\x03\x12\x15\n" +
+	"\x11DESTINATION_ASSET\x10\x04*\xad\x01\n" +
 	"\fPayoutStatus\x12\x1d\n" +
 	"\x19PAYOUT_STATUS_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vPAYOUT_PAID\x10\x01\x12\x19\n" +
@@ -7945,7 +8575,7 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\x13NOT_LISTED_ON_CHAIN\x10\x02\x12\x11\n" +
 	"\rLIMIT_REACHED\x10\x03\x12\x1f\n" +
 	"\x1bREQUESTER_NO_LONGER_ALLOWED\x10\x04\x12\v\n" +
-	"\aREFUSED\x10\x052\xc0B\n" +
+	"\aREFUSED\x10\x052\xe8B\n" +
 	"\x16QuickSwapBrokerService\x12\xea\x01\n" +
 	"\tGetBroker\x12#.swap.quickswap.v1.GetBrokerRequest\x1a$.swap.quickswap.v1.GetBrokerResponse\"\x91\x01\xbaGd\n" +
 	"\x10QuickSwap Broker\x12\n" +
@@ -7988,9 +8618,9 @@ const file_swap_quickswap_v1_quickswap_broker_proto_rawDesc = "" +
 	"\fGetQuickSwap\x12<.swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapRequest\x1a=.swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse\"\xa6\x01\xbaGg\n" +
 	"\x10QuickSwap Broker\x12\x14Get broker QuickSwap\x1a=Read the full detail of a QuickSwap belonging to this broker.\xa2\xb5\x18\x02\x03\x01\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x10BROKER_NOT_FOUND\xaa\xb5\x18\x0eSWAP_NOT_FOUND\x12\x8e\x02\n" +
 	"\fGetFeeTotals\x12&.swap.quickswap.v1.GetFeeTotalsRequest\x1a'.swap.quickswap.v1.GetFeeTotalsResponse\"\xac\x01\xbaG\x7f\n" +
-	"\x10QuickSwap Broker\x12\x0eGet fee totals\x1a[Total the broker and affiliate fees charged in a window, per asset, by vault, day or month.\xa2\xb5\x18\x02\x03\x01\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x10BROKER_NOT_FOUND\x12\xb1\x02\n" +
-	"\x0eGetBrokerStats\x12(.swap.quickswap.v1.GetBrokerStatsRequest\x1a).swap.quickswap.v1.GetBrokerStatsResponse\"\xc9\x01\xbaG\x87\x01\n" +
-	"\x10QuickSwap Broker\x12\x10Get broker stats\x1aaRead the broker's QuickSwaps by status, deposits, payouts and fees in a window, per day or month.\xa2\xb5\x18\x02\x03\x01\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x10BROKER_NOT_FOUND\xaa\xb5\x18\x10STATS_INCOMPLETE\x12\xa1\x02\n" +
+	"\x10QuickSwap Broker\x12\x0eGet fee totals\x1a[Total the broker and affiliate fees charged in a window, per asset, by vault, day or month.\xa2\xb5\x18\x02\x03\x01\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x10BROKER_NOT_FOUND\x12\xd9\x02\n" +
+	"\x0eGetBrokerStats\x12(.swap.quickswap.v1.GetBrokerStatsRequest\x1a).swap.quickswap.v1.GetBrokerStatsResponse\"\xf1\x01\xbaG\xc3\x01\n" +
+	"\x10QuickSwap Broker\x12\x10Get broker stats\x1a\x9c\x01Read the broker's QuickSwaps by status, deposits, payouts and fees in a window, per hour, day or month, with an optional breakdown by route, vault or asset.\xa2\xb5\x18\x02\x03\x01\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x10BROKER_NOT_FOUND\x12\xa1\x02\n" +
 	"\vListPayouts\x12%.swap.quickswap.v1.ListPayoutsRequest\x1a&.swap.quickswap.v1.ListPayoutsResponse\"\xc2\x01\xbaG\x81\x01\n" +
 	"\x10QuickSwap Broker\x12\fList payouts\x1a_List the payout runs of the broker's vaults, newest first, by vault, status and scheduled slot.\xa2\xb5\x18\x02\x03\x01\xaa\xb5\x18\fBROKER_LIMIT\xaa\xb5\x18\x10BROKER_NOT_FOUND\xaa\xb5\x18\x0fVAULT_NOT_FOUND\x12\xe5\x01\n" +
 	"\tGetPayout\x12#.swap.quickswap.v1.GetPayoutRequest\x1a$.swap.quickswap.v1.GetPayoutResponse\"\x8c\x01\xbaGK\n" +
@@ -8022,341 +8652,350 @@ func file_swap_quickswap_v1_quickswap_broker_proto_rawDescGZIP() []byte {
 	return file_swap_quickswap_v1_quickswap_broker_proto_rawDescData
 }
 
-var file_swap_quickswap_v1_quickswap_broker_proto_enumTypes = make([]protoimpl.EnumInfo, 12)
+var file_swap_quickswap_v1_quickswap_broker_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
 var file_swap_quickswap_v1_quickswap_broker_proto_msgTypes = make([]protoimpl.MessageInfo, 86)
 var file_swap_quickswap_v1_quickswap_broker_proto_goTypes = []any{
 	(BrokerRole)(0),                                    // 0: swap.quickswap.v1.BrokerRole
 	(VaultStatus)(0),                                   // 1: swap.quickswap.v1.VaultStatus
 	(FeeTotalsGrouping)(0),                             // 2: swap.quickswap.v1.FeeTotalsGrouping
 	(StatsPeriod)(0),                                   // 3: swap.quickswap.v1.StatsPeriod
-	(PayoutStatus)(0),                                  // 4: swap.quickswap.v1.PayoutStatus
-	(PayoutStage)(0),                                   // 5: swap.quickswap.v1.PayoutStage
-	(PayoutStepState)(0),                               // 6: swap.quickswap.v1.PayoutStepState
-	(VaultLedgerEntryKind)(0),                          // 7: swap.quickswap.v1.VaultLedgerEntryKind
-	(PayoutClose)(0),                                   // 8: swap.quickswap.v1.PayoutClose
-	(AllowlistAction)(0),                               // 9: swap.quickswap.v1.AllowlistAction
-	(AllowlistChangeStatus)(0),                         // 10: swap.quickswap.v1.AllowlistChangeStatus
-	(AllowlistChangeFailure)(0),                        // 11: swap.quickswap.v1.AllowlistChangeFailure
-	(*Broker)(nil),                                     // 12: swap.quickswap.v1.Broker
-	(*BrokerUsage)(nil),                                // 13: swap.quickswap.v1.BrokerUsage
-	(*AffiliateVault)(nil),                             // 14: swap.quickswap.v1.AffiliateVault
-	(*BrokerKey)(nil),                                  // 15: swap.quickswap.v1.BrokerKey
-	(*Member)(nil),                                     // 16: swap.quickswap.v1.Member
-	(*Invite)(nil),                                     // 17: swap.quickswap.v1.Invite
-	(*Membership)(nil),                                 // 18: swap.quickswap.v1.Membership
-	(*GetBrokerRequest)(nil),                           // 19: swap.quickswap.v1.GetBrokerRequest
-	(*GetBrokerResponse)(nil),                          // 20: swap.quickswap.v1.GetBrokerResponse
-	(*ListMyBrokersRequest)(nil),                       // 21: swap.quickswap.v1.ListMyBrokersRequest
-	(*ListMyBrokersResponse)(nil),                      // 22: swap.quickswap.v1.ListMyBrokersResponse
-	(*RespondToInviteRequest)(nil),                     // 23: swap.quickswap.v1.RespondToInviteRequest
-	(*RespondToInviteResponse)(nil),                    // 24: swap.quickswap.v1.RespondToInviteResponse
-	(*ListMembersRequest)(nil),                         // 25: swap.quickswap.v1.ListMembersRequest
-	(*ListMembersResponse)(nil),                        // 26: swap.quickswap.v1.ListMembersResponse
-	(*InviteMemberRequest)(nil),                        // 27: swap.quickswap.v1.InviteMemberRequest
-	(*InviteMemberResponse)(nil),                       // 28: swap.quickswap.v1.InviteMemberResponse
-	(*SetMemberRoleRequest)(nil),                       // 29: swap.quickswap.v1.SetMemberRoleRequest
-	(*SetMemberRoleResponse)(nil),                      // 30: swap.quickswap.v1.SetMemberRoleResponse
-	(*RemoveMemberRequest)(nil),                        // 31: swap.quickswap.v1.RemoveMemberRequest
-	(*RemoveMemberResponse)(nil),                       // 32: swap.quickswap.v1.RemoveMemberResponse
-	(*TransferOwnershipRequest)(nil),                   // 33: swap.quickswap.v1.TransferOwnershipRequest
-	(*TransferOwnershipResponse)(nil),                  // 34: swap.quickswap.v1.TransferOwnershipResponse
-	(*ListKeysRequest)(nil),                            // 35: swap.quickswap.v1.ListKeysRequest
-	(*ListKeysResponse)(nil),                           // 36: swap.quickswap.v1.ListKeysResponse
-	(*CreateKeyRequest)(nil),                           // 37: swap.quickswap.v1.CreateKeyRequest
-	(*CreateKeyResponse)(nil),                          // 38: swap.quickswap.v1.CreateKeyResponse
-	(*RotateKeyRequest)(nil),                           // 39: swap.quickswap.v1.RotateKeyRequest
-	(*RotateKeyResponse)(nil),                          // 40: swap.quickswap.v1.RotateKeyResponse
-	(*RevokeKeyRequest)(nil),                           // 41: swap.quickswap.v1.RevokeKeyRequest
-	(*RevokeKeyResponse)(nil),                          // 42: swap.quickswap.v1.RevokeKeyResponse
-	(*CreateAffiliateVaultRequest)(nil),                // 43: swap.quickswap.v1.CreateAffiliateVaultRequest
-	(*CreateAffiliateVaultResponse)(nil),               // 44: swap.quickswap.v1.CreateAffiliateVaultResponse
-	(*ListVaultsRequest)(nil),                          // 45: swap.quickswap.v1.ListVaultsRequest
-	(*ListVaultsResponse)(nil),                         // 46: swap.quickswap.v1.ListVaultsResponse
-	(*GetVaultRequest)(nil),                            // 47: swap.quickswap.v1.GetVaultRequest
-	(*GetVaultResponse)(nil),                           // 48: swap.quickswap.v1.GetVaultResponse
-	(*SetVaultStatusRequest)(nil),                      // 49: swap.quickswap.v1.SetVaultStatusRequest
-	(*SetVaultStatusResponse)(nil),                     // 50: swap.quickswap.v1.SetVaultStatusResponse
-	(*QuickSwapSummary)(nil),                           // 51: swap.quickswap.v1.QuickSwapSummary
-	(*QuickSwapBrokerServiceGetQuickSwapRequest)(nil),  // 52: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapRequest
-	(*QuickSwapBrokerServiceGetQuickSwapResponse)(nil), // 53: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse
-	(*ListQuickSwapsRequest)(nil),                      // 54: swap.quickswap.v1.ListQuickSwapsRequest
-	(*ListQuickSwapsResponse)(nil),                     // 55: swap.quickswap.v1.ListQuickSwapsResponse
-	(*GetFeeTotalsRequest)(nil),                        // 56: swap.quickswap.v1.GetFeeTotalsRequest
-	(*FeeTotal)(nil),                                   // 57: swap.quickswap.v1.FeeTotal
-	(*GetFeeTotalsResponse)(nil),                       // 58: swap.quickswap.v1.GetFeeTotalsResponse
-	(*GetBrokerStatsRequest)(nil),                      // 59: swap.quickswap.v1.GetBrokerStatsRequest
-	(*StatusCount)(nil),                                // 60: swap.quickswap.v1.StatusCount
-	(*AssetVolume)(nil),                                // 61: swap.quickswap.v1.AssetVolume
-	(*FeeSplit)(nil),                                   // 62: swap.quickswap.v1.FeeSplit
-	(*BrokerStatsPeriod)(nil),                          // 63: swap.quickswap.v1.BrokerStatsPeriod
-	(*GetBrokerStatsResponse)(nil),                     // 64: swap.quickswap.v1.GetBrokerStatsResponse
-	(*ListVaultBalancesRequest)(nil),                   // 65: swap.quickswap.v1.ListVaultBalancesRequest
-	(*VaultAssetBalance)(nil),                          // 66: swap.quickswap.v1.VaultAssetBalance
-	(*VaultBalance)(nil),                               // 67: swap.quickswap.v1.VaultBalance
-	(*ListVaultBalancesResponse)(nil),                  // 68: swap.quickswap.v1.ListVaultBalancesResponse
-	(*PayoutStep)(nil),                                 // 69: swap.quickswap.v1.PayoutStep
-	(*Payout)(nil),                                     // 70: swap.quickswap.v1.Payout
-	(*ListPayoutsRequest)(nil),                         // 71: swap.quickswap.v1.ListPayoutsRequest
-	(*ListPayoutsResponse)(nil),                        // 72: swap.quickswap.v1.ListPayoutsResponse
-	(*GetPayoutRequest)(nil),                           // 73: swap.quickswap.v1.GetPayoutRequest
-	(*GetPayoutResponse)(nil),                          // 74: swap.quickswap.v1.GetPayoutResponse
-	(*UpcomingPayoutAsset)(nil),                        // 75: swap.quickswap.v1.UpcomingPayoutAsset
-	(*UpcomingPayout)(nil),                             // 76: swap.quickswap.v1.UpcomingPayout
-	(*ListUpcomingPayoutsRequest)(nil),                 // 77: swap.quickswap.v1.ListUpcomingPayoutsRequest
-	(*ListUpcomingPayoutsResponse)(nil),                // 78: swap.quickswap.v1.ListUpcomingPayoutsResponse
-	(*PayoutRuleDestination)(nil),                      // 79: swap.quickswap.v1.PayoutRuleDestination
-	(*AssetWithoutDestination)(nil),                    // 80: swap.quickswap.v1.AssetWithoutDestination
-	(*VaultPayoutRule)(nil),                            // 81: swap.quickswap.v1.VaultPayoutRule
-	(*ListVaultPayoutRulesRequest)(nil),                // 82: swap.quickswap.v1.ListVaultPayoutRulesRequest
-	(*ListVaultPayoutRulesResponse)(nil),               // 83: swap.quickswap.v1.ListVaultPayoutRulesResponse
-	(*VaultLedgerFeeCredit)(nil),                       // 84: swap.quickswap.v1.VaultLedgerFeeCredit
-	(*VaultLedgerPayoutDebit)(nil),                     // 85: swap.quickswap.v1.VaultLedgerPayoutDebit
-	(*VaultLedgerPayoutRefund)(nil),                    // 86: swap.quickswap.v1.VaultLedgerPayoutRefund
-	(*VaultLedgerEntry)(nil),                           // 87: swap.quickswap.v1.VaultLedgerEntry
-	(*ListVaultLedgerRequest)(nil),                     // 88: swap.quickswap.v1.ListVaultLedgerRequest
-	(*ListVaultLedgerResponse)(nil),                    // 89: swap.quickswap.v1.ListVaultLedgerResponse
-	(*VaultAllowlistEntry)(nil),                        // 90: swap.quickswap.v1.VaultAllowlistEntry
-	(*VaultAllowlistChange)(nil),                       // 91: swap.quickswap.v1.VaultAllowlistChange
-	(*ListVaultAllowlistRequest)(nil),                  // 92: swap.quickswap.v1.ListVaultAllowlistRequest
-	(*ListVaultAllowlistResponse)(nil),                 // 93: swap.quickswap.v1.ListVaultAllowlistResponse
-	(*ListVaultAllowlistChangesRequest)(nil),           // 94: swap.quickswap.v1.ListVaultAllowlistChangesRequest
-	(*ListVaultAllowlistChangesResponse)(nil),          // 95: swap.quickswap.v1.ListVaultAllowlistChangesResponse
-	(*RequestVaultAllowlistChangeRequest)(nil),         // 96: swap.quickswap.v1.RequestVaultAllowlistChangeRequest
-	(*RequestVaultAllowlistChangeResponse)(nil),        // 97: swap.quickswap.v1.RequestVaultAllowlistChangeResponse
-	(*timestamppb.Timestamp)(nil),                      // 98: google.protobuf.Timestamp
-	(QuickSwapStatus)(0),                               // 99: swap.quickswap.v1.QuickSwapStatus
-	(QuickSwapReason)(0),                               // 100: swap.quickswap.v1.QuickSwapReason
-	(*QuickSwapTerms)(nil),                             // 101: swap.quickswap.v1.QuickSwapTerms
-	(*RequestedFees)(nil),                              // 102: swap.quickswap.v1.RequestedFees
-	(*ChargedFee)(nil),                                 // 103: swap.quickswap.v1.ChargedFee
-	(*TokenAmount)(nil),                                // 104: swap.quickswap.v1.TokenAmount
-	(*QuickSwap)(nil),                                  // 105: swap.quickswap.v1.QuickSwap
-	(v1.AutoWithdrawPreviewStatus)(0),                  // 106: chain.withdraw.v1.AutoWithdrawPreviewStatus
-	(*v1.AutoWithdrawPause)(nil),                       // 107: chain.withdraw.v1.AutoWithdrawPause
-	(*v1.AutoWithdrawSchedule)(nil),                    // 108: chain.withdraw.v1.AutoWithdrawSchedule
-	(FeeKind)(0),                                       // 109: swap.quickswap.v1.FeeKind
+	(StatsBreakdown)(0),                                // 4: swap.quickswap.v1.StatsBreakdown
+	(PayoutStatus)(0),                                  // 5: swap.quickswap.v1.PayoutStatus
+	(PayoutStage)(0),                                   // 6: swap.quickswap.v1.PayoutStage
+	(PayoutStepState)(0),                               // 7: swap.quickswap.v1.PayoutStepState
+	(VaultLedgerEntryKind)(0),                          // 8: swap.quickswap.v1.VaultLedgerEntryKind
+	(PayoutClose)(0),                                   // 9: swap.quickswap.v1.PayoutClose
+	(AllowlistAction)(0),                               // 10: swap.quickswap.v1.AllowlistAction
+	(AllowlistChangeStatus)(0),                         // 11: swap.quickswap.v1.AllowlistChangeStatus
+	(AllowlistChangeFailure)(0),                        // 12: swap.quickswap.v1.AllowlistChangeFailure
+	(*Broker)(nil),                                     // 13: swap.quickswap.v1.Broker
+	(*BrokerUsage)(nil),                                // 14: swap.quickswap.v1.BrokerUsage
+	(*AffiliateVault)(nil),                             // 15: swap.quickswap.v1.AffiliateVault
+	(*BrokerKey)(nil),                                  // 16: swap.quickswap.v1.BrokerKey
+	(*Member)(nil),                                     // 17: swap.quickswap.v1.Member
+	(*Invite)(nil),                                     // 18: swap.quickswap.v1.Invite
+	(*Membership)(nil),                                 // 19: swap.quickswap.v1.Membership
+	(*GetBrokerRequest)(nil),                           // 20: swap.quickswap.v1.GetBrokerRequest
+	(*GetBrokerResponse)(nil),                          // 21: swap.quickswap.v1.GetBrokerResponse
+	(*ListMyBrokersRequest)(nil),                       // 22: swap.quickswap.v1.ListMyBrokersRequest
+	(*ListMyBrokersResponse)(nil),                      // 23: swap.quickswap.v1.ListMyBrokersResponse
+	(*RespondToInviteRequest)(nil),                     // 24: swap.quickswap.v1.RespondToInviteRequest
+	(*RespondToInviteResponse)(nil),                    // 25: swap.quickswap.v1.RespondToInviteResponse
+	(*ListMembersRequest)(nil),                         // 26: swap.quickswap.v1.ListMembersRequest
+	(*ListMembersResponse)(nil),                        // 27: swap.quickswap.v1.ListMembersResponse
+	(*InviteMemberRequest)(nil),                        // 28: swap.quickswap.v1.InviteMemberRequest
+	(*InviteMemberResponse)(nil),                       // 29: swap.quickswap.v1.InviteMemberResponse
+	(*SetMemberRoleRequest)(nil),                       // 30: swap.quickswap.v1.SetMemberRoleRequest
+	(*SetMemberRoleResponse)(nil),                      // 31: swap.quickswap.v1.SetMemberRoleResponse
+	(*RemoveMemberRequest)(nil),                        // 32: swap.quickswap.v1.RemoveMemberRequest
+	(*RemoveMemberResponse)(nil),                       // 33: swap.quickswap.v1.RemoveMemberResponse
+	(*TransferOwnershipRequest)(nil),                   // 34: swap.quickswap.v1.TransferOwnershipRequest
+	(*TransferOwnershipResponse)(nil),                  // 35: swap.quickswap.v1.TransferOwnershipResponse
+	(*ListKeysRequest)(nil),                            // 36: swap.quickswap.v1.ListKeysRequest
+	(*ListKeysResponse)(nil),                           // 37: swap.quickswap.v1.ListKeysResponse
+	(*CreateKeyRequest)(nil),                           // 38: swap.quickswap.v1.CreateKeyRequest
+	(*CreateKeyResponse)(nil),                          // 39: swap.quickswap.v1.CreateKeyResponse
+	(*RotateKeyRequest)(nil),                           // 40: swap.quickswap.v1.RotateKeyRequest
+	(*RotateKeyResponse)(nil),                          // 41: swap.quickswap.v1.RotateKeyResponse
+	(*RevokeKeyRequest)(nil),                           // 42: swap.quickswap.v1.RevokeKeyRequest
+	(*RevokeKeyResponse)(nil),                          // 43: swap.quickswap.v1.RevokeKeyResponse
+	(*CreateAffiliateVaultRequest)(nil),                // 44: swap.quickswap.v1.CreateAffiliateVaultRequest
+	(*CreateAffiliateVaultResponse)(nil),               // 45: swap.quickswap.v1.CreateAffiliateVaultResponse
+	(*ListVaultsRequest)(nil),                          // 46: swap.quickswap.v1.ListVaultsRequest
+	(*ListVaultsResponse)(nil),                         // 47: swap.quickswap.v1.ListVaultsResponse
+	(*GetVaultRequest)(nil),                            // 48: swap.quickswap.v1.GetVaultRequest
+	(*GetVaultResponse)(nil),                           // 49: swap.quickswap.v1.GetVaultResponse
+	(*SetVaultStatusRequest)(nil),                      // 50: swap.quickswap.v1.SetVaultStatusRequest
+	(*SetVaultStatusResponse)(nil),                     // 51: swap.quickswap.v1.SetVaultStatusResponse
+	(*QuickSwapSummary)(nil),                           // 52: swap.quickswap.v1.QuickSwapSummary
+	(*QuickSwapBrokerServiceGetQuickSwapRequest)(nil),  // 53: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapRequest
+	(*QuickSwapBrokerServiceGetQuickSwapResponse)(nil), // 54: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse
+	(*ListQuickSwapsRequest)(nil),                      // 55: swap.quickswap.v1.ListQuickSwapsRequest
+	(*ListQuickSwapsResponse)(nil),                     // 56: swap.quickswap.v1.ListQuickSwapsResponse
+	(*GetFeeTotalsRequest)(nil),                        // 57: swap.quickswap.v1.GetFeeTotalsRequest
+	(*FeeTotal)(nil),                                   // 58: swap.quickswap.v1.FeeTotal
+	(*GetFeeTotalsResponse)(nil),                       // 59: swap.quickswap.v1.GetFeeTotalsResponse
+	(*StatsRoute)(nil),                                 // 60: swap.quickswap.v1.StatsRoute
+	(*GetBrokerStatsRequest)(nil),                      // 61: swap.quickswap.v1.GetBrokerStatsRequest
+	(*AssetVolume)(nil),                                // 62: swap.quickswap.v1.AssetVolume
+	(*FeeSplit)(nil),                                   // 63: swap.quickswap.v1.FeeSplit
+	(*BrokerStatsSeries)(nil),                          // 64: swap.quickswap.v1.BrokerStatsSeries
+	(*GetBrokerStatsResponse)(nil),                     // 65: swap.quickswap.v1.GetBrokerStatsResponse
+	(*ListVaultBalancesRequest)(nil),                   // 66: swap.quickswap.v1.ListVaultBalancesRequest
+	(*VaultAssetBalance)(nil),                          // 67: swap.quickswap.v1.VaultAssetBalance
+	(*VaultBalance)(nil),                               // 68: swap.quickswap.v1.VaultBalance
+	(*ListVaultBalancesResponse)(nil),                  // 69: swap.quickswap.v1.ListVaultBalancesResponse
+	(*PayoutStep)(nil),                                 // 70: swap.quickswap.v1.PayoutStep
+	(*Payout)(nil),                                     // 71: swap.quickswap.v1.Payout
+	(*ListPayoutsRequest)(nil),                         // 72: swap.quickswap.v1.ListPayoutsRequest
+	(*ListPayoutsResponse)(nil),                        // 73: swap.quickswap.v1.ListPayoutsResponse
+	(*GetPayoutRequest)(nil),                           // 74: swap.quickswap.v1.GetPayoutRequest
+	(*GetPayoutResponse)(nil),                          // 75: swap.quickswap.v1.GetPayoutResponse
+	(*UpcomingPayoutAsset)(nil),                        // 76: swap.quickswap.v1.UpcomingPayoutAsset
+	(*UpcomingPayout)(nil),                             // 77: swap.quickswap.v1.UpcomingPayout
+	(*ListUpcomingPayoutsRequest)(nil),                 // 78: swap.quickswap.v1.ListUpcomingPayoutsRequest
+	(*ListUpcomingPayoutsResponse)(nil),                // 79: swap.quickswap.v1.ListUpcomingPayoutsResponse
+	(*PayoutRuleDestination)(nil),                      // 80: swap.quickswap.v1.PayoutRuleDestination
+	(*AssetWithoutDestination)(nil),                    // 81: swap.quickswap.v1.AssetWithoutDestination
+	(*VaultPayoutRule)(nil),                            // 82: swap.quickswap.v1.VaultPayoutRule
+	(*ListVaultPayoutRulesRequest)(nil),                // 83: swap.quickswap.v1.ListVaultPayoutRulesRequest
+	(*ListVaultPayoutRulesResponse)(nil),               // 84: swap.quickswap.v1.ListVaultPayoutRulesResponse
+	(*VaultLedgerFeeCredit)(nil),                       // 85: swap.quickswap.v1.VaultLedgerFeeCredit
+	(*VaultLedgerPayoutDebit)(nil),                     // 86: swap.quickswap.v1.VaultLedgerPayoutDebit
+	(*VaultLedgerPayoutRefund)(nil),                    // 87: swap.quickswap.v1.VaultLedgerPayoutRefund
+	(*VaultLedgerEntry)(nil),                           // 88: swap.quickswap.v1.VaultLedgerEntry
+	(*ListVaultLedgerRequest)(nil),                     // 89: swap.quickswap.v1.ListVaultLedgerRequest
+	(*ListVaultLedgerResponse)(nil),                    // 90: swap.quickswap.v1.ListVaultLedgerResponse
+	(*VaultAllowlistEntry)(nil),                        // 91: swap.quickswap.v1.VaultAllowlistEntry
+	(*VaultAllowlistChange)(nil),                       // 92: swap.quickswap.v1.VaultAllowlistChange
+	(*ListVaultAllowlistRequest)(nil),                  // 93: swap.quickswap.v1.ListVaultAllowlistRequest
+	(*ListVaultAllowlistResponse)(nil),                 // 94: swap.quickswap.v1.ListVaultAllowlistResponse
+	(*ListVaultAllowlistChangesRequest)(nil),           // 95: swap.quickswap.v1.ListVaultAllowlistChangesRequest
+	(*ListVaultAllowlistChangesResponse)(nil),          // 96: swap.quickswap.v1.ListVaultAllowlistChangesResponse
+	(*RequestVaultAllowlistChangeRequest)(nil),         // 97: swap.quickswap.v1.RequestVaultAllowlistChangeRequest
+	(*RequestVaultAllowlistChangeResponse)(nil),        // 98: swap.quickswap.v1.RequestVaultAllowlistChangeResponse
+	(*timestamppb.Timestamp)(nil),                      // 99: google.protobuf.Timestamp
+	(QuickSwapStatus)(0),                               // 100: swap.quickswap.v1.QuickSwapStatus
+	(QuickSwapReason)(0),                               // 101: swap.quickswap.v1.QuickSwapReason
+	(*QuickSwapTerms)(nil),                             // 102: swap.quickswap.v1.QuickSwapTerms
+	(*RequestedFees)(nil),                              // 103: swap.quickswap.v1.RequestedFees
+	(*ChargedFee)(nil),                                 // 104: swap.quickswap.v1.ChargedFee
+	(*TokenAmount)(nil),                                // 105: swap.quickswap.v1.TokenAmount
+	(*QuickSwap)(nil),                                  // 106: swap.quickswap.v1.QuickSwap
+	(*v1.U128)(nil),                                    // 107: polyester.type.v1.U128
+	(v11.AutoWithdrawPreviewStatus)(0),                 // 108: chain.withdraw.v1.AutoWithdrawPreviewStatus
+	(*v11.AutoWithdrawPause)(nil),                      // 109: chain.withdraw.v1.AutoWithdrawPause
+	(*v11.AutoWithdrawSchedule)(nil),                   // 110: chain.withdraw.v1.AutoWithdrawSchedule
+	(FeeKind)(0),                                       // 111: swap.quickswap.v1.FeeKind
 }
 var file_swap_quickswap_v1_quickswap_broker_proto_depIdxs = []int32{
 	0,   // 0: swap.quickswap.v1.Broker.role:type_name -> swap.quickswap.v1.BrokerRole
 	1,   // 1: swap.quickswap.v1.AffiliateVault.status:type_name -> swap.quickswap.v1.VaultStatus
-	98,  // 2: swap.quickswap.v1.AffiliateVault.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 3: swap.quickswap.v1.AffiliateVault.updated_at:type_name -> google.protobuf.Timestamp
-	98,  // 4: swap.quickswap.v1.BrokerKey.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 5: swap.quickswap.v1.BrokerKey.expires_at:type_name -> google.protobuf.Timestamp
-	98,  // 6: swap.quickswap.v1.BrokerKey.revoked_at:type_name -> google.protobuf.Timestamp
+	99,  // 2: swap.quickswap.v1.AffiliateVault.created_at:type_name -> google.protobuf.Timestamp
+	99,  // 3: swap.quickswap.v1.AffiliateVault.updated_at:type_name -> google.protobuf.Timestamp
+	99,  // 4: swap.quickswap.v1.BrokerKey.created_at:type_name -> google.protobuf.Timestamp
+	99,  // 5: swap.quickswap.v1.BrokerKey.expires_at:type_name -> google.protobuf.Timestamp
+	99,  // 6: swap.quickswap.v1.BrokerKey.revoked_at:type_name -> google.protobuf.Timestamp
 	0,   // 7: swap.quickswap.v1.Member.role:type_name -> swap.quickswap.v1.BrokerRole
-	98,  // 8: swap.quickswap.v1.Member.since:type_name -> google.protobuf.Timestamp
+	99,  // 8: swap.quickswap.v1.Member.since:type_name -> google.protobuf.Timestamp
 	0,   // 9: swap.quickswap.v1.Invite.role:type_name -> swap.quickswap.v1.BrokerRole
-	98,  // 10: swap.quickswap.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
+	99,  // 10: swap.quickswap.v1.Invite.created_at:type_name -> google.protobuf.Timestamp
 	0,   // 11: swap.quickswap.v1.Membership.role:type_name -> swap.quickswap.v1.BrokerRole
-	12,  // 12: swap.quickswap.v1.GetBrokerResponse.broker:type_name -> swap.quickswap.v1.Broker
-	13,  // 13: swap.quickswap.v1.GetBrokerResponse.usage:type_name -> swap.quickswap.v1.BrokerUsage
-	18,  // 14: swap.quickswap.v1.ListMyBrokersResponse.memberships:type_name -> swap.quickswap.v1.Membership
-	17,  // 15: swap.quickswap.v1.ListMyBrokersResponse.invites:type_name -> swap.quickswap.v1.Invite
-	18,  // 16: swap.quickswap.v1.RespondToInviteResponse.membership:type_name -> swap.quickswap.v1.Membership
-	16,  // 17: swap.quickswap.v1.ListMembersResponse.members:type_name -> swap.quickswap.v1.Member
-	17,  // 18: swap.quickswap.v1.ListMembersResponse.invites:type_name -> swap.quickswap.v1.Invite
+	13,  // 12: swap.quickswap.v1.GetBrokerResponse.broker:type_name -> swap.quickswap.v1.Broker
+	14,  // 13: swap.quickswap.v1.GetBrokerResponse.usage:type_name -> swap.quickswap.v1.BrokerUsage
+	19,  // 14: swap.quickswap.v1.ListMyBrokersResponse.memberships:type_name -> swap.quickswap.v1.Membership
+	18,  // 15: swap.quickswap.v1.ListMyBrokersResponse.invites:type_name -> swap.quickswap.v1.Invite
+	19,  // 16: swap.quickswap.v1.RespondToInviteResponse.membership:type_name -> swap.quickswap.v1.Membership
+	17,  // 17: swap.quickswap.v1.ListMembersResponse.members:type_name -> swap.quickswap.v1.Member
+	18,  // 18: swap.quickswap.v1.ListMembersResponse.invites:type_name -> swap.quickswap.v1.Invite
 	0,   // 19: swap.quickswap.v1.InviteMemberRequest.role:type_name -> swap.quickswap.v1.BrokerRole
-	17,  // 20: swap.quickswap.v1.InviteMemberResponse.invite:type_name -> swap.quickswap.v1.Invite
+	18,  // 20: swap.quickswap.v1.InviteMemberResponse.invite:type_name -> swap.quickswap.v1.Invite
 	0,   // 21: swap.quickswap.v1.SetMemberRoleRequest.role:type_name -> swap.quickswap.v1.BrokerRole
-	15,  // 22: swap.quickswap.v1.ListKeysResponse.keys:type_name -> swap.quickswap.v1.BrokerKey
-	15,  // 23: swap.quickswap.v1.CreateKeyResponse.key:type_name -> swap.quickswap.v1.BrokerKey
-	15,  // 24: swap.quickswap.v1.RotateKeyResponse.key:type_name -> swap.quickswap.v1.BrokerKey
-	15,  // 25: swap.quickswap.v1.RotateKeyResponse.previous_key:type_name -> swap.quickswap.v1.BrokerKey
-	15,  // 26: swap.quickswap.v1.RevokeKeyResponse.key:type_name -> swap.quickswap.v1.BrokerKey
-	14,  // 27: swap.quickswap.v1.CreateAffiliateVaultResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
-	14,  // 28: swap.quickswap.v1.ListVaultsResponse.vaults:type_name -> swap.quickswap.v1.AffiliateVault
-	14,  // 29: swap.quickswap.v1.GetVaultResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
+	16,  // 22: swap.quickswap.v1.ListKeysResponse.keys:type_name -> swap.quickswap.v1.BrokerKey
+	16,  // 23: swap.quickswap.v1.CreateKeyResponse.key:type_name -> swap.quickswap.v1.BrokerKey
+	16,  // 24: swap.quickswap.v1.RotateKeyResponse.key:type_name -> swap.quickswap.v1.BrokerKey
+	16,  // 25: swap.quickswap.v1.RotateKeyResponse.previous_key:type_name -> swap.quickswap.v1.BrokerKey
+	16,  // 26: swap.quickswap.v1.RevokeKeyResponse.key:type_name -> swap.quickswap.v1.BrokerKey
+	15,  // 27: swap.quickswap.v1.CreateAffiliateVaultResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
+	15,  // 28: swap.quickswap.v1.ListVaultsResponse.vaults:type_name -> swap.quickswap.v1.AffiliateVault
+	15,  // 29: swap.quickswap.v1.GetVaultResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
 	1,   // 30: swap.quickswap.v1.SetVaultStatusRequest.status:type_name -> swap.quickswap.v1.VaultStatus
-	14,  // 31: swap.quickswap.v1.SetVaultStatusResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
-	99,  // 32: swap.quickswap.v1.QuickSwapSummary.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	100, // 33: swap.quickswap.v1.QuickSwapSummary.reason:type_name -> swap.quickswap.v1.QuickSwapReason
-	101, // 34: swap.quickswap.v1.QuickSwapSummary.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	102, // 35: swap.quickswap.v1.QuickSwapSummary.fees:type_name -> swap.quickswap.v1.RequestedFees
-	103, // 36: swap.quickswap.v1.QuickSwapSummary.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
-	98,  // 37: swap.quickswap.v1.QuickSwapSummary.created_at:type_name -> google.protobuf.Timestamp
-	98,  // 38: swap.quickswap.v1.QuickSwapSummary.updated_at:type_name -> google.protobuf.Timestamp
-	104, // 39: swap.quickswap.v1.QuickSwapSummary.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 40: swap.quickswap.v1.QuickSwapSummary.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	105, // 41: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	99,  // 42: swap.quickswap.v1.ListQuickSwapsRequest.statuses:type_name -> swap.quickswap.v1.QuickSwapStatus
-	98,  // 43: swap.quickswap.v1.ListQuickSwapsRequest.start_time:type_name -> google.protobuf.Timestamp
-	98,  // 44: swap.quickswap.v1.ListQuickSwapsRequest.end_time:type_name -> google.protobuf.Timestamp
-	51,  // 45: swap.quickswap.v1.ListQuickSwapsResponse.quick_swaps:type_name -> swap.quickswap.v1.QuickSwapSummary
+	15,  // 31: swap.quickswap.v1.SetVaultStatusResponse.vault:type_name -> swap.quickswap.v1.AffiliateVault
+	100, // 32: swap.quickswap.v1.QuickSwapSummary.status:type_name -> swap.quickswap.v1.QuickSwapStatus
+	101, // 33: swap.quickswap.v1.QuickSwapSummary.reason:type_name -> swap.quickswap.v1.QuickSwapReason
+	102, // 34: swap.quickswap.v1.QuickSwapSummary.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	103, // 35: swap.quickswap.v1.QuickSwapSummary.fees:type_name -> swap.quickswap.v1.RequestedFees
+	104, // 36: swap.quickswap.v1.QuickSwapSummary.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
+	99,  // 37: swap.quickswap.v1.QuickSwapSummary.created_at:type_name -> google.protobuf.Timestamp
+	99,  // 38: swap.quickswap.v1.QuickSwapSummary.updated_at:type_name -> google.protobuf.Timestamp
+	105, // 39: swap.quickswap.v1.QuickSwapSummary.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 40: swap.quickswap.v1.QuickSwapSummary.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	106, // 41: swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	100, // 42: swap.quickswap.v1.ListQuickSwapsRequest.statuses:type_name -> swap.quickswap.v1.QuickSwapStatus
+	99,  // 43: swap.quickswap.v1.ListQuickSwapsRequest.start_time:type_name -> google.protobuf.Timestamp
+	99,  // 44: swap.quickswap.v1.ListQuickSwapsRequest.end_time:type_name -> google.protobuf.Timestamp
+	52,  // 45: swap.quickswap.v1.ListQuickSwapsResponse.quick_swaps:type_name -> swap.quickswap.v1.QuickSwapSummary
 	2,   // 46: swap.quickswap.v1.GetFeeTotalsRequest.group_by:type_name -> swap.quickswap.v1.FeeTotalsGrouping
-	98,  // 47: swap.quickswap.v1.GetFeeTotalsRequest.start_time:type_name -> google.protobuf.Timestamp
-	98,  // 48: swap.quickswap.v1.GetFeeTotalsRequest.end_time:type_name -> google.protobuf.Timestamp
-	98,  // 49: swap.quickswap.v1.FeeTotal.period_start:type_name -> google.protobuf.Timestamp
-	104, // 50: swap.quickswap.v1.FeeTotal.amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 51: swap.quickswap.v1.FeeTotal.value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	57,  // 52: swap.quickswap.v1.GetFeeTotalsResponse.totals:type_name -> swap.quickswap.v1.FeeTotal
+	99,  // 47: swap.quickswap.v1.GetFeeTotalsRequest.start_time:type_name -> google.protobuf.Timestamp
+	99,  // 48: swap.quickswap.v1.GetFeeTotalsRequest.end_time:type_name -> google.protobuf.Timestamp
+	99,  // 49: swap.quickswap.v1.FeeTotal.period_start:type_name -> google.protobuf.Timestamp
+	105, // 50: swap.quickswap.v1.FeeTotal.amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 51: swap.quickswap.v1.FeeTotal.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	58,  // 52: swap.quickswap.v1.GetFeeTotalsResponse.totals:type_name -> swap.quickswap.v1.FeeTotal
 	3,   // 53: swap.quickswap.v1.GetBrokerStatsRequest.group_by:type_name -> swap.quickswap.v1.StatsPeriod
-	98,  // 54: swap.quickswap.v1.GetBrokerStatsRequest.start_time:type_name -> google.protobuf.Timestamp
-	98,  // 55: swap.quickswap.v1.GetBrokerStatsRequest.end_time:type_name -> google.protobuf.Timestamp
-	99,  // 56: swap.quickswap.v1.StatusCount.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	104, // 57: swap.quickswap.v1.AssetVolume.amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 58: swap.quickswap.v1.AssetVolume.value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 59: swap.quickswap.v1.FeeSplit.service_fee:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 60: swap.quickswap.v1.FeeSplit.broker_fee:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 61: swap.quickswap.v1.FeeSplit.affiliate_fee:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 62: swap.quickswap.v1.FeeSplit.referral_fee:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 63: swap.quickswap.v1.FeeSplit.service_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 64: swap.quickswap.v1.FeeSplit.broker_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 65: swap.quickswap.v1.FeeSplit.affiliate_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 66: swap.quickswap.v1.FeeSplit.referral_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
-	98,  // 67: swap.quickswap.v1.BrokerStatsPeriod.period_start:type_name -> google.protobuf.Timestamp
-	60,  // 68: swap.quickswap.v1.BrokerStatsPeriod.statuses:type_name -> swap.quickswap.v1.StatusCount
-	61,  // 69: swap.quickswap.v1.BrokerStatsPeriod.deposited:type_name -> swap.quickswap.v1.AssetVolume
-	61,  // 70: swap.quickswap.v1.BrokerStatsPeriod.delivered:type_name -> swap.quickswap.v1.AssetVolume
-	62,  // 71: swap.quickswap.v1.BrokerStatsPeriod.fees:type_name -> swap.quickswap.v1.FeeSplit
-	63,  // 72: swap.quickswap.v1.GetBrokerStatsResponse.periods:type_name -> swap.quickswap.v1.BrokerStatsPeriod
-	104, // 73: swap.quickswap.v1.VaultAssetBalance.amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 74: swap.quickswap.v1.VaultAssetBalance.pending_outgoing:type_name -> swap.quickswap.v1.TokenAmount
-	66,  // 75: swap.quickswap.v1.VaultBalance.assets:type_name -> swap.quickswap.v1.VaultAssetBalance
-	98,  // 76: swap.quickswap.v1.VaultBalance.as_of:type_name -> google.protobuf.Timestamp
-	67,  // 77: swap.quickswap.v1.ListVaultBalancesResponse.vaults:type_name -> swap.quickswap.v1.VaultBalance
-	6,   // 78: swap.quickswap.v1.PayoutStep.state:type_name -> swap.quickswap.v1.PayoutStepState
-	104, // 79: swap.quickswap.v1.PayoutStep.available:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 80: swap.quickswap.v1.PayoutStep.amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 81: swap.quickswap.v1.PayoutStep.minimum:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 82: swap.quickswap.v1.PayoutStep.value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 83: swap.quickswap.v1.PayoutStep.charged_network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	8,   // 84: swap.quickswap.v1.PayoutStep.close:type_name -> swap.quickswap.v1.PayoutClose
-	104, // 85: swap.quickswap.v1.PayoutStep.refunded_amount:type_name -> swap.quickswap.v1.TokenAmount
-	4,   // 86: swap.quickswap.v1.Payout.status:type_name -> swap.quickswap.v1.PayoutStatus
-	5,   // 87: swap.quickswap.v1.Payout.stage:type_name -> swap.quickswap.v1.PayoutStage
-	98,  // 88: swap.quickswap.v1.Payout.scheduled_for:type_name -> google.protobuf.Timestamp
-	98,  // 89: swap.quickswap.v1.Payout.started_at:type_name -> google.protobuf.Timestamp
-	98,  // 90: swap.quickswap.v1.Payout.finished_at:type_name -> google.protobuf.Timestamp
-	104, // 91: swap.quickswap.v1.Payout.min_usd_value:type_name -> swap.quickswap.v1.TokenAmount
-	69,  // 92: swap.quickswap.v1.Payout.steps:type_name -> swap.quickswap.v1.PayoutStep
-	4,   // 93: swap.quickswap.v1.ListPayoutsRequest.statuses:type_name -> swap.quickswap.v1.PayoutStatus
-	98,  // 94: swap.quickswap.v1.ListPayoutsRequest.start_time:type_name -> google.protobuf.Timestamp
-	98,  // 95: swap.quickswap.v1.ListPayoutsRequest.end_time:type_name -> google.protobuf.Timestamp
-	70,  // 96: swap.quickswap.v1.ListPayoutsResponse.payouts:type_name -> swap.quickswap.v1.Payout
-	70,  // 97: swap.quickswap.v1.GetPayoutResponse.payout:type_name -> swap.quickswap.v1.Payout
-	104, // 98: swap.quickswap.v1.UpcomingPayoutAsset.available:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 99: swap.quickswap.v1.UpcomingPayoutAsset.payable:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 100: swap.quickswap.v1.UpcomingPayoutAsset.held_back:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 101: swap.quickswap.v1.UpcomingPayoutAsset.minimum:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 102: swap.quickswap.v1.UpcomingPayoutAsset.value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	98,  // 103: swap.quickswap.v1.UpcomingPayoutAsset.priced_at:type_name -> google.protobuf.Timestamp
-	104, // 104: swap.quickswap.v1.UpcomingPayoutAsset.estimated_network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	98,  // 105: swap.quickswap.v1.UpcomingPayoutAsset.estimated_network_fee_sampled_at:type_name -> google.protobuf.Timestamp
-	98,  // 106: swap.quickswap.v1.UpcomingPayoutAsset.payable_from:type_name -> google.protobuf.Timestamp
-	106, // 107: swap.quickswap.v1.UpcomingPayout.status:type_name -> chain.withdraw.v1.AutoWithdrawPreviewStatus
-	98,  // 108: swap.quickswap.v1.UpcomingPayout.next_run_at:type_name -> google.protobuf.Timestamp
-	107, // 109: swap.quickswap.v1.UpcomingPayout.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
-	104, // 110: swap.quickswap.v1.UpcomingPayout.min_usd_value:type_name -> swap.quickswap.v1.TokenAmount
-	75,  // 111: swap.quickswap.v1.UpcomingPayout.assets:type_name -> swap.quickswap.v1.UpcomingPayoutAsset
-	98,  // 112: swap.quickswap.v1.UpcomingPayout.computed_at:type_name -> google.protobuf.Timestamp
-	76,  // 113: swap.quickswap.v1.ListUpcomingPayoutsResponse.upcoming_payouts:type_name -> swap.quickswap.v1.UpcomingPayout
-	104, // 114: swap.quickswap.v1.PayoutRuleDestination.min_amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 115: swap.quickswap.v1.PayoutRuleDestination.max_amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 116: swap.quickswap.v1.PayoutRuleDestination.min_floor:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 117: swap.quickswap.v1.PayoutRuleDestination.estimated_network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	98,  // 118: swap.quickswap.v1.PayoutRuleDestination.estimated_network_fee_sampled_at:type_name -> google.protobuf.Timestamp
-	104, // 119: swap.quickswap.v1.AssetWithoutDestination.balance:type_name -> swap.quickswap.v1.TokenAmount
-	108, // 120: swap.quickswap.v1.VaultPayoutRule.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
-	79,  // 121: swap.quickswap.v1.VaultPayoutRule.destinations:type_name -> swap.quickswap.v1.PayoutRuleDestination
-	107, // 122: swap.quickswap.v1.VaultPayoutRule.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
-	104, // 123: swap.quickswap.v1.VaultPayoutRule.min_usd_value:type_name -> swap.quickswap.v1.TokenAmount
-	98,  // 124: swap.quickswap.v1.VaultPayoutRule.updated_at:type_name -> google.protobuf.Timestamp
-	80,  // 125: swap.quickswap.v1.VaultPayoutRule.assets_without_destination:type_name -> swap.quickswap.v1.AssetWithoutDestination
-	81,  // 126: swap.quickswap.v1.ListVaultPayoutRulesResponse.rules:type_name -> swap.quickswap.v1.VaultPayoutRule
-	109, // 127: swap.quickswap.v1.VaultLedgerFeeCredit.fee_kind:type_name -> swap.quickswap.v1.FeeKind
-	104, // 128: swap.quickswap.v1.VaultLedgerFeeCredit.quoted_source_amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 129: swap.quickswap.v1.VaultLedgerFeeCredit.quoted_destination_amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 130: swap.quickswap.v1.VaultLedgerFeeCredit.source_amount:type_name -> swap.quickswap.v1.TokenAmount
-	104, // 131: swap.quickswap.v1.VaultLedgerFeeCredit.destination_amount:type_name -> swap.quickswap.v1.TokenAmount
-	4,   // 132: swap.quickswap.v1.VaultLedgerPayoutDebit.payout_status:type_name -> swap.quickswap.v1.PayoutStatus
-	6,   // 133: swap.quickswap.v1.VaultLedgerPayoutDebit.state:type_name -> swap.quickswap.v1.PayoutStepState
-	8,   // 134: swap.quickswap.v1.VaultLedgerPayoutDebit.close:type_name -> swap.quickswap.v1.PayoutClose
-	104, // 135: swap.quickswap.v1.VaultLedgerPayoutDebit.charged_network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	7,   // 136: swap.quickswap.v1.VaultLedgerEntry.kind:type_name -> swap.quickswap.v1.VaultLedgerEntryKind
-	98,  // 137: swap.quickswap.v1.VaultLedgerEntry.occurred_at:type_name -> google.protobuf.Timestamp
-	104, // 138: swap.quickswap.v1.VaultLedgerEntry.amount:type_name -> swap.quickswap.v1.TokenAmount
-	84,  // 139: swap.quickswap.v1.VaultLedgerEntry.fee_credit:type_name -> swap.quickswap.v1.VaultLedgerFeeCredit
-	85,  // 140: swap.quickswap.v1.VaultLedgerEntry.payout_debit:type_name -> swap.quickswap.v1.VaultLedgerPayoutDebit
-	86,  // 141: swap.quickswap.v1.VaultLedgerEntry.payout_refund:type_name -> swap.quickswap.v1.VaultLedgerPayoutRefund
-	98,  // 142: swap.quickswap.v1.ListVaultLedgerRequest.start_time:type_name -> google.protobuf.Timestamp
-	98,  // 143: swap.quickswap.v1.ListVaultLedgerRequest.end_time:type_name -> google.protobuf.Timestamp
-	87,  // 144: swap.quickswap.v1.ListVaultLedgerResponse.entries:type_name -> swap.quickswap.v1.VaultLedgerEntry
-	98,  // 145: swap.quickswap.v1.VaultAllowlistEntry.listed_at:type_name -> google.protobuf.Timestamp
-	98,  // 146: swap.quickswap.v1.VaultAllowlistEntry.payable_from:type_name -> google.protobuf.Timestamp
-	9,   // 147: swap.quickswap.v1.VaultAllowlistChange.action:type_name -> swap.quickswap.v1.AllowlistAction
-	98,  // 148: swap.quickswap.v1.VaultAllowlistChange.requested_at:type_name -> google.protobuf.Timestamp
-	98,  // 149: swap.quickswap.v1.VaultAllowlistChange.expires_at:type_name -> google.protobuf.Timestamp
-	10,  // 150: swap.quickswap.v1.VaultAllowlistChange.status:type_name -> swap.quickswap.v1.AllowlistChangeStatus
-	11,  // 151: swap.quickswap.v1.VaultAllowlistChange.failure:type_name -> swap.quickswap.v1.AllowlistChangeFailure
-	98,  // 152: swap.quickswap.v1.VaultAllowlistChange.closed_at:type_name -> google.protobuf.Timestamp
-	90,  // 153: swap.quickswap.v1.ListVaultAllowlistResponse.entries:type_name -> swap.quickswap.v1.VaultAllowlistEntry
-	91,  // 154: swap.quickswap.v1.ListVaultAllowlistChangesResponse.changes:type_name -> swap.quickswap.v1.VaultAllowlistChange
-	9,   // 155: swap.quickswap.v1.RequestVaultAllowlistChangeRequest.action:type_name -> swap.quickswap.v1.AllowlistAction
-	91,  // 156: swap.quickswap.v1.RequestVaultAllowlistChangeResponse.change:type_name -> swap.quickswap.v1.VaultAllowlistChange
-	19,  // 157: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:input_type -> swap.quickswap.v1.GetBrokerRequest
-	65,  // 158: swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances:input_type -> swap.quickswap.v1.ListVaultBalancesRequest
-	21,  // 159: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:input_type -> swap.quickswap.v1.ListMyBrokersRequest
-	23,  // 160: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:input_type -> swap.quickswap.v1.RespondToInviteRequest
-	25,  // 161: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:input_type -> swap.quickswap.v1.ListMembersRequest
-	27,  // 162: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:input_type -> swap.quickswap.v1.InviteMemberRequest
-	29,  // 163: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:input_type -> swap.quickswap.v1.SetMemberRoleRequest
-	31,  // 164: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:input_type -> swap.quickswap.v1.RemoveMemberRequest
-	33,  // 165: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:input_type -> swap.quickswap.v1.TransferOwnershipRequest
-	35,  // 166: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:input_type -> swap.quickswap.v1.ListKeysRequest
-	37,  // 167: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:input_type -> swap.quickswap.v1.CreateKeyRequest
-	39,  // 168: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:input_type -> swap.quickswap.v1.RotateKeyRequest
-	41,  // 169: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:input_type -> swap.quickswap.v1.RevokeKeyRequest
-	43,  // 170: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:input_type -> swap.quickswap.v1.CreateAffiliateVaultRequest
-	45,  // 171: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:input_type -> swap.quickswap.v1.ListVaultsRequest
-	47,  // 172: swap.quickswap.v1.QuickSwapBrokerService.GetVault:input_type -> swap.quickswap.v1.GetVaultRequest
-	49,  // 173: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:input_type -> swap.quickswap.v1.SetVaultStatusRequest
-	54,  // 174: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:input_type -> swap.quickswap.v1.ListQuickSwapsRequest
-	52,  // 175: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:input_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapRequest
-	56,  // 176: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:input_type -> swap.quickswap.v1.GetFeeTotalsRequest
-	59,  // 177: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:input_type -> swap.quickswap.v1.GetBrokerStatsRequest
-	71,  // 178: swap.quickswap.v1.QuickSwapBrokerService.ListPayouts:input_type -> swap.quickswap.v1.ListPayoutsRequest
-	73,  // 179: swap.quickswap.v1.QuickSwapBrokerService.GetPayout:input_type -> swap.quickswap.v1.GetPayoutRequest
-	77,  // 180: swap.quickswap.v1.QuickSwapBrokerService.ListUpcomingPayouts:input_type -> swap.quickswap.v1.ListUpcomingPayoutsRequest
-	82,  // 181: swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules:input_type -> swap.quickswap.v1.ListVaultPayoutRulesRequest
-	88,  // 182: swap.quickswap.v1.QuickSwapBrokerService.ListVaultLedger:input_type -> swap.quickswap.v1.ListVaultLedgerRequest
-	92,  // 183: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlist:input_type -> swap.quickswap.v1.ListVaultAllowlistRequest
-	94,  // 184: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlistChanges:input_type -> swap.quickswap.v1.ListVaultAllowlistChangesRequest
-	96,  // 185: swap.quickswap.v1.QuickSwapBrokerService.RequestVaultAllowlistChange:input_type -> swap.quickswap.v1.RequestVaultAllowlistChangeRequest
-	20,  // 186: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:output_type -> swap.quickswap.v1.GetBrokerResponse
-	68,  // 187: swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances:output_type -> swap.quickswap.v1.ListVaultBalancesResponse
-	22,  // 188: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:output_type -> swap.quickswap.v1.ListMyBrokersResponse
-	24,  // 189: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:output_type -> swap.quickswap.v1.RespondToInviteResponse
-	26,  // 190: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:output_type -> swap.quickswap.v1.ListMembersResponse
-	28,  // 191: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:output_type -> swap.quickswap.v1.InviteMemberResponse
-	30,  // 192: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:output_type -> swap.quickswap.v1.SetMemberRoleResponse
-	32,  // 193: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:output_type -> swap.quickswap.v1.RemoveMemberResponse
-	34,  // 194: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:output_type -> swap.quickswap.v1.TransferOwnershipResponse
-	36,  // 195: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:output_type -> swap.quickswap.v1.ListKeysResponse
-	38,  // 196: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:output_type -> swap.quickswap.v1.CreateKeyResponse
-	40,  // 197: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:output_type -> swap.quickswap.v1.RotateKeyResponse
-	42,  // 198: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:output_type -> swap.quickswap.v1.RevokeKeyResponse
-	44,  // 199: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:output_type -> swap.quickswap.v1.CreateAffiliateVaultResponse
-	46,  // 200: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:output_type -> swap.quickswap.v1.ListVaultsResponse
-	48,  // 201: swap.quickswap.v1.QuickSwapBrokerService.GetVault:output_type -> swap.quickswap.v1.GetVaultResponse
-	50,  // 202: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:output_type -> swap.quickswap.v1.SetVaultStatusResponse
-	55,  // 203: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:output_type -> swap.quickswap.v1.ListQuickSwapsResponse
-	53,  // 204: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:output_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse
-	58,  // 205: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:output_type -> swap.quickswap.v1.GetFeeTotalsResponse
-	64,  // 206: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:output_type -> swap.quickswap.v1.GetBrokerStatsResponse
-	72,  // 207: swap.quickswap.v1.QuickSwapBrokerService.ListPayouts:output_type -> swap.quickswap.v1.ListPayoutsResponse
-	74,  // 208: swap.quickswap.v1.QuickSwapBrokerService.GetPayout:output_type -> swap.quickswap.v1.GetPayoutResponse
-	78,  // 209: swap.quickswap.v1.QuickSwapBrokerService.ListUpcomingPayouts:output_type -> swap.quickswap.v1.ListUpcomingPayoutsResponse
-	83,  // 210: swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules:output_type -> swap.quickswap.v1.ListVaultPayoutRulesResponse
-	89,  // 211: swap.quickswap.v1.QuickSwapBrokerService.ListVaultLedger:output_type -> swap.quickswap.v1.ListVaultLedgerResponse
-	93,  // 212: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlist:output_type -> swap.quickswap.v1.ListVaultAllowlistResponse
-	95,  // 213: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlistChanges:output_type -> swap.quickswap.v1.ListVaultAllowlistChangesResponse
-	97,  // 214: swap.quickswap.v1.QuickSwapBrokerService.RequestVaultAllowlistChange:output_type -> swap.quickswap.v1.RequestVaultAllowlistChangeResponse
-	186, // [186:215] is the sub-list for method output_type
-	157, // [157:186] is the sub-list for method input_type
-	157, // [157:157] is the sub-list for extension type_name
-	157, // [157:157] is the sub-list for extension extendee
-	0,   // [0:157] is the sub-list for field type_name
+	99,  // 54: swap.quickswap.v1.GetBrokerStatsRequest.start_time:type_name -> google.protobuf.Timestamp
+	99,  // 55: swap.quickswap.v1.GetBrokerStatsRequest.end_time:type_name -> google.protobuf.Timestamp
+	4,   // 56: swap.quickswap.v1.GetBrokerStatsRequest.breakdown:type_name -> swap.quickswap.v1.StatsBreakdown
+	60,  // 57: swap.quickswap.v1.GetBrokerStatsRequest.route:type_name -> swap.quickswap.v1.StatsRoute
+	105, // 58: swap.quickswap.v1.AssetVolume.amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 59: swap.quickswap.v1.AssetVolume.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 60: swap.quickswap.v1.FeeSplit.service_fee:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 61: swap.quickswap.v1.FeeSplit.broker_fee:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 62: swap.quickswap.v1.FeeSplit.affiliate_fee:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 63: swap.quickswap.v1.FeeSplit.referral_fee:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 64: swap.quickswap.v1.FeeSplit.service_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 65: swap.quickswap.v1.FeeSplit.broker_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 66: swap.quickswap.v1.FeeSplit.affiliate_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 67: swap.quickswap.v1.FeeSplit.referral_fee_usd:type_name -> swap.quickswap.v1.TokenAmount
+	60,  // 68: swap.quickswap.v1.BrokerStatsSeries.route:type_name -> swap.quickswap.v1.StatsRoute
+	107, // 69: swap.quickswap.v1.BrokerStatsSeries.deposited:type_name -> polyester.type.v1.U128
+	107, // 70: swap.quickswap.v1.BrokerStatsSeries.delivered:type_name -> polyester.type.v1.U128
+	107, // 71: swap.quickswap.v1.BrokerStatsSeries.fees:type_name -> polyester.type.v1.U128
+	107, // 72: swap.quickswap.v1.BrokerStatsSeries.cell_deposited:type_name -> polyester.type.v1.U128
+	107, // 73: swap.quickswap.v1.BrokerStatsSeries.cell_delivered:type_name -> polyester.type.v1.U128
+	107, // 74: swap.quickswap.v1.BrokerStatsSeries.cell_service_fee:type_name -> polyester.type.v1.U128
+	107, // 75: swap.quickswap.v1.BrokerStatsSeries.cell_broker_fee:type_name -> polyester.type.v1.U128
+	107, // 76: swap.quickswap.v1.BrokerStatsSeries.cell_affiliate_fee:type_name -> polyester.type.v1.U128
+	107, // 77: swap.quickswap.v1.BrokerStatsSeries.cell_referral_fee:type_name -> polyester.type.v1.U128
+	3,   // 78: swap.quickswap.v1.GetBrokerStatsResponse.period:type_name -> swap.quickswap.v1.StatsPeriod
+	64,  // 79: swap.quickswap.v1.GetBrokerStatsResponse.series:type_name -> swap.quickswap.v1.BrokerStatsSeries
+	105, // 80: swap.quickswap.v1.VaultAssetBalance.amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 81: swap.quickswap.v1.VaultAssetBalance.pending_outgoing:type_name -> swap.quickswap.v1.TokenAmount
+	67,  // 82: swap.quickswap.v1.VaultBalance.assets:type_name -> swap.quickswap.v1.VaultAssetBalance
+	99,  // 83: swap.quickswap.v1.VaultBalance.as_of:type_name -> google.protobuf.Timestamp
+	68,  // 84: swap.quickswap.v1.ListVaultBalancesResponse.vaults:type_name -> swap.quickswap.v1.VaultBalance
+	7,   // 85: swap.quickswap.v1.PayoutStep.state:type_name -> swap.quickswap.v1.PayoutStepState
+	105, // 86: swap.quickswap.v1.PayoutStep.available:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 87: swap.quickswap.v1.PayoutStep.amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 88: swap.quickswap.v1.PayoutStep.minimum:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 89: swap.quickswap.v1.PayoutStep.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 90: swap.quickswap.v1.PayoutStep.charged_network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	9,   // 91: swap.quickswap.v1.PayoutStep.close:type_name -> swap.quickswap.v1.PayoutClose
+	105, // 92: swap.quickswap.v1.PayoutStep.refunded_amount:type_name -> swap.quickswap.v1.TokenAmount
+	5,   // 93: swap.quickswap.v1.Payout.status:type_name -> swap.quickswap.v1.PayoutStatus
+	6,   // 94: swap.quickswap.v1.Payout.stage:type_name -> swap.quickswap.v1.PayoutStage
+	99,  // 95: swap.quickswap.v1.Payout.scheduled_for:type_name -> google.protobuf.Timestamp
+	99,  // 96: swap.quickswap.v1.Payout.started_at:type_name -> google.protobuf.Timestamp
+	99,  // 97: swap.quickswap.v1.Payout.finished_at:type_name -> google.protobuf.Timestamp
+	105, // 98: swap.quickswap.v1.Payout.min_usd_value:type_name -> swap.quickswap.v1.TokenAmount
+	70,  // 99: swap.quickswap.v1.Payout.steps:type_name -> swap.quickswap.v1.PayoutStep
+	5,   // 100: swap.quickswap.v1.ListPayoutsRequest.statuses:type_name -> swap.quickswap.v1.PayoutStatus
+	99,  // 101: swap.quickswap.v1.ListPayoutsRequest.start_time:type_name -> google.protobuf.Timestamp
+	99,  // 102: swap.quickswap.v1.ListPayoutsRequest.end_time:type_name -> google.protobuf.Timestamp
+	71,  // 103: swap.quickswap.v1.ListPayoutsResponse.payouts:type_name -> swap.quickswap.v1.Payout
+	71,  // 104: swap.quickswap.v1.GetPayoutResponse.payout:type_name -> swap.quickswap.v1.Payout
+	105, // 105: swap.quickswap.v1.UpcomingPayoutAsset.available:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 106: swap.quickswap.v1.UpcomingPayoutAsset.payable:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 107: swap.quickswap.v1.UpcomingPayoutAsset.held_back:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 108: swap.quickswap.v1.UpcomingPayoutAsset.minimum:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 109: swap.quickswap.v1.UpcomingPayoutAsset.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	99,  // 110: swap.quickswap.v1.UpcomingPayoutAsset.priced_at:type_name -> google.protobuf.Timestamp
+	105, // 111: swap.quickswap.v1.UpcomingPayoutAsset.estimated_network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	99,  // 112: swap.quickswap.v1.UpcomingPayoutAsset.estimated_network_fee_sampled_at:type_name -> google.protobuf.Timestamp
+	99,  // 113: swap.quickswap.v1.UpcomingPayoutAsset.payable_from:type_name -> google.protobuf.Timestamp
+	108, // 114: swap.quickswap.v1.UpcomingPayout.status:type_name -> chain.withdraw.v1.AutoWithdrawPreviewStatus
+	99,  // 115: swap.quickswap.v1.UpcomingPayout.next_run_at:type_name -> google.protobuf.Timestamp
+	109, // 116: swap.quickswap.v1.UpcomingPayout.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
+	105, // 117: swap.quickswap.v1.UpcomingPayout.min_usd_value:type_name -> swap.quickswap.v1.TokenAmount
+	76,  // 118: swap.quickswap.v1.UpcomingPayout.assets:type_name -> swap.quickswap.v1.UpcomingPayoutAsset
+	99,  // 119: swap.quickswap.v1.UpcomingPayout.computed_at:type_name -> google.protobuf.Timestamp
+	77,  // 120: swap.quickswap.v1.ListUpcomingPayoutsResponse.upcoming_payouts:type_name -> swap.quickswap.v1.UpcomingPayout
+	105, // 121: swap.quickswap.v1.PayoutRuleDestination.min_amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 122: swap.quickswap.v1.PayoutRuleDestination.max_amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 123: swap.quickswap.v1.PayoutRuleDestination.min_floor:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 124: swap.quickswap.v1.PayoutRuleDestination.estimated_network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	99,  // 125: swap.quickswap.v1.PayoutRuleDestination.estimated_network_fee_sampled_at:type_name -> google.protobuf.Timestamp
+	105, // 126: swap.quickswap.v1.AssetWithoutDestination.balance:type_name -> swap.quickswap.v1.TokenAmount
+	110, // 127: swap.quickswap.v1.VaultPayoutRule.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
+	80,  // 128: swap.quickswap.v1.VaultPayoutRule.destinations:type_name -> swap.quickswap.v1.PayoutRuleDestination
+	109, // 129: swap.quickswap.v1.VaultPayoutRule.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
+	105, // 130: swap.quickswap.v1.VaultPayoutRule.min_usd_value:type_name -> swap.quickswap.v1.TokenAmount
+	99,  // 131: swap.quickswap.v1.VaultPayoutRule.updated_at:type_name -> google.protobuf.Timestamp
+	81,  // 132: swap.quickswap.v1.VaultPayoutRule.assets_without_destination:type_name -> swap.quickswap.v1.AssetWithoutDestination
+	82,  // 133: swap.quickswap.v1.ListVaultPayoutRulesResponse.rules:type_name -> swap.quickswap.v1.VaultPayoutRule
+	111, // 134: swap.quickswap.v1.VaultLedgerFeeCredit.fee_kind:type_name -> swap.quickswap.v1.FeeKind
+	105, // 135: swap.quickswap.v1.VaultLedgerFeeCredit.quoted_source_amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 136: swap.quickswap.v1.VaultLedgerFeeCredit.quoted_destination_amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 137: swap.quickswap.v1.VaultLedgerFeeCredit.source_amount:type_name -> swap.quickswap.v1.TokenAmount
+	105, // 138: swap.quickswap.v1.VaultLedgerFeeCredit.destination_amount:type_name -> swap.quickswap.v1.TokenAmount
+	5,   // 139: swap.quickswap.v1.VaultLedgerPayoutDebit.payout_status:type_name -> swap.quickswap.v1.PayoutStatus
+	7,   // 140: swap.quickswap.v1.VaultLedgerPayoutDebit.state:type_name -> swap.quickswap.v1.PayoutStepState
+	9,   // 141: swap.quickswap.v1.VaultLedgerPayoutDebit.close:type_name -> swap.quickswap.v1.PayoutClose
+	105, // 142: swap.quickswap.v1.VaultLedgerPayoutDebit.charged_network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	8,   // 143: swap.quickswap.v1.VaultLedgerEntry.kind:type_name -> swap.quickswap.v1.VaultLedgerEntryKind
+	99,  // 144: swap.quickswap.v1.VaultLedgerEntry.occurred_at:type_name -> google.protobuf.Timestamp
+	105, // 145: swap.quickswap.v1.VaultLedgerEntry.amount:type_name -> swap.quickswap.v1.TokenAmount
+	85,  // 146: swap.quickswap.v1.VaultLedgerEntry.fee_credit:type_name -> swap.quickswap.v1.VaultLedgerFeeCredit
+	86,  // 147: swap.quickswap.v1.VaultLedgerEntry.payout_debit:type_name -> swap.quickswap.v1.VaultLedgerPayoutDebit
+	87,  // 148: swap.quickswap.v1.VaultLedgerEntry.payout_refund:type_name -> swap.quickswap.v1.VaultLedgerPayoutRefund
+	99,  // 149: swap.quickswap.v1.ListVaultLedgerRequest.start_time:type_name -> google.protobuf.Timestamp
+	99,  // 150: swap.quickswap.v1.ListVaultLedgerRequest.end_time:type_name -> google.protobuf.Timestamp
+	88,  // 151: swap.quickswap.v1.ListVaultLedgerResponse.entries:type_name -> swap.quickswap.v1.VaultLedgerEntry
+	99,  // 152: swap.quickswap.v1.VaultAllowlistEntry.listed_at:type_name -> google.protobuf.Timestamp
+	99,  // 153: swap.quickswap.v1.VaultAllowlistEntry.payable_from:type_name -> google.protobuf.Timestamp
+	10,  // 154: swap.quickswap.v1.VaultAllowlistChange.action:type_name -> swap.quickswap.v1.AllowlistAction
+	99,  // 155: swap.quickswap.v1.VaultAllowlistChange.requested_at:type_name -> google.protobuf.Timestamp
+	99,  // 156: swap.quickswap.v1.VaultAllowlistChange.expires_at:type_name -> google.protobuf.Timestamp
+	11,  // 157: swap.quickswap.v1.VaultAllowlistChange.status:type_name -> swap.quickswap.v1.AllowlistChangeStatus
+	12,  // 158: swap.quickswap.v1.VaultAllowlistChange.failure:type_name -> swap.quickswap.v1.AllowlistChangeFailure
+	99,  // 159: swap.quickswap.v1.VaultAllowlistChange.closed_at:type_name -> google.protobuf.Timestamp
+	91,  // 160: swap.quickswap.v1.ListVaultAllowlistResponse.entries:type_name -> swap.quickswap.v1.VaultAllowlistEntry
+	92,  // 161: swap.quickswap.v1.ListVaultAllowlistChangesResponse.changes:type_name -> swap.quickswap.v1.VaultAllowlistChange
+	10,  // 162: swap.quickswap.v1.RequestVaultAllowlistChangeRequest.action:type_name -> swap.quickswap.v1.AllowlistAction
+	92,  // 163: swap.quickswap.v1.RequestVaultAllowlistChangeResponse.change:type_name -> swap.quickswap.v1.VaultAllowlistChange
+	20,  // 164: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:input_type -> swap.quickswap.v1.GetBrokerRequest
+	66,  // 165: swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances:input_type -> swap.quickswap.v1.ListVaultBalancesRequest
+	22,  // 166: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:input_type -> swap.quickswap.v1.ListMyBrokersRequest
+	24,  // 167: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:input_type -> swap.quickswap.v1.RespondToInviteRequest
+	26,  // 168: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:input_type -> swap.quickswap.v1.ListMembersRequest
+	28,  // 169: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:input_type -> swap.quickswap.v1.InviteMemberRequest
+	30,  // 170: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:input_type -> swap.quickswap.v1.SetMemberRoleRequest
+	32,  // 171: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:input_type -> swap.quickswap.v1.RemoveMemberRequest
+	34,  // 172: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:input_type -> swap.quickswap.v1.TransferOwnershipRequest
+	36,  // 173: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:input_type -> swap.quickswap.v1.ListKeysRequest
+	38,  // 174: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:input_type -> swap.quickswap.v1.CreateKeyRequest
+	40,  // 175: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:input_type -> swap.quickswap.v1.RotateKeyRequest
+	42,  // 176: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:input_type -> swap.quickswap.v1.RevokeKeyRequest
+	44,  // 177: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:input_type -> swap.quickswap.v1.CreateAffiliateVaultRequest
+	46,  // 178: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:input_type -> swap.quickswap.v1.ListVaultsRequest
+	48,  // 179: swap.quickswap.v1.QuickSwapBrokerService.GetVault:input_type -> swap.quickswap.v1.GetVaultRequest
+	50,  // 180: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:input_type -> swap.quickswap.v1.SetVaultStatusRequest
+	55,  // 181: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:input_type -> swap.quickswap.v1.ListQuickSwapsRequest
+	53,  // 182: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:input_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapRequest
+	57,  // 183: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:input_type -> swap.quickswap.v1.GetFeeTotalsRequest
+	61,  // 184: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:input_type -> swap.quickswap.v1.GetBrokerStatsRequest
+	72,  // 185: swap.quickswap.v1.QuickSwapBrokerService.ListPayouts:input_type -> swap.quickswap.v1.ListPayoutsRequest
+	74,  // 186: swap.quickswap.v1.QuickSwapBrokerService.GetPayout:input_type -> swap.quickswap.v1.GetPayoutRequest
+	78,  // 187: swap.quickswap.v1.QuickSwapBrokerService.ListUpcomingPayouts:input_type -> swap.quickswap.v1.ListUpcomingPayoutsRequest
+	83,  // 188: swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules:input_type -> swap.quickswap.v1.ListVaultPayoutRulesRequest
+	89,  // 189: swap.quickswap.v1.QuickSwapBrokerService.ListVaultLedger:input_type -> swap.quickswap.v1.ListVaultLedgerRequest
+	93,  // 190: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlist:input_type -> swap.quickswap.v1.ListVaultAllowlistRequest
+	95,  // 191: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlistChanges:input_type -> swap.quickswap.v1.ListVaultAllowlistChangesRequest
+	97,  // 192: swap.quickswap.v1.QuickSwapBrokerService.RequestVaultAllowlistChange:input_type -> swap.quickswap.v1.RequestVaultAllowlistChangeRequest
+	21,  // 193: swap.quickswap.v1.QuickSwapBrokerService.GetBroker:output_type -> swap.quickswap.v1.GetBrokerResponse
+	69,  // 194: swap.quickswap.v1.QuickSwapBrokerService.ListVaultBalances:output_type -> swap.quickswap.v1.ListVaultBalancesResponse
+	23,  // 195: swap.quickswap.v1.QuickSwapBrokerService.ListMyBrokers:output_type -> swap.quickswap.v1.ListMyBrokersResponse
+	25,  // 196: swap.quickswap.v1.QuickSwapBrokerService.RespondToInvite:output_type -> swap.quickswap.v1.RespondToInviteResponse
+	27,  // 197: swap.quickswap.v1.QuickSwapBrokerService.ListMembers:output_type -> swap.quickswap.v1.ListMembersResponse
+	29,  // 198: swap.quickswap.v1.QuickSwapBrokerService.InviteMember:output_type -> swap.quickswap.v1.InviteMemberResponse
+	31,  // 199: swap.quickswap.v1.QuickSwapBrokerService.SetMemberRole:output_type -> swap.quickswap.v1.SetMemberRoleResponse
+	33,  // 200: swap.quickswap.v1.QuickSwapBrokerService.RemoveMember:output_type -> swap.quickswap.v1.RemoveMemberResponse
+	35,  // 201: swap.quickswap.v1.QuickSwapBrokerService.TransferOwnership:output_type -> swap.quickswap.v1.TransferOwnershipResponse
+	37,  // 202: swap.quickswap.v1.QuickSwapBrokerService.ListKeys:output_type -> swap.quickswap.v1.ListKeysResponse
+	39,  // 203: swap.quickswap.v1.QuickSwapBrokerService.CreateKey:output_type -> swap.quickswap.v1.CreateKeyResponse
+	41,  // 204: swap.quickswap.v1.QuickSwapBrokerService.RotateKey:output_type -> swap.quickswap.v1.RotateKeyResponse
+	43,  // 205: swap.quickswap.v1.QuickSwapBrokerService.RevokeKey:output_type -> swap.quickswap.v1.RevokeKeyResponse
+	45,  // 206: swap.quickswap.v1.QuickSwapBrokerService.CreateAffiliateVault:output_type -> swap.quickswap.v1.CreateAffiliateVaultResponse
+	47,  // 207: swap.quickswap.v1.QuickSwapBrokerService.ListVaults:output_type -> swap.quickswap.v1.ListVaultsResponse
+	49,  // 208: swap.quickswap.v1.QuickSwapBrokerService.GetVault:output_type -> swap.quickswap.v1.GetVaultResponse
+	51,  // 209: swap.quickswap.v1.QuickSwapBrokerService.SetVaultStatus:output_type -> swap.quickswap.v1.SetVaultStatusResponse
+	56,  // 210: swap.quickswap.v1.QuickSwapBrokerService.ListQuickSwaps:output_type -> swap.quickswap.v1.ListQuickSwapsResponse
+	54,  // 211: swap.quickswap.v1.QuickSwapBrokerService.GetQuickSwap:output_type -> swap.quickswap.v1.QuickSwapBrokerServiceGetQuickSwapResponse
+	59,  // 212: swap.quickswap.v1.QuickSwapBrokerService.GetFeeTotals:output_type -> swap.quickswap.v1.GetFeeTotalsResponse
+	65,  // 213: swap.quickswap.v1.QuickSwapBrokerService.GetBrokerStats:output_type -> swap.quickswap.v1.GetBrokerStatsResponse
+	73,  // 214: swap.quickswap.v1.QuickSwapBrokerService.ListPayouts:output_type -> swap.quickswap.v1.ListPayoutsResponse
+	75,  // 215: swap.quickswap.v1.QuickSwapBrokerService.GetPayout:output_type -> swap.quickswap.v1.GetPayoutResponse
+	79,  // 216: swap.quickswap.v1.QuickSwapBrokerService.ListUpcomingPayouts:output_type -> swap.quickswap.v1.ListUpcomingPayoutsResponse
+	84,  // 217: swap.quickswap.v1.QuickSwapBrokerService.ListVaultPayoutRules:output_type -> swap.quickswap.v1.ListVaultPayoutRulesResponse
+	90,  // 218: swap.quickswap.v1.QuickSwapBrokerService.ListVaultLedger:output_type -> swap.quickswap.v1.ListVaultLedgerResponse
+	94,  // 219: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlist:output_type -> swap.quickswap.v1.ListVaultAllowlistResponse
+	96,  // 220: swap.quickswap.v1.QuickSwapBrokerService.ListVaultAllowlistChanges:output_type -> swap.quickswap.v1.ListVaultAllowlistChangesResponse
+	98,  // 221: swap.quickswap.v1.QuickSwapBrokerService.RequestVaultAllowlistChange:output_type -> swap.quickswap.v1.RequestVaultAllowlistChangeResponse
+	193, // [193:222] is the sub-list for method output_type
+	164, // [164:193] is the sub-list for method input_type
+	164, // [164:164] is the sub-list for extension type_name
+	164, // [164:164] is the sub-list for extension extendee
+	0,   // [0:164] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_broker_proto_init() }
@@ -8366,6 +9005,20 @@ func file_swap_quickswap_v1_quickswap_broker_proto_init() {
 	}
 	file_swap_quickswap_v1_quickswap_proto_init()
 	file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[27].OneofWrappers = []any{}
+	file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[48].OneofWrappers = []any{
+		(*GetBrokerStatsRequest_Route)(nil),
+		(*GetBrokerStatsRequest_VaultAccountId)(nil),
+		(*GetBrokerStatsRequest_SourceZippedAssetId)(nil),
+		(*GetBrokerStatsRequest_DestinationZippedAssetId)(nil),
+	}
+	file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[51].OneofWrappers = []any{
+		(*BrokerStatsSeries_Totals)(nil),
+		(*BrokerStatsSeries_Route)(nil),
+		(*BrokerStatsSeries_VaultAccountId)(nil),
+		(*BrokerStatsSeries_SourceZippedAssetId)(nil),
+		(*BrokerStatsSeries_DestinationZippedAssetId)(nil),
+		(*BrokerStatsSeries_Others)(nil),
+	}
 	file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[72].OneofWrappers = []any{}
 	file_swap_quickswap_v1_quickswap_broker_proto_msgTypes[75].OneofWrappers = []any{
 		(*VaultLedgerEntry_FeeCredit)(nil),
@@ -8377,7 +9030,7 @@ func file_swap_quickswap_v1_quickswap_broker_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swap_quickswap_v1_quickswap_broker_proto_rawDesc), len(file_swap_quickswap_v1_quickswap_broker_proto_rawDesc)),
-			NumEnums:      12,
+			NumEnums:      13,
 			NumMessages:   86,
 			NumExtensions: 0,
 			NumServices:   1,
