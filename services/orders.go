@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -419,12 +420,21 @@ func (s *OrdersService) ModifyWith(ctx context.Context, account AccountScope, pa
 // Symbol, Symbols, and SymbolIDs are mutually exclusive once any selects a pair.
 type CancelAllParams struct {
 	SubAccountID *string
-	Symbol       *string
-	Symbols      []string
-	SymbolIDs    []uint32
-	Side         *string
-	DryRun       bool
-	RequestID    *string
+	// Symbol, Symbols or SymbolIDs (at most one of them) select the pairs;
+	// none matches every pair. A supplied symbol must name a pair: a blank
+	// Symbol, or a blank entry in Symbols, is refused rather than read as
+	// every pair. Leave Symbol nil and Symbols empty to cancel on every pair.
+	Symbol    *string
+	Symbols   []string
+	SymbolIDs []uint32
+	Side      *string
+	DryRun    bool
+	// RequestID is the idempotency key, 1 to 64 characters of
+	// [A-Za-z0-9._:/-], sent exactly as given: an empty, padded or otherwise
+	// malformed one is refused, never trimmed or replaced. When nil a key is
+	// generated, but it is not returned, so such a request cannot be retried
+	// safely; supply your own whenever a retry may follow.
+	RequestID *string
 	// IncludeTriggers also stops the account's waiting triggers on the
 	// matched symbols whose orders trade on Side: every stop-loss,
 	// take-profit, trailing stop, TWAP, ladder and attached leg created
@@ -436,7 +446,8 @@ type CancelAllParams struct {
 	IncludeTriggers bool
 }
 
-// CancelAll cancels all matching orders. Empty symbol matches every pair.
+// CancelAll cancels all matching orders. A nil symbol matches every pair; a
+// blank one is refused, as for CancelAllWith.
 // It cancels open orders only, never triggers: the open orders triggers
 // placed (a TWAP's working slice, a ladder's levels, a fired stop's order, an
 // attached leg's working exit) are canceled like any other, while the
@@ -470,7 +481,15 @@ func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, sub
 }
 
 // CancelAllWith cancels matching orders for one or more pairs.
+//
+// Refused before sending, and before waiting for the catalogs: a blank
+// Symbol or Symbols entry (leave them unset to match every pair), more than
+// one of Symbol, Symbols and SymbolIDs, and a RequestID that is not 1 to 64
+// characters of [A-Za-z0-9._:/-] exactly as given.
 func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope, params CancelAllParams) (models.CancelAllOrdersResult, error) {
+	if err := checkCancelAllOrders(params); err != nil {
+		return models.CancelAllOrdersResult{}, err
+	}
 	sub, err := s.scoped.ResolveSubAccountID(params.SubAccountID, account)
 	if err != nil {
 		return models.CancelAllOrdersResult{}, err
@@ -490,6 +509,41 @@ func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope,
 	}
 	protoReq.IncludeTriggers = params.IncludeTriggers
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllOrders, protoReq, decode.CancelAllFromProto)
+}
+
+// checkCancelAllOrders refuses, before any catalog wait or request, a
+// cancel-all whose pair selection or request ID would not be sent as given. A
+// blank symbol would resolve to no pair and so match every pair, more than one
+// selector is ambiguous, and a trimmed or generated request ID would turn a
+// retry into a new cancel.
+func checkCancelAllOrders(params CancelAllParams) error {
+	if params.Symbol != nil && strings.TrimSpace(*params.Symbol) == "" {
+		return &sdkerrors.ValidationError{Msg: "orders.cancel_all symbol must not be blank; leave it nil to match every pair"}
+	}
+	for i, symbol := range params.Symbols {
+		if strings.TrimSpace(symbol) == "" {
+			return &sdkerrors.ValidationError{Msg: fmt.Sprintf("orders.cancel_all symbols[%d] must not be blank; leave symbols empty to match every pair", i)}
+		}
+	}
+	selected := 0
+	if params.Symbol != nil {
+		selected++
+	}
+	if len(params.Symbols) > 0 {
+		selected++
+	}
+	if len(params.SymbolIDs) > 0 {
+		selected++
+	}
+	if selected > 1 {
+		return &sdkerrors.ValidationError{Msg: "orders.cancel_all accepts only one of symbol, symbols, or symbol_ids"}
+	}
+	if params.RequestID != nil {
+		if _, err := codecs.ExactRequestID(*params.RequestID); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // CancelAllAfter arms cancel-all-after (the dead-man switch). When it fires

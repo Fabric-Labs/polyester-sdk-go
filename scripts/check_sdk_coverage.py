@@ -327,7 +327,8 @@ def extract_wrapped_go(services_root: Path, service_names: dict[str, str]) -> se
         r"s\.(?P<acc>client|readClient|writeClient|viewClient|signedClient|exportsClient)\(\)\.(?P<meth>[A-Za-z0-9_]+)"
     )
     def_re = re.compile(
-        r"func \(s \*\w+\) (?P<acc>client|readClient|writeClient|viewClient|signedClient|exportsClient)\(\)"
+        r"func \(s \*\w+\) "
+        r"(?P<acc>client|readClient|writeClient|viewClient|signedClient|exportsClient)\(\)"
         r"[^{]*?(?P<svc>\w+)Client\b"
     )
     if not services_root.is_dir():
@@ -356,7 +357,8 @@ def extract_wrapped_python(
 ) -> set[str]:
     covered: set[str] = set()
     call_re = re.compile(
-        r"(?:unary_auth_decoded|unary_public_decoded|unary_auth|unary_public|"
+        r"(?:unary_auth_decoded_retry_unavailable|unary_auth_decoded|unary_public_decoded|"
+        r"unary_auth|unary_public|"
         r"unary_auth_message|unary_public_message)\(\s*"
         r"[^,]+,\s*([A-Za-z]+ServiceClient)\s*,\s*"
         r"lambda\s+client\s*,\s*\w+\s*:\s*client\.([a-z][a-z0-9_]*)\(",

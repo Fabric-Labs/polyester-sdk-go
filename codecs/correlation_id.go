@@ -35,6 +35,16 @@ func validateCorrelationID(value, field string, maxLen int) (string, error) {
 	return trimmed, nil
 }
 
+// ExactRequestID checks a request ID the caller supplied, exactly as given:
+// 1 to 64 characters of [A-Za-z0-9._:/-]. It is never trimmed: an empty or
+// padded one is refused rather than replaced, so a retry sends the same key.
+func ExactRequestID(value string) (string, error) {
+	if strings.TrimSpace(value) != value {
+		return "", &errors.ValidationError{Msg: "request_id must not have surrounding spaces"}
+	}
+	return validateCorrelationID(value, "request_id", requestIDMaxLen)
+}
+
 func optionalClientID(value *string, field string) (*string, error) {
 	if value == nil || strings.TrimSpace(*value) == "" {
 		return nil, nil
