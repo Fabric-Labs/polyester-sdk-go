@@ -44,6 +44,7 @@ ai.v1.PriceChart.symbol_id	not_required	reference to a market
 ai.v1.RecalledMemory.memory_id	required	
 ai.v1.SendMessageResponse.conversation_id	required	
 ai.v1.SendMessageResponse.run_id	required	
+ai.v1.StrategySubject.strategy_id	not_required	reference to another object; 0 or empty when none
 ai.v1.SubagentFinished.subagent_id	required	
 ai.v1.SubagentStarted.subagent_id	required	
 ai.v1.ToolFinished.subagent_id	not_required	reference to the delegation; absent for the assistant's own calls
@@ -66,6 +67,7 @@ auth.v1.AddressBookTag.tag_id	required
 auth.v1.AddressBookTagSummary.tag_id	required	
 auth.v1.ApiKey.key_id	required	
 auth.v1.ApiKey.policy_id	not_required	optional reference; 0 or empty means none
+auth.v1.ApiKey.strategy_bot_id	not_required	optional reference; set only on a STRATEGY_BOT key
 auth.v1.ApiKey.subaccount_id	not_required	reference to an account; 0 or empty where the contract allows
 auth.v1.ApiPolicyView.id	required	
 auth.v1.ApiPolicyView.source_template_id	not_required	optional reference; 0 or empty means none
@@ -77,6 +79,7 @@ auth.v1.ConnectedApp.connected_app_id	required
 auth.v1.ConnectedAppClient.client_id	required	
 auth.v1.CreateSubaccountChallengeResponse.polyester_chain_id	not_required	reference to a chain
 auth.v1.CreateSubaccountResponse.subaccount_id	required	
+auth.v1.EndStrategyBotAccessResponse.revoked_key_id	not_required	empty when there was no access to end
 auth.v1.ExternalAddressBookEntry.address_book_entry_id	required	
 auth.v1.ExternalAddressBookEntry.polychain_chain_id	not_required	reference to a chain
 auth.v1.ExternalRecentDestination.address_book_entry_id	not_required	reference to another object; 0 or empty when none
@@ -103,6 +106,9 @@ auth.v1.MirroredWithdrawWhitelistEntry.polychain_chain_id	not_required	reference
 auth.v1.ResolvedAccount.account_id	required	
 auth.v1.SessionInfo.session_id	required	
 auth.v1.SetApiKeyPolicyResponse.policy_id	not_required	0 when the policy was cleared
+auth.v1.SetStrategyBotAccessResponse.api_policy_id	required	
+auth.v1.SetStrategyBotAccessResponse.key_id	required	
+auth.v1.SetStrategyBotAccessResponse.subaccount_policy_id	required	
 auth.v1.SetSubaccountPolicyResponse.policy_id	not_required	0 when the policy was cleared
 auth.v1.SocialVerification.id	not_required	an API-key read returns only the link status; every other field, id included, is empty by contract
 auth.v1.SocialVerification.provider_user_id	not_required	reference to another object; 0 or empty when none
@@ -267,6 +273,8 @@ orders.v1.OrderTransfer.tx_id	not_required	reference to another object; 0 or emp
 orders.v1.UserTrade.match_id	not_required	trade sequence number, read as absent when 0
 orders.v1.UserTrade.order_id	not_required	reference to another order, trigger or batch; 0 when none
 orders.v1.UserTrade.symbol_id	not_required	reference to a market
+pnl.v1.HoldingProfitAndLoss.asset_id	not_required	reference to an asset
+pnl.v1.MarketProfitAndLoss.symbol_id	not_required	reference to a market
 polyester.ratelimit.v1.RateLimitDetail.operation_id	not_required	catalog or message key, not an object ID
 rewards.v1.RewardAward.asset_id	not_required	reference to an asset
 rewards.v1.RewardAward.award_id	required	
@@ -278,26 +286,42 @@ strategies.v1.BacktestSummary.backtest_id	required
 strategies.v1.Bot.bot_id	required	
 strategies.v1.Bot.subaccount_id	not_required	reference to an account; 0 or empty where the contract allows
 strategies.v1.Bot.version_id	not_required	reference to another object; 0 or empty when none
+strategies.v1.BotFunding.subaccount_id	not_required	reference to an account; 0 for the main account
 strategies.v1.BotOrder.order_id	required	
+strategies.v1.BotVersion.version_id	required	
 strategies.v1.DeployProposalSummary.funding_subaccount_id	not_required	reference to an account; 0 for the main account
+strategies.v1.DeployProposalSummary.strategy_id	not_required	reference to another object; 0 or empty when none
 strategies.v1.DeployProposalSummary.version_id	not_required	reference to another object; 0 or empty when none
 strategies.v1.DeployStatus.bot_id	not_required	reference to the bot; 0 until it exists
 strategies.v1.DeployStatus.proposal_id	required	
 strategies.v1.DeployStatus.subaccount_id	not_required	reference to an account; 0 until it exists
 strategies.v1.ExplainStrategyResponse.version_id	required	
+strategies.v1.FlowEdge.from_node_id	not_required	reference to another object; 0 or empty when none
+strategies.v1.FlowEdge.to_node_id	not_required	reference to another object; 0 or empty when none
+strategies.v1.FlowNode.node_id	required	
+strategies.v1.GetDeployProposalResponse.proposal_id	required	
+strategies.v1.GetStrategyVersionResponse.version_id	required	
 strategies.v1.ProposeDeployResponse.proposal_id	required	
 strategies.v1.RunScenariosResponse.version_id	required	
 strategies.v1.StartBacktestResponse.backtest_id	required	
+strategies.v1.Strategy.head_version_id	not_required	reference to another object; 0 or empty when none
+strategies.v1.Strategy.strategy_id	required	
+strategies.v1.StrategyBot.bot_id	required	
+strategies.v1.StrategyDuplicateOrigin.source_version_id	not_required	reference to another object; 0 or empty when none
+strategies.v1.StrategyOrigin.template_id	not_required	reference to another object; 0 or empty when none
+strategies.v1.StrategyRevision.version_id	required	
 strategies.v1.StrategyTemplate.template_id	required	
-strategies.v1.ValidateStrategyResponse.version_id	required	
+strategies.v1.VersionValidation.version_id	required	
 swap.quickswap.v1.AffiliateShare.account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.AffiliateVault.account_id	required	
-swap.quickswap.v1.AssetVolume.asset_id	not_required	reference to an asset
 swap.quickswap.v1.AssetWithoutDestination.asset_id	not_required	reference to an asset
 swap.quickswap.v1.Broker.default_vault_account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.Broker.root_account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.BrokerKey.created_by_account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.BrokerKey.key_id	required	
+swap.quickswap.v1.BrokerStatsSeries.destination_zipped_asset_id	not_required	reference to an asset
+swap.quickswap.v1.BrokerStatsSeries.source_zipped_asset_id	not_required	reference to an asset
+swap.quickswap.v1.BrokerStatsSeries.vault_account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.ChargedFee.account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.ChargedFee.asset_id	not_required	reference to an asset
 swap.quickswap.v1.Deposit.flow_id	not_required	reference to another object; 0 or empty when none
@@ -307,7 +331,6 @@ swap.quickswap.v1.ExplorerQuickSwap.destination_zipped_asset_id	not_required	ref
 swap.quickswap.v1.ExplorerQuickSwap.source_zipped_asset_id	not_required	reference to an asset
 swap.quickswap.v1.ExplorerQuickSwap.swap_id	required	
 swap.quickswap.v1.ExplorerRouteLeg.symbol_id	not_required	reference to a market
-swap.quickswap.v1.FeeSplit.asset_id	not_required	reference to an asset
 swap.quickswap.v1.FeeTotal.asset_id	not_required	reference to an asset
 swap.quickswap.v1.FeeTotal.vault_account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.Invite.account_id	not_required	reference to an account; 0 or empty where the contract allows
@@ -335,6 +358,8 @@ swap.quickswap.v1.ReferralPartner.partner_id	required
 swap.quickswap.v1.ReferredQuickSwap.destination_zipped_asset_id	not_required	reference to an asset
 swap.quickswap.v1.ReferredQuickSwap.source_zipped_asset_id	not_required	reference to an asset
 swap.quickswap.v1.ReferredQuickSwap.swap_id	required	
+swap.quickswap.v1.StatsRoute.destination_zipped_asset_id	not_required	reference to an asset
+swap.quickswap.v1.StatsRoute.source_zipped_asset_id	not_required	reference to an asset
 swap.quickswap.v1.UpcomingPayout.vault_account_id	not_required	reference to an account; 0 or empty where the contract allows
 swap.quickswap.v1.UpcomingPayoutAsset.asset_id	not_required	reference to an asset
 swap.quickswap.v1.UpcomingPayoutAsset.destination_chain_id	not_required	reference to a chain

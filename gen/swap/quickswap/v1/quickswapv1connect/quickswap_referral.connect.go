@@ -54,6 +54,9 @@ const (
 	// QuickSwapReferralServiceListReferralLedgerProcedure is the fully-qualified name of the
 	// QuickSwapReferralService's ListReferralLedger RPC.
 	QuickSwapReferralServiceListReferralLedgerProcedure = "/swap.quickswap.v1.QuickSwapReferralService/ListReferralLedger"
+	// QuickSwapReferralServiceGetReferralStatsProcedure is the fully-qualified name of the
+	// QuickSwapReferralService's GetReferralStats RPC.
+	QuickSwapReferralServiceGetReferralStatsProcedure = "/swap.quickswap.v1.QuickSwapReferralService/GetReferralStats"
 )
 
 // QuickSwapReferralServiceClient is a client for the swap.quickswap.v1.QuickSwapReferralService
@@ -124,6 +127,24 @@ type QuickSwapReferralServiceClient interface {
 	//     malformed.
 	//   - UNAVAILABLE: the payouts cannot be read; retry the same request.
 	ListReferralLedger(context.Context, *connect.Request[v1.ListReferralLedgerRequest]) (*connect.Response[v1.ListReferralLedgerResponse], error)
+	// GetReferralStats reads the activity of the QuickSwaps the caller
+	// referred and the commission they credited it, over time, with an
+	// optional breakdown by route, source asset or destination asset.
+	//
+	// A QuickSwap counts in the bucket it was created in, with its current
+	// status. A commission counts in the bucket it was credited in on the
+	// totals series, and in its QuickSwap's bucket on a group. The window's
+	// totals over ReferralPartner.created_at to now are the lifetime totals.
+	// Times are minute-granular (see GetReferralStatsRequest). A disabled
+	// partner still reads its stats.
+	//
+	// Errors:
+	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND.
+	//   - INVALID_ARGUMENT: the window, breakdown or drill-down.
+	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT, with a Retry-After header: the
+	//     caller's read rate, shared with GetBrokerStats, is spent.
+	//   - UNAVAILABLE: the stats cannot be read; retry the same request.
+	GetReferralStats(context.Context, *connect.Request[v1.GetReferralStatsRequest]) (*connect.Response[v1.GetReferralStatsResponse], error)
 }
 
 // NewQuickSwapReferralServiceClient constructs a client for the
@@ -179,6 +200,12 @@ func NewQuickSwapReferralServiceClient(httpClient connect.HTTPClient, baseURL st
 			connect.WithSchema(quickSwapReferralServiceMethods.ByName("ListReferralLedger")),
 			connect.WithClientOptions(opts...),
 		),
+		getReferralStats: connect.NewClient[v1.GetReferralStatsRequest, v1.GetReferralStatsResponse](
+			httpClient,
+			baseURL+QuickSwapReferralServiceGetReferralStatsProcedure,
+			connect.WithSchema(quickSwapReferralServiceMethods.ByName("GetReferralStats")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -191,6 +218,7 @@ type quickSwapReferralServiceClient struct {
 	listReferredQuickSwaps *connect.Client[v1.ListReferredQuickSwapsRequest, v1.ListReferredQuickSwapsResponse]
 	getReferredQuickSwap   *connect.Client[v1.GetReferredQuickSwapRequest, v1.GetReferredQuickSwapResponse]
 	listReferralLedger     *connect.Client[v1.ListReferralLedgerRequest, v1.ListReferralLedgerResponse]
+	getReferralStats       *connect.Client[v1.GetReferralStatsRequest, v1.GetReferralStatsResponse]
 }
 
 // EnrollReferralPartner calls swap.quickswap.v1.QuickSwapReferralService.EnrollReferralPartner.
@@ -226,6 +254,11 @@ func (c *quickSwapReferralServiceClient) GetReferredQuickSwap(ctx context.Contex
 // ListReferralLedger calls swap.quickswap.v1.QuickSwapReferralService.ListReferralLedger.
 func (c *quickSwapReferralServiceClient) ListReferralLedger(ctx context.Context, req *connect.Request[v1.ListReferralLedgerRequest]) (*connect.Response[v1.ListReferralLedgerResponse], error) {
 	return c.listReferralLedger.CallUnary(ctx, req)
+}
+
+// GetReferralStats calls swap.quickswap.v1.QuickSwapReferralService.GetReferralStats.
+func (c *quickSwapReferralServiceClient) GetReferralStats(ctx context.Context, req *connect.Request[v1.GetReferralStatsRequest]) (*connect.Response[v1.GetReferralStatsResponse], error) {
+	return c.getReferralStats.CallUnary(ctx, req)
 }
 
 // QuickSwapReferralServiceHandler is an implementation of the
@@ -296,6 +329,24 @@ type QuickSwapReferralServiceHandler interface {
 	//     malformed.
 	//   - UNAVAILABLE: the payouts cannot be read; retry the same request.
 	ListReferralLedger(context.Context, *connect.Request[v1.ListReferralLedgerRequest]) (*connect.Response[v1.ListReferralLedgerResponse], error)
+	// GetReferralStats reads the activity of the QuickSwaps the caller
+	// referred and the commission they credited it, over time, with an
+	// optional breakdown by route, source asset or destination asset.
+	//
+	// A QuickSwap counts in the bucket it was created in, with its current
+	// status. A commission counts in the bucket it was credited in on the
+	// totals series, and in its QuickSwap's bucket on a group. The window's
+	// totals over ReferralPartner.created_at to now are the lifetime totals.
+	// Times are minute-granular (see GetReferralStatsRequest). A disabled
+	// partner still reads its stats.
+	//
+	// Errors:
+	//   - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND.
+	//   - INVALID_ARGUMENT: the window, breakdown or drill-down.
+	//   - RESOURCE_EXHAUSTED: BROKER_LIMIT, with a Retry-After header: the
+	//     caller's read rate, shared with GetBrokerStats, is spent.
+	//   - UNAVAILABLE: the stats cannot be read; retry the same request.
+	GetReferralStats(context.Context, *connect.Request[v1.GetReferralStatsRequest]) (*connect.Response[v1.GetReferralStatsResponse], error)
 }
 
 // NewQuickSwapReferralServiceHandler builds an HTTP handler from the service implementation. It
@@ -347,6 +398,12 @@ func NewQuickSwapReferralServiceHandler(svc QuickSwapReferralServiceHandler, opt
 		connect.WithSchema(quickSwapReferralServiceMethods.ByName("ListReferralLedger")),
 		connect.WithHandlerOptions(opts...),
 	)
+	quickSwapReferralServiceGetReferralStatsHandler := connect.NewUnaryHandler(
+		QuickSwapReferralServiceGetReferralStatsProcedure,
+		svc.GetReferralStats,
+		connect.WithSchema(quickSwapReferralServiceMethods.ByName("GetReferralStats")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/swap.quickswap.v1.QuickSwapReferralService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case QuickSwapReferralServiceEnrollReferralPartnerProcedure:
@@ -363,6 +420,8 @@ func NewQuickSwapReferralServiceHandler(svc QuickSwapReferralServiceHandler, opt
 			quickSwapReferralServiceGetReferredQuickSwapHandler.ServeHTTP(w, r)
 		case QuickSwapReferralServiceListReferralLedgerProcedure:
 			quickSwapReferralServiceListReferralLedgerHandler.ServeHTTP(w, r)
+		case QuickSwapReferralServiceGetReferralStatsProcedure:
+			quickSwapReferralServiceGetReferralStatsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -398,4 +457,8 @@ func (UnimplementedQuickSwapReferralServiceHandler) GetReferredQuickSwap(context
 
 func (UnimplementedQuickSwapReferralServiceHandler) ListReferralLedger(context.Context, *connect.Request[v1.ListReferralLedgerRequest]) (*connect.Response[v1.ListReferralLedgerResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapReferralService.ListReferralLedger is not implemented"))
+}
+
+func (UnimplementedQuickSwapReferralServiceHandler) GetReferralStats(context.Context, *connect.Request[v1.GetReferralStatsRequest]) (*connect.Response[v1.GetReferralStatsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.quickswap.v1.QuickSwapReferralService.GetReferralStats is not implemented"))
 }

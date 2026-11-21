@@ -277,25 +277,29 @@ var timeframeLabels = map[marketdatav1.Timeframe]string{
 // Primary OHLC uses the fixed Q9 price scale. Reference OHLC uses referencePriceScale.
 // Both volume series use the base asset market_data_volume_scale.
 //
-// The columnar response carries no closed flag, so IsClosed follows the
-// request's includeIncomplete and pageToken. Only the newest primary row (the
-// last, as columns are oldest-first) of a first page (empty pageToken) read with
-// incomplete candles is false, not known to be closed. Every other primary row,
-// every row of a continuation page, which pages only older closed candles, and
-// every reference row, which is always a closed bucket, is true.
+// A primary row's IsClosed is the server's is_closed flag for it. A server
+// that predates the flag sends the column empty; then IsClosed follows the
+// request's includeIncomplete and pageToken: only the newest primary row (the
+// last, as columns are oldest-first) of a first page (empty pageToken) read
+// with incomplete candles is false, not known to be closed, and every other
+// primary row is true. Every reference row is a closed bucket and reads true.
+// An is_closed column whose length is neither 0 nor the number of rows is
+// refused like any other misaligned column.
 func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volumeScale int, referencePriceScale int, includeIncomplete bool, pageToken string) (models.CandlesResult, error) {
 	if err := codecs.ValidateProtocolScale(volumeScale); err != nil {
 		return models.CandlesResult{}, err
 	}
 	rows := len(msg.GetTsSec())
 	quoteVolumes := msg.GetQuoteVolume()
+	closed := msg.GetIsClosed()
 	if len(msg.GetOpen()) != rows || len(msg.GetHigh()) != rows ||
 		len(msg.GetLow()) != rows || len(msg.GetClose()) != rows ||
-		len(msg.GetVolume()) != rows || (len(quoteVolumes) > 0 && len(quoteVolumes) != rows) {
+		len(msg.GetVolume()) != rows || (len(quoteVolumes) > 0 && len(quoteVolumes) != rows) ||
+		(len(closed) > 0 && len(closed) != rows) {
 		return models.CandlesResult{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
-			"invalid GetCandlesColumns response lengths: ts_sec=%d open=%d high=%d low=%d close=%d volume=%d quote_volume=%d",
+			"invalid GetCandlesColumns response lengths: ts_sec=%d open=%d high=%d low=%d close=%d volume=%d quote_volume=%d is_closed=%d",
 			rows, len(msg.GetOpen()), len(msg.GetHigh()), len(msg.GetLow()),
-			len(msg.GetClose()), len(msg.GetVolume()), len(quoteVolumes),
+			len(msg.GetClose()), len(msg.GetVolume()), len(quoteVolumes), len(closed),
 		)}
 	}
 	reference, err := referenceCandlesFromColumns(msg, volumeScale, referencePriceScale)
@@ -318,6 +322,9 @@ func CandlesColumnsFromProto(msg *marketdatav1.GetCandlesColumnsResponse, volume
 			Volume:      formatQtyScaledOrEmpty(msg.GetVolume()[i], volumeScale),
 			QuoteVolume: quoteVolume,
 			IsClosed:    !newestMayBeOpen || i != rows-1,
+		}
+		if len(closed) == rows {
+			candle.IsClosed = closed[i]
 		}
 		out = append(out, candle)
 	}

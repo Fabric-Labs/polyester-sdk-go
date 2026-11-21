@@ -10,18 +10,73 @@ import (
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	ledgerv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
+	"google.golang.org/protobuf/proto"
 )
 
-func TestAssetBalanceFromProtoPreservesComponentRevisions(t *testing.T) {
-	msg := &ledgerrdv1.AssetBalance{
-		AssetId:         1,
-		TradingRevision: 1<<63 + 1,
-		FundingRevision: 1<<63 + 2,
-	}
+func TestAssetBalanceFromProtoPreservesFundingRevision(t *testing.T) {
+	msg := &ledgerrdv1.AssetBalance{AssetId: 1, FundingRevision: 1<<63 + 2}
 	result := decode.AssetBalanceFromProto(msg)
-	if result.TradingRevision != msg.TradingRevision ||
-		result.FundingRevision != msg.FundingRevision {
-		t.Fatalf("revisions=%+v", result)
+	if result.FundingRevision != msg.FundingRevision {
+		t.Fatalf("revision=%+v", result)
+	}
+}
+
+// GetBalances returns the position its Trading values are at; the full
+// unsigned 64-bit range survives the decode.
+func TestBalancesListFromProtoKeepsTradingPosition(t *testing.T) {
+	msg := &ledgerrdv1.GetBalancesResponse{
+		Balances:                  []*ledgerrdv1.AssetBalance{{AssetId: 1, Trading: &typev1.U128{Lo: 5}, FundingRevision: 81}},
+		TradingEpoch:              1<<63 + 7,
+		TradingSequence:           42,
+		TradingAppliedThroughTsNs: 1767225600123456789,
+	}
+	result := decode.BalancesListFromProto(msg)
+	if result.TradingEpoch != 1<<63+7 || result.TradingSequence != 42 || result.TradingAppliedThroughTsNs != 1767225600123456789 {
+		t.Fatalf("position=%+v", result)
+	}
+	if len(result.Balances) != 1 || result.Balances[0].Trading != "5" || result.Balances[0].FundingRevision != 81 {
+		t.Fatalf("balances=%+v", result.Balances)
+	}
+	if empty := decode.BalancesListFromProto(&ledgerrdv1.GetBalancesResponse{}); empty.TradingEpoch != 0 || empty.TradingSequence != 0 || empty.Balances == nil {
+		t.Fatalf("empty=%+v", empty)
+	}
+}
+
+// The balance stream delivers the generated BalanceUpdate unchanged: TRADING
+// updates keep their position, completeness, assets and legs; FUNDING
+// updates keep their revision.
+func TestBalanceUpdateFromBytesKeepsPublicationAsSent(t *testing.T) {
+	trading := &ledgerrdv1.BalanceUpdate{
+		Account:                   ledgerv1.AccountCode_TRADING,
+		TradingEpoch:              4294967303,
+		TradingSequence:           43,
+		Complete:                  true,
+		TradingAppliedThroughTsNs: 1767225600123456789,
+		Balances:                  []*ledgerrdv1.AssetBalance{{AssetId: 1, Trading: &typev1.U128{Lo: 250}, Reserved: &typev1.U128{Lo: 25}, Available: &typev1.U128{Lo: 225}}},
+		Transfers:                 []*ledgerrdv1.TransferRow{{TransferId: "340282366920938463463374607431768211455", AssetId: 1, IsDebit: true, TsNs: 1767225600123456789}},
+	}
+	funding := &ledgerrdv1.BalanceUpdate{
+		Account:  ledgerv1.AccountCode_FUNDING,
+		Balances: []*ledgerrdv1.AssetBalance{{AssetId: 1, Funding: &typev1.U128{Lo: 1000}, FundingRevision: 81}},
+	}
+	for _, want := range []*ledgerrdv1.BalanceUpdate{trading, funding} {
+		payload, err := proto.Marshal(want)
+		if err != nil {
+			t.Fatal(err)
+		}
+		got, err := decode.BalanceUpdateFromBytes(payload)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !proto.Equal(got, want) {
+			t.Fatalf("got %v, want %v", got, want)
+		}
+	}
+	if _, err := decode.BalanceUpdateFromBytes(nil); err == nil {
+		t.Fatal("empty publication decoded")
+	}
+	if _, err := decode.BalanceUpdateFromBytes([]byte{0xff}); err == nil {
+		t.Fatal("malformed publication decoded")
 	}
 }
 

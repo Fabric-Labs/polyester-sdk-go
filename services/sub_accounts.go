@@ -241,6 +241,17 @@ func activityLabels[E ~int32](req *authv1.ListAccountActivityRequest, field prot
 	return out, nil
 }
 
+// Subscribe streams the sub-accounts the account owns, from
+// private:auth:subaccounts:{account_id}:proto.
+//
+// It carries the account's own records only. Records the account reaches
+// through a delegated sub-account role are published on a separate
+// private:auth:subaccounts:delegated:{account_id}:proto stream, which only the account's signed-in session may
+// subscribe to: an API key is refused there with
+// AUTH_SESSION_KIND_NOT_ALLOWED, so this SDK does not expose it. The
+// subscription token is issued exactly when ListSubaccounts would answer the
+// caller: an API key needs READ_SUBACCOUNTS on its policy, and a refusal returns
+// that read's own error code (for example AUTH_API_KEY_ACCESS_DENIED).
 func (s *SubAccountsService) Subscribe(ctx context.Context, accountID any) (*realtime.Subscription[models.SubAccount], error) {
 	return SubscribeAccountProto(ctx, s.realtime, "private:auth:subaccounts:{account_id}:proto", accountID, s.defaultAccountID, decode.SubaccountFromBytes)
 }

@@ -82,6 +82,7 @@ func TransferRowFromProto(t *ledgerrdv1.TransferRow) models.LedgerTransfer {
 		TransferType: int(t.GetTransferCode()),
 		AccountCode:  int(t.GetAccountCode()),
 		Timestamp:    int64(t.GetTsUs()),
+		TsNs:         t.GetTsNs(),
 		TxID:         t.GetFlowId(),
 		IsDebit:      t.GetIsDebit(),
 		Source:       TransferSideFromProto(t.GetSource()),

@@ -104,6 +104,10 @@ const (
 	TransferCode_TRADING_WITHDRAW_RESERVE TransferCode = 1062
 	// Funding user-to-user transfer.
 	TransferCode_FUNDING_USER_TRANSFER TransferCode = 1063
+	// Opening balance of a funding account: the balance it held on Polyester
+	// Chain when the account's transfer history starts, credited from a system
+	// account.
+	TransferCode_FUNDING_OPENING_BALANCE TransferCode = 1064
 	// Debit of a withdrawal from the Trading account that Zipper rejected or that failed to
 	// execute: the whole amount sent to Zipper for it, the request fee included. The withdrawal's
 	// other fees are not charged. A rejected withdrawal refunds that amount, less the request fee,
@@ -154,6 +158,7 @@ var (
 		1061: "TRADING_TO_FUNDING",
 		1062: "TRADING_WITHDRAW_RESERVE",
 		1063: "FUNDING_USER_TRANSFER",
+		1064: "FUNDING_OPENING_BALANCE",
 		1065: "TRADING_WITHDRAW_REQUEST_FEE",
 		1066: "TRADING_WITHDRAW_FEE_LEG",
 		1067: "QUICKSWAP_POLYESTER_FEE",
@@ -179,6 +184,7 @@ var (
 		"TRADING_TO_FUNDING":           1061,
 		"TRADING_WITHDRAW_RESERVE":     1062,
 		"FUNDING_USER_TRANSFER":        1063,
+		"FUNDING_OPENING_BALANCE":      1064,
 		"TRADING_WITHDRAW_REQUEST_FEE": 1065,
 		"TRADING_WITHDRAW_FEE_LEG":     1066,
 		"QUICKSWAP_POLYESTER_FEE":      1067,
@@ -227,7 +233,7 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\vAccountCode\x12\x1c\n" +
 	"\x18ACCOUNT_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aFUNDING\x10\xac\x02\x12\f\n" +
-	"\aTRADING\x10\xad\x02*\x9c\x04\n" +
+	"\aTRADING\x10\xad\x02*\xba\x04\n" +
 	"\fTransferCode\x12\x1d\n" +
 	"\x19TRANSFER_CODE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\aDEPOSIT\x10\xe8\a\x12\r\n" +
@@ -242,7 +248,8 @@ const file_ledger_v1_catalog_proto_rawDesc = "" +
 	"\x12FUNDING_TO_TRADING\x10\xa4\b\x12\x17\n" +
 	"\x12TRADING_TO_FUNDING\x10\xa5\b\x12\x1d\n" +
 	"\x18TRADING_WITHDRAW_RESERVE\x10\xa6\b\x12\x1a\n" +
-	"\x15FUNDING_USER_TRANSFER\x10\xa7\b\x12!\n" +
+	"\x15FUNDING_USER_TRANSFER\x10\xa7\b\x12\x1c\n" +
+	"\x17FUNDING_OPENING_BALANCE\x10\xa8\b\x12!\n" +
 	"\x1cTRADING_WITHDRAW_REQUEST_FEE\x10\xa9\b\x12\x1d\n" +
 	"\x18TRADING_WITHDRAW_FEE_LEG\x10\xaa\b\x12\x1c\n" +
 	"\x17QUICKSWAP_POLYESTER_FEE\x10\xab\b\x12\x19\n" +

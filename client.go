@@ -217,9 +217,12 @@ type Client struct {
 	Changelog          *services.ChangelogService
 	// Alerts manages price alerts with a main-account API key. Available on
 	// devnet; not yet routed on testnet.
-	Alerts           *services.AlertsService
-	Fees             *services.FeeService
-	RateLimits       *services.RateLimitService
+	Alerts     *services.AlertsService
+	Fees       *services.FeeService
+	RateLimits *services.RateLimitService
+	// ProfitAndLoss reads profit and loss and trading statistics in USD; the
+	// API key's policy needs READ_PNL.
+	ProfitAndLoss    *services.ProfitAndLossService
 	Withdraw         *services.WithdrawService
 	TradingWithdraws *services.WithdrawService
 
@@ -331,6 +334,7 @@ func New(cfg Config) (*Client, error) {
 		Alerts:               services.NewAlertsService(factory, cats),
 		Fees:                 services.NewFeeService(factory, cats, cfg.DefaultSubAccountID),
 		RateLimits:           services.NewRateLimitService(factory, cfg.DefaultSubAccountID),
+		ProfitAndLoss:        services.NewProfitAndLossService(factory, cats, cfg.DefaultSubAccountID),
 		Withdraw:             services.NewWithdrawService(factory, cfg.DefaultSubAccountID),
 		catalogHydrationDone: catalogHydrationDone,
 		fundingHydrationDone: make(chan struct{}),

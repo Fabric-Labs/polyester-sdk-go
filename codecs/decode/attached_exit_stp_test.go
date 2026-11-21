@@ -84,18 +84,17 @@ func TestGetSubaccountDecodesBalancesOnlyWhenPresent(t *testing.T) {
 	with := mustReply(decode.GetSubaccountFromProto(&authv1.GetSubaccountResponse{
 		Subaccount: &authv1.Subaccount{Id: 42},
 		Balances: &ledgerrdv1.GetBalancesResponse{Balances: []*ledgerrdv1.AssetBalance{{
-			AssetId:         1,
-			Trading:         &typev1.U128{Lo: 1_500_000_000_000_000_000},
-			Available:       &typev1.U128{Lo: 1_500_000_000_000_000_000},
-			TradingRevision: 3,
-		}}},
+			AssetId:   1,
+			Trading:   &typev1.U128{Lo: 1_500_000_000_000_000_000},
+			Available: &typev1.U128{Lo: 1_500_000_000_000_000_000},
+		}}, TradingEpoch: 9, TradingSequence: 3},
 	}))
 	if with.Balances == nil || len(with.Balances.Balances) != 1 {
 		t.Fatalf("with balances=%+v", with.Balances)
 	}
 	b := with.Balances.Balances[0]
 	if b.AssetID != 1 || b.Trading != "1500000000000000000" || b.Available != "1500000000000000000" ||
-		b.Funding != "0" || b.Reserved != "0" || b.TradingRevision != 3 {
+		b.Funding != "0" || b.Reserved != "0" || with.Balances.TradingEpoch != 9 || with.Balances.TradingSequence != 3 {
 		t.Fatalf("balance=%+v", b)
 	}
 	empty := mustReply(decode.GetSubaccountFromProto(&authv1.GetSubaccountResponse{

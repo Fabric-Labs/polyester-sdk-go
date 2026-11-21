@@ -44,8 +44,8 @@ const (
 	// The requested runtime version is not offered. GetStrategyReference
 	// without a runtime version names the current one.
 	ErrorCode_RUNTIME_VERSION_UNSUPPORTED ErrorCode = 5
-	// The manifest is larger than the limit GetStrategyReference states
-	// (StrategyLimits.manifest_bytes), measured as compact JSON.
+	// The manifest is larger than 65536 bytes (64 KiB), measured as compact
+	// JSON.
 	ErrorCode_MANIFEST_TOO_LARGE ErrorCode = 6
 	// A setting is unknown to the version's settings form, or its value is not
 	// a valid value of its kind or lies outside its bounds. field_path names it.
@@ -53,14 +53,14 @@ const (
 	// A funding or initial balance names an asset twice, or an asset the bot's
 	// markets do not trade. field_path names it.
 	ErrorCode_FUNDING_INVALID ErrorCode = 8
-	// The version did not validate: ValidateStrategy returned valid false for
-	// it. Fix the errors and validate again.
+	// The version did not validate: its check returned valid false. Fix the
+	// errors and save the draft again.
 	ErrorCode_VERSION_INVALID ErrorCode = 9
 	// A behaviour example of the version fails, or the examples were never
 	// run. RunScenarios shows each result.
 	ErrorCode_SCENARIOS_FAILING ErrorCode = 10
 	// The version has no finished backtest. Bots that cannot be backtested
-	// are exempt.
+	// are exempt. Not returned until backtests are available.
 	ErrorCode_BACKTEST_MISSING ErrorCode = 11
 	// A market of the bot is not open to bots. markets lists them.
 	ErrorCode_MARKET_NOT_ALLOWED ErrorCode = 12
@@ -84,16 +84,41 @@ const (
 	ErrorCode_BACKTEST_LIMIT_REACHED ErrorCode = 18
 	// The caller's bots and backtests would read more distinct indicator
 	// settings than allowed. Reuse an indicator setting another bot reads, or
-	// stop a bot.
+	// stop a bot. Not returned until the limit is enforced.
 	ErrorCode_INDICATOR_SETTINGS_LIMIT_REACHED ErrorCode = 19
 	// The idempotency key was already used with a different request. The
-	// original backtest or proposal stands.
+	// original backtest, proposal, stop, strategy or saved draft stands.
 	ErrorCode_IDEMPOTENCY_CONFLICT ErrorCode = 20
 	// A required service is temporarily unavailable; retry the same request.
 	// Every call of this API is safe to retry.
 	ErrorCode_SERVICE_UNAVAILABLE ErrorCode = 21
 	// The funding subaccount is not a subaccount of the caller's main account.
 	ErrorCode_FUNDING_SUBACCOUNT_NOT_FOUND ErrorCode = 22
+	// The bot has already stopped.
+	ErrorCode_BOT_NOT_RUNNING ErrorCode = 23
+	// The bot is already being stopped with the other stop mode. A bot is
+	// stopped once; its orders can still be cancelled directly.
+	ErrorCode_BOT_ALREADY_STOPPING ErrorCode = 24
+	// No strategy of the caller has this ID. Another account's strategy is
+	// reported the same way.
+	ErrorCode_STRATEGY_NOT_FOUND ErrorCode = 25
+	// The draft moved on since expected_revision: another save landed first.
+	// revision_conflict gives the current revision and its version. Read the
+	// strategy again, apply the change to its current draft, and save with
+	// the new revision.
+	ErrorCode_DRAFT_REVISION_CONFLICT ErrorCode = 26
+	// The caller already has as many strategies as allowed. strategy_cap gives
+	// the cap.
+	ErrorCode_STRATEGY_CAP_REACHED ErrorCode = 27
+	// No bot template has this ID. ListStrategyTemplates lists them.
+	ErrorCode_TEMPLATE_NOT_FOUND ErrorCode = 28
+	// The strategy is in use, so it can't be deleted: a bot deployed from it
+	// hasn't stopped, or a deploy proposal of it is waiting to be deployed.
+	// Stop the bot, or let the proposal expire, and delete it again.
+	ErrorCode_STRATEGY_IN_USE ErrorCode = 29
+	// The strategy has no revision with this number. Revisions are numbered
+	// from 1, so zero is never one.
+	ErrorCode_REVISION_NOT_FOUND ErrorCode = 30
 )
 
 // Enum value maps for ErrorCode.
@@ -122,6 +147,14 @@ var (
 		20: "IDEMPOTENCY_CONFLICT",
 		21: "SERVICE_UNAVAILABLE",
 		22: "FUNDING_SUBACCOUNT_NOT_FOUND",
+		23: "BOT_NOT_RUNNING",
+		24: "BOT_ALREADY_STOPPING",
+		25: "STRATEGY_NOT_FOUND",
+		26: "DRAFT_REVISION_CONFLICT",
+		27: "STRATEGY_CAP_REACHED",
+		28: "TEMPLATE_NOT_FOUND",
+		29: "STRATEGY_IN_USE",
+		30: "REVISION_NOT_FOUND",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_UNSPECIFIED":                0,
@@ -147,6 +180,14 @@ var (
 		"IDEMPOTENCY_CONFLICT":             20,
 		"SERVICE_UNAVAILABLE":              21,
 		"FUNDING_SUBACCOUNT_NOT_FOUND":     22,
+		"BOT_NOT_RUNNING":                  23,
+		"BOT_ALREADY_STOPPING":             24,
+		"STRATEGY_NOT_FOUND":               25,
+		"DRAFT_REVISION_CONFLICT":          26,
+		"STRATEGY_CAP_REACHED":             27,
+		"TEMPLATE_NOT_FOUND":               28,
+		"STRATEGY_IN_USE":                  29,
+		"REVISION_NOT_FOUND":               30,
 	}
 )
 
@@ -230,6 +271,62 @@ func (OrderSide) EnumDescriptor() ([]byte, []int) {
 	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{1}
 }
 
+// StopMode is what a stop does with the bot's orders. Its holdings stay in
+// its subaccount either way.
+type StopMode int32
+
+const (
+	// Not set. Always refused.
+	StopMode_STOP_UNSPECIFIED StopMode = 0
+	// The bot's open orders, protective stop-losses included, stay in the book
+	// and pass to its subaccount as the subaccount's own orders, which the bot
+	// no longer manages.
+	StopMode_KEEP_ORDERS StopMode = 1
+	// All the bot's orders are cancelled.
+	StopMode_CANCEL_ORDERS StopMode = 2
+)
+
+// Enum value maps for StopMode.
+var (
+	StopMode_name = map[int32]string{
+		0: "STOP_UNSPECIFIED",
+		1: "KEEP_ORDERS",
+		2: "CANCEL_ORDERS",
+	}
+	StopMode_value = map[string]int32{
+		"STOP_UNSPECIFIED": 0,
+		"KEEP_ORDERS":      1,
+		"CANCEL_ORDERS":    2,
+	}
+)
+
+func (x StopMode) Enum() *StopMode {
+	p := new(StopMode)
+	*p = x
+	return p
+}
+
+func (x StopMode) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StopMode) Descriptor() protoreflect.EnumDescriptor {
+	return file_strategies_v1_strategies_proto_enumTypes[2].Descriptor()
+}
+
+func (StopMode) Type() protoreflect.EnumType {
+	return &file_strategies_v1_strategies_proto_enumTypes[2]
+}
+
+func (x StopMode) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StopMode.Descriptor instead.
+func (StopMode) EnumDescriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{2}
+}
+
 // Status is where a backtest is.
 type Backtest_Status int32
 
@@ -275,11 +372,11 @@ func (x Backtest_Status) String() string {
 }
 
 func (Backtest_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[2].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[3].Descriptor()
 }
 
 func (Backtest_Status) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[2]
+	return &file_strategies_v1_strategies_proto_enumTypes[3]
 }
 
 func (x Backtest_Status) Number() protoreflect.EnumNumber {
@@ -288,7 +385,7 @@ func (x Backtest_Status) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Backtest_Status.Descriptor instead.
 func (Backtest_Status) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{27, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{28, 0}
 }
 
 // Outcome is a behaviour example's last result.
@@ -332,11 +429,11 @@ func (x ScenarioSummary_Outcome) String() string {
 }
 
 func (ScenarioSummary_Outcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[3].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[4].Descriptor()
 }
 
 func (ScenarioSummary_Outcome) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[3]
+	return &file_strategies_v1_strategies_proto_enumTypes[4]
 }
 
 func (x ScenarioSummary_Outcome) Number() protoreflect.EnumNumber {
@@ -345,7 +442,7 @@ func (x ScenarioSummary_Outcome) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use ScenarioSummary_Outcome.Descriptor instead.
 func (ScenarioSummary_Outcome) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{32, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{33, 0}
 }
 
 // State is a deploy proposal's step.
@@ -409,11 +506,11 @@ func (x DeployStatus_State) String() string {
 }
 
 func (DeployStatus_State) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[4].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[5].Descriptor()
 }
 
 func (DeployStatus_State) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[4]
+	return &file_strategies_v1_strategies_proto_enumTypes[5]
 }
 
 func (x DeployStatus_State) Number() protoreflect.EnumNumber {
@@ -422,7 +519,7 @@ func (x DeployStatus_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use DeployStatus_State.Descriptor instead.
 func (DeployStatus_State) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{40, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{41, 0}
 }
 
 // Status is a bot's state.
@@ -435,16 +532,21 @@ const (
 	Bot_DEPLOYING Bot_Status = 1
 	// Handling its events.
 	Bot_RUNNING Bot_Status = 2
-	// Being stopped.
+	// Being stopped: a stop was recorded, and the bot has not yet reported
+	// it complete. A stopped bot reads STOPPING until its stop is reported
+	// complete to the service.
 	Bot_STOPPING Bot_Status = 3
-	// Stopped by the user.
+	// Stopped by the user. After KEEP_ORDERS, its open orders belong to its
+	// subaccount and its in-flight orders are settled; after CANCEL_ORDERS,
+	// every one of its orders has ended. Read only once the bot's stop has
+	// been reported complete to the service; until then the bot reads
+	// STOPPING.
 	Bot_STOPPED Bot_Status = 4
-	// Paused, by itself or after an environment reset: status_reason says
-	// why. Its orders stay.
+	// Paused, by itself, after an environment reset, or after its calls
+	// failed too many times in a row: status_reason says why. Its orders
+	// stay. Read only once the bot's pause has been reported to the service;
+	// until then a paused bot reads RUNNING.
 	Bot_PAUSED Bot_Status = 5
-	// Paused because its calls kept failing to run: status_reason says why.
-	// Its orders stay.
-	Bot_QUARANTINED Bot_Status = 6
 )
 
 // Enum value maps for Bot_Status.
@@ -456,7 +558,6 @@ var (
 		3: "STOPPING",
 		4: "STOPPED",
 		5: "PAUSED",
-		6: "QUARANTINED",
 	}
 	Bot_Status_value = map[string]int32{
 		"STATUS_UNSPECIFIED": 0,
@@ -465,7 +566,6 @@ var (
 		"STOPPING":           3,
 		"STOPPED":            4,
 		"PAUSED":             5,
-		"QUARANTINED":        6,
 	}
 )
 
@@ -480,11 +580,11 @@ func (x Bot_Status) String() string {
 }
 
 func (Bot_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[5].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[6].Descriptor()
 }
 
 func (Bot_Status) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[5]
+	return &file_strategies_v1_strategies_proto_enumTypes[6]
 }
 
 func (x Bot_Status) Number() protoreflect.EnumNumber {
@@ -493,7 +593,180 @@ func (x Bot_Status) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use Bot_Status.Descriptor instead.
 func (Bot_Status) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{43, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{46, 0}
+}
+
+// PauseReason is why a PAUSED bot paused, beside the status_reason text.
+type Bot_PauseReason int32
+
+const (
+	// Not paused, or the reason is not known.
+	Bot_PAUSE_REASON_UNSPECIFIED Bot_PauseReason = 0
+	// The bot's own code paused it; status_reason carries the bot's message.
+	Bot_BOT_DECIDED Bot_PauseReason = 1
+	// Its calls failed too many times in a row.
+	Bot_FAILURES_IN_A_ROW Bot_PauseReason = 2
+	// The environment was reset, and every bot paused until its user starts
+	// it again.
+	Bot_ENVIRONMENT_RESET Bot_PauseReason = 3
+)
+
+// Enum value maps for Bot_PauseReason.
+var (
+	Bot_PauseReason_name = map[int32]string{
+		0: "PAUSE_REASON_UNSPECIFIED",
+		1: "BOT_DECIDED",
+		2: "FAILURES_IN_A_ROW",
+		3: "ENVIRONMENT_RESET",
+	}
+	Bot_PauseReason_value = map[string]int32{
+		"PAUSE_REASON_UNSPECIFIED": 0,
+		"BOT_DECIDED":              1,
+		"FAILURES_IN_A_ROW":        2,
+		"ENVIRONMENT_RESET":        3,
+	}
+)
+
+func (x Bot_PauseReason) Enum() *Bot_PauseReason {
+	p := new(Bot_PauseReason)
+	*p = x
+	return p
+}
+
+func (x Bot_PauseReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (Bot_PauseReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_strategies_v1_strategies_proto_enumTypes[7].Descriptor()
+}
+
+func (Bot_PauseReason) Type() protoreflect.EnumType {
+	return &file_strategies_v1_strategies_proto_enumTypes[7]
+}
+
+func (x Bot_PauseReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use Bot_PauseReason.Descriptor instead.
+func (Bot_PauseReason) EnumDescriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{46, 1}
+}
+
+// Kind is what a node is.
+type FlowNode_Kind int32
+
+const (
+	// Not set. Never returned.
+	FlowNode_KIND_UNSPECIFIED FlowNode_Kind = 0
+	// An event that wakes the bot, and the handler it wakes.
+	FlowNode_TRIGGER FlowNode_Kind = 1
+	// A test in a handler, with its true and false branches.
+	FlowNode_CONDITION FlowNode_Kind = 2
+	// Something the bot may do: an order, a cancel, a log line, a notice, a
+	// pause, or a price level watched or no longer watched.
+	FlowNode_ACTION FlowNode_Kind = 3
+)
+
+// Enum value maps for FlowNode_Kind.
+var (
+	FlowNode_Kind_name = map[int32]string{
+		0: "KIND_UNSPECIFIED",
+		1: "TRIGGER",
+		2: "CONDITION",
+		3: "ACTION",
+	}
+	FlowNode_Kind_value = map[string]int32{
+		"KIND_UNSPECIFIED": 0,
+		"TRIGGER":          1,
+		"CONDITION":        2,
+		"ACTION":           3,
+	}
+)
+
+func (x FlowNode_Kind) Enum() *FlowNode_Kind {
+	p := new(FlowNode_Kind)
+	*p = x
+	return p
+}
+
+func (x FlowNode_Kind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (FlowNode_Kind) Descriptor() protoreflect.EnumDescriptor {
+	return file_strategies_v1_strategies_proto_enumTypes[8].Descriptor()
+}
+
+func (FlowNode_Kind) Type() protoreflect.EnumType {
+	return &file_strategies_v1_strategies_proto_enumTypes[8]
+}
+
+func (x FlowNode_Kind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use FlowNode_Kind.Descriptor instead.
+func (FlowNode_Kind) EnumDescriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{65, 0}
+}
+
+// SavedBy is how the caller that saved a draft signed in.
+type StrategyRevision_SavedBy int32
+
+const (
+	// Not set. Never returned.
+	StrategyRevision_SAVED_BY_UNSPECIFIED StrategyRevision_SavedBy = 0
+	// A signed-in user, on the website.
+	StrategyRevision_SESSION StrategyRevision_SavedBy = 1
+	// An API key of the main account.
+	StrategyRevision_API_KEY StrategyRevision_SavedBy = 2
+	// An application the user connected to their account.
+	StrategyRevision_CONNECTED_APP StrategyRevision_SavedBy = 3
+)
+
+// Enum value maps for StrategyRevision_SavedBy.
+var (
+	StrategyRevision_SavedBy_name = map[int32]string{
+		0: "SAVED_BY_UNSPECIFIED",
+		1: "SESSION",
+		2: "API_KEY",
+		3: "CONNECTED_APP",
+	}
+	StrategyRevision_SavedBy_value = map[string]int32{
+		"SAVED_BY_UNSPECIFIED": 0,
+		"SESSION":              1,
+		"API_KEY":              2,
+		"CONNECTED_APP":        3,
+	}
+)
+
+func (x StrategyRevision_SavedBy) Enum() *StrategyRevision_SavedBy {
+	p := new(StrategyRevision_SavedBy)
+	*p = x
+	return p
+}
+
+func (x StrategyRevision_SavedBy) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StrategyRevision_SavedBy) Descriptor() protoreflect.EnumDescriptor {
+	return file_strategies_v1_strategies_proto_enumTypes[9].Descriptor()
+}
+
+func (StrategyRevision_SavedBy) Type() protoreflect.EnumType {
+	return &file_strategies_v1_strategies_proto_enumTypes[9]
+}
+
+func (x StrategyRevision_SavedBy) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StrategyRevision_SavedBy.Descriptor instead.
+func (StrategyRevision_SavedBy) EnumDescriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{72, 0}
 }
 
 // Kind is what a log entry records.
@@ -537,11 +810,11 @@ func (x BotLogEntry_Kind) String() string {
 }
 
 func (BotLogEntry_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[6].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[10].Descriptor()
 }
 
 func (BotLogEntry_Kind) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[6]
+	return &file_strategies_v1_strategies_proto_enumTypes[10]
 }
 
 func (x BotLogEntry_Kind) Number() protoreflect.EnumNumber {
@@ -550,7 +823,7 @@ func (x BotLogEntry_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BotLogEntry_Kind.Descriptor instead.
 func (BotLogEntry_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{52, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{87, 0}
 }
 
 // BotCapDetail explains BOT_CAP_REACHED.
@@ -635,6 +908,119 @@ func (x *BotCapDetail) GetNextBotCap() uint32 {
 	return 0
 }
 
+// StrategyCapDetail explains STRATEGY_CAP_REACHED.
+type StrategyCapDetail struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The most strategies an account may have.
+	StrategyCap uint32 `protobuf:"varint,1,opt,name=strategy_cap,json=strategyCap,proto3" json:"strategy_cap,omitempty"`
+	// Strategies the caller has now.
+	Strategies    uint32 `protobuf:"varint,2,opt,name=strategies,proto3" json:"strategies,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StrategyCapDetail) Reset() {
+	*x = StrategyCapDetail{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyCapDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyCapDetail) ProtoMessage() {}
+
+func (x *StrategyCapDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyCapDetail.ProtoReflect.Descriptor instead.
+func (*StrategyCapDetail) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *StrategyCapDetail) GetStrategyCap() uint32 {
+	if x != nil {
+		return x.StrategyCap
+	}
+	return 0
+}
+
+func (x *StrategyCapDetail) GetStrategies() uint32 {
+	if x != nil {
+		return x.Strategies
+	}
+	return 0
+}
+
+// RevisionConflictDetail explains DRAFT_REVISION_CONFLICT: the strategy's
+// current draft.
+type RevisionConflictDetail struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The strategy's current revision. Zero when nothing was saved yet.
+	Revision uint64 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	// The version of the current revision. Empty when revision is zero. A
+	// client that finds its own content's version here knows its save
+	// already landed.
+	HeadVersionId string `protobuf:"bytes,2,opt,name=head_version_id,json=headVersionId,proto3" json:"head_version_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RevisionConflictDetail) Reset() {
+	*x = RevisionConflictDetail{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RevisionConflictDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RevisionConflictDetail) ProtoMessage() {}
+
+func (x *RevisionConflictDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RevisionConflictDetail.ProtoReflect.Descriptor instead.
+func (*RevisionConflictDetail) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RevisionConflictDetail) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *RevisionConflictDetail) GetHeadVersionId() string {
+	if x != nil {
+		return x.HeadVersionId
+	}
+	return ""
+}
+
 // ErrorDetail is attached to Strategies API errors as an error detail of type
 // strategies.v1.ErrorDetail.
 type ErrorDetail struct {
@@ -655,14 +1041,18 @@ type ErrorDetail struct {
 	Markets []string `protobuf:"bytes,5,rep,name=markets,proto3" json:"markets,omitempty"`
 	// Amounts the funding account lacks, one per asset. Set only with
 	// INSUFFICIENT_FUNDS.
-	Shortfall     []*Money `protobuf:"bytes,6,rep,name=shortfall,proto3" json:"shortfall,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Shortfall []*Money `protobuf:"bytes,6,rep,name=shortfall,proto3" json:"shortfall,omitempty"`
+	// Set only with STRATEGY_CAP_REACHED.
+	StrategyCap *StrategyCapDetail `protobuf:"bytes,7,opt,name=strategy_cap,json=strategyCap,proto3" json:"strategy_cap,omitempty"`
+	// Set only with DRAFT_REVISION_CONFLICT.
+	RevisionConflict *RevisionConflictDetail `protobuf:"bytes,8,opt,name=revision_conflict,json=revisionConflict,proto3" json:"revision_conflict,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[1]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -674,7 +1064,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[1]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -687,7 +1077,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{1}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -732,6 +1122,20 @@ func (x *ErrorDetail) GetShortfall() []*Money {
 	return nil
 }
 
+func (x *ErrorDetail) GetStrategyCap() *StrategyCapDetail {
+	if x != nil {
+		return x.StrategyCap
+	}
+	return nil
+}
+
+func (x *ErrorDetail) GetRevisionConflict() *RevisionConflictDetail {
+	if x != nil {
+		return x.RevisionConflict
+	}
+	return nil
+}
+
 // Money is an exact amount of one asset.
 type Money struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -746,7 +1150,7 @@ type Money struct {
 
 func (x *Money) Reset() {
 	*x = Money{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[2]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -758,7 +1162,7 @@ func (x *Money) String() string {
 func (*Money) ProtoMessage() {}
 
 func (x *Money) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[2]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -771,7 +1175,7 @@ func (x *Money) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Money.ProtoReflect.Descriptor instead.
 func (*Money) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{2}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *Money) GetAsset() string {
@@ -801,7 +1205,7 @@ type TimeWindow struct {
 
 func (x *TimeWindow) Reset() {
 	*x = TimeWindow{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[3]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -813,7 +1217,7 @@ func (x *TimeWindow) String() string {
 func (*TimeWindow) ProtoMessage() {}
 
 func (x *TimeWindow) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[3]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -826,7 +1230,7 @@ func (x *TimeWindow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use TimeWindow.ProtoReflect.Descriptor instead.
 func (*TimeWindow) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{3}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *TimeWindow) GetStartTime() *timestamppb.Timestamp {
@@ -858,7 +1262,7 @@ type IndicatorLibrary struct {
 
 func (x *IndicatorLibrary) Reset() {
 	*x = IndicatorLibrary{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[4]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -870,7 +1274,7 @@ func (x *IndicatorLibrary) String() string {
 func (*IndicatorLibrary) ProtoMessage() {}
 
 func (x *IndicatorLibrary) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[4]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -883,7 +1287,7 @@ func (x *IndicatorLibrary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndicatorLibrary.ProtoReflect.Descriptor instead.
 func (*IndicatorLibrary) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{4}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *IndicatorLibrary) GetName() string {
@@ -921,7 +1325,7 @@ type IndicatorParameter struct {
 
 func (x *IndicatorParameter) Reset() {
 	*x = IndicatorParameter{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[5]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -933,7 +1337,7 @@ func (x *IndicatorParameter) String() string {
 func (*IndicatorParameter) ProtoMessage() {}
 
 func (x *IndicatorParameter) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[5]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -946,7 +1350,7 @@ func (x *IndicatorParameter) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use IndicatorParameter.ProtoReflect.Descriptor instead.
 func (*IndicatorParameter) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{5}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *IndicatorParameter) GetName() string {
@@ -1000,12 +1404,13 @@ type Indicator struct {
 	Description string `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
 	// Parameters, in the order bot code passes them.
 	Parameters []*IndicatorParameter `protobuf:"bytes,3,rep,name=parameters,proto3" json:"parameters,omitempty"`
-	// Output names, for example value for RSI or upper, middle and lower for
-	// Bollinger bands.
+	// Output names, as bot code reads them: value first, then any others, for
+	// example value alone for RSI, or value (the middle band), upper and lower
+	// for Bollinger bands.
 	Outputs []string `protobuf:"bytes,4,rep,name=outputs,proto3" json:"outputs,omitempty"`
-	// Closed candles needed before the indicator has a value, as an expression
-	// of its parameters, for example "period + 1". Until then bot code reads no
-	// value.
+	// Closed candles needed before the indicator has a value, as a sum of its
+	// parameter names and whole numbers joined by + and -, for example
+	// "period + 1". Until then bot code reads no value.
 	WarmupBars    string `protobuf:"bytes,5,opt,name=warmup_bars,json=warmupBars,proto3" json:"warmup_bars,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1013,7 +1418,7 @@ type Indicator struct {
 
 func (x *Indicator) Reset() {
 	*x = Indicator{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[6]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1025,7 +1430,7 @@ func (x *Indicator) String() string {
 func (*Indicator) ProtoMessage() {}
 
 func (x *Indicator) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[6]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1038,7 +1443,7 @@ func (x *Indicator) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Indicator.ProtoReflect.Descriptor instead.
 func (*Indicator) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{6}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *Indicator) GetName() string {
@@ -1089,12 +1494,6 @@ type StrategyLimits struct {
 	CodeBytes uint64 `protobuf:"varint,4,opt,name=code_bytes,json=codeBytes,proto3" json:"code_bytes,omitempty"`
 	// Largest manifest, in bytes of compact JSON.
 	ManifestBytes uint64 `protobuf:"varint,5,opt,name=manifest_bytes,json=manifestBytes,proto3" json:"manifest_bytes,omitempty"`
-	// Most distinct indicator settings the caller's bots and backtests may read
-	// at once. A setting is one indicator with one market, timeframe and set of
-	// parameters.
-	UniqueIndicatorSettings uint32 `protobuf:"varint,6,opt,name=unique_indicator_settings,json=uniqueIndicatorSettings,proto3" json:"unique_indicator_settings,omitempty"`
-	// Most backtests the caller may start per UTC day.
-	BacktestsPerDay uint32 `protobuf:"varint,7,opt,name=backtests_per_day,json=backtestsPerDay,proto3" json:"backtests_per_day,omitempty"`
 	// Most RunScenarios calls the caller may make per minute.
 	ScenarioRunsPerMinute uint32 `protobuf:"varint,8,opt,name=scenario_runs_per_minute,json=scenarioRunsPerMinute,proto3" json:"scenario_runs_per_minute,omitempty"`
 	unknownFields         protoimpl.UnknownFields
@@ -1103,7 +1502,7 @@ type StrategyLimits struct {
 
 func (x *StrategyLimits) Reset() {
 	*x = StrategyLimits{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[7]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1115,7 +1514,7 @@ func (x *StrategyLimits) String() string {
 func (*StrategyLimits) ProtoMessage() {}
 
 func (x *StrategyLimits) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[7]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1128,7 +1527,7 @@ func (x *StrategyLimits) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyLimits.ProtoReflect.Descriptor instead.
 func (*StrategyLimits) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{7}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *StrategyLimits) GetCpuMsPerCall() uint32 {
@@ -1166,20 +1565,6 @@ func (x *StrategyLimits) GetManifestBytes() uint64 {
 	return 0
 }
 
-func (x *StrategyLimits) GetUniqueIndicatorSettings() uint32 {
-	if x != nil {
-		return x.UniqueIndicatorSettings
-	}
-	return 0
-}
-
-func (x *StrategyLimits) GetBacktestsPerDay() uint32 {
-	if x != nil {
-		return x.BacktestsPerDay
-	}
-	return 0
-}
-
 func (x *StrategyLimits) GetScenarioRunsPerMinute() uint32 {
 	if x != nil {
 		return x.ScenarioRunsPerMinute
@@ -1190,9 +1575,8 @@ func (x *StrategyLimits) GetScenarioRunsPerMinute() uint32 {
 // GetStrategyReferenceRequest asks for what bot code is written against.
 type GetStrategyReferenceRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Runtime version to describe. Empty means the current one. Until the
-	// runtime catalog is available, any other value is
-	// RUNTIME_VERSION_UNSUPPORTED.
+	// Runtime version to describe. Empty means the current one. One runtime
+	// version is offered; any other value is RUNTIME_VERSION_UNSUPPORTED.
 	RuntimeVersion string `protobuf:"bytes,1,opt,name=runtime_version,json=runtimeVersion,proto3" json:"runtime_version,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -1200,7 +1584,7 @@ type GetStrategyReferenceRequest struct {
 
 func (x *GetStrategyReferenceRequest) Reset() {
 	*x = GetStrategyReferenceRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[8]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1212,7 +1596,7 @@ func (x *GetStrategyReferenceRequest) String() string {
 func (*GetStrategyReferenceRequest) ProtoMessage() {}
 
 func (x *GetStrategyReferenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[8]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1225,7 +1609,7 @@ func (x *GetStrategyReferenceRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyReferenceRequest.ProtoReflect.Descriptor instead.
 func (*GetStrategyReferenceRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{8}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetStrategyReferenceRequest) GetRuntimeVersion() string {
@@ -1236,30 +1620,24 @@ func (x *GetStrategyReferenceRequest) GetRuntimeVersion() string {
 }
 
 // GetStrategyReferenceResponse is the bot format of one runtime version, and
-// the skill pack for writing bots.
-//
-// The runtime catalog (runtime_version, indicator_library, manifest_schema,
-// indicators and limits) is not available yet: those fields are empty until
-// it is. The reference and the skill pack are always set.
+// the skill pack for writing bots. Every field is always set.
 type GetStrategyReferenceResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// The runtime version described. Empty until the runtime catalog is
-	// available.
+	// The runtime version described, for example 2026-11.
 	RuntimeVersion string `protobuf:"bytes,1,opt,name=runtime_version,json=runtimeVersion,proto3" json:"runtime_version,omitempty"`
-	// The indicator library and its pinned version. Unset until the runtime
-	// catalog is available.
+	// The indicator library and its pinned version.
 	IndicatorLibrary *IndicatorLibrary `protobuf:"bytes,2,opt,name=indicator_library,json=indicatorLibrary,proto3" json:"indicator_library,omitempty"`
 	// The bot API reference as Markdown: events and handlers, the manifest,
 	// reads, actions, money rules, limits and language rules, with examples.
 	Reference string `protobuf:"bytes,3,opt,name=reference,proto3" json:"reference,omitempty"`
-	// JSON Schema of the manifest. Unset until the runtime catalog is
-	// available.
+	// JSON Schema (draft 2020-12) of the manifest: its fields, their types and
+	// their bounds. The validation SaveDraftVersion runs is the authority, and
+	// also checks rules across fields, such as a market listed in markets or
+	// the markets' one quote asset, as the reference describes.
 	ManifestSchema *structpb.Struct `protobuf:"bytes,4,opt,name=manifest_schema,json=manifestSchema,proto3" json:"manifest_schema,omitempty"`
-	// Every indicator bot code may read, by name. Empty until the runtime
-	// catalog is available; the reference lists the indicators meanwhile.
+	// Every indicator bot code may read.
 	Indicators []*Indicator `protobuf:"bytes,5,rep,name=indicators,proto3" json:"indicators,omitempty"`
-	// Limits every bot of this runtime version runs under. Unset until the
-	// runtime catalog is available.
+	// Limits every bot of this runtime version runs under.
 	Limits *StrategyLimits `protobuf:"bytes,6,opt,name=limits,proto3" json:"limits,omitempty"`
 	// The skill pack: guidance for writing bots against the reference (the
 	// workflow, the language subset, patterns and pitfalls), one Markdown
@@ -1277,7 +1655,7 @@ type GetStrategyReferenceResponse struct {
 
 func (x *GetStrategyReferenceResponse) Reset() {
 	*x = GetStrategyReferenceResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[9]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1289,7 +1667,7 @@ func (x *GetStrategyReferenceResponse) String() string {
 func (*GetStrategyReferenceResponse) ProtoMessage() {}
 
 func (x *GetStrategyReferenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[9]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1302,7 +1680,7 @@ func (x *GetStrategyReferenceResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyReferenceResponse.ProtoReflect.Descriptor instead.
 func (*GetStrategyReferenceResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{9}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *GetStrategyReferenceResponse) GetRuntimeVersion() string {
@@ -1375,7 +1753,7 @@ type SkillDocument struct {
 
 func (x *SkillDocument) Reset() {
 	*x = SkillDocument{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[10]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1387,7 +1765,7 @@ func (x *SkillDocument) String() string {
 func (*SkillDocument) ProtoMessage() {}
 
 func (x *SkillDocument) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[10]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1400,7 +1778,7 @@ func (x *SkillDocument) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SkillDocument.ProtoReflect.Descriptor instead.
 func (*SkillDocument) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{10}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *SkillDocument) GetName() string {
@@ -1426,7 +1804,7 @@ type StrategyTemplate struct {
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// What the template's bot does.
 	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
-	// The template's manifest, as ValidateStrategy takes it.
+	// The template's manifest, as SaveDraftVersion takes it.
 	Manifest *structpb.Struct `protobuf:"bytes,4,opt,name=manifest,proto3" json:"manifest,omitempty"`
 	// The template's bot code.
 	Code string `protobuf:"bytes,5,opt,name=code,proto3" json:"code,omitempty"`
@@ -1438,7 +1816,7 @@ type StrategyTemplate struct {
 
 func (x *StrategyTemplate) Reset() {
 	*x = StrategyTemplate{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[11]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1450,7 +1828,7 @@ func (x *StrategyTemplate) String() string {
 func (*StrategyTemplate) ProtoMessage() {}
 
 func (x *StrategyTemplate) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[11]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1463,7 +1841,7 @@ func (x *StrategyTemplate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyTemplate.ProtoReflect.Descriptor instead.
 func (*StrategyTemplate) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{11}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *StrategyTemplate) GetTemplateId() string {
@@ -1517,7 +1895,7 @@ type ListStrategyTemplatesRequest struct {
 
 func (x *ListStrategyTemplatesRequest) Reset() {
 	*x = ListStrategyTemplatesRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[12]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1529,7 +1907,7 @@ func (x *ListStrategyTemplatesRequest) String() string {
 func (*ListStrategyTemplatesRequest) ProtoMessage() {}
 
 func (x *ListStrategyTemplatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[12]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1542,7 +1920,7 @@ func (x *ListStrategyTemplatesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStrategyTemplatesRequest.ProtoReflect.Descriptor instead.
 func (*ListStrategyTemplatesRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{12}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{14}
 }
 
 // ListStrategyTemplatesResponse returns every bot template.
@@ -1557,7 +1935,7 @@ type ListStrategyTemplatesResponse struct {
 
 func (x *ListStrategyTemplatesResponse) Reset() {
 	*x = ListStrategyTemplatesResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[13]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1569,7 +1947,7 @@ func (x *ListStrategyTemplatesResponse) String() string {
 func (*ListStrategyTemplatesResponse) ProtoMessage() {}
 
 func (x *ListStrategyTemplatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[13]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1582,7 +1960,7 @@ func (x *ListStrategyTemplatesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStrategyTemplatesResponse.ProtoReflect.Descriptor instead.
 func (*ListStrategyTemplatesResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{13}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *ListStrategyTemplatesResponse) GetTemplates() []*StrategyTemplate {
@@ -1592,7 +1970,7 @@ func (x *ListStrategyTemplatesResponse) GetTemplates() []*StrategyTemplate {
 	return nil
 }
 
-// ValidationIssue is one problem ValidateStrategy found.
+// ValidationIssue is one problem a version's check found.
 type ValidationIssue struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Path of the manifest value at fault, for example limits.max_order.amount.
@@ -1618,7 +1996,7 @@ type ValidationIssue struct {
 
 func (x *ValidationIssue) Reset() {
 	*x = ValidationIssue{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[14]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1630,7 +2008,7 @@ func (x *ValidationIssue) String() string {
 func (*ValidationIssue) ProtoMessage() {}
 
 func (x *ValidationIssue) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[14]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1643,7 +2021,7 @@ func (x *ValidationIssue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ValidationIssue.ProtoReflect.Descriptor instead.
 func (*ValidationIssue) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{14}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *ValidationIssue) GetManifestPath() string {
@@ -1692,13 +2070,16 @@ func (x *ValidationIssue) GetHint() string {
 // markets.
 type MoneyCard struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Most the bot may spend in total.
+	// Most the bot may spend in total. Unset until a total spending limit is
+	// enforced; the funding a deploy moves bounds what the bot can spend.
 	Budget *Money `protobuf:"bytes,1,opt,name=budget,proto3" json:"budget,omitempty"`
 	// Largest single order.
 	MaxOrder *Money `protobuf:"bytes,2,opt,name=max_order,json=maxOrder,proto3" json:"max_order,omitempty"`
 	// Most good-till-cancelled orders the bot may have open at once.
 	MaxOpenGtcOrders uint32 `protobuf:"varint,3,opt,name=max_open_gtc_orders,json=maxOpenGtcOrders,proto3" json:"max_open_gtc_orders,omitempty"`
-	// Loss within one UTC day at which the bot pauses.
+	// Loss within one UTC day the manifest declares as the bot's threshold.
+	// Declared only: nothing pauses or stops a bot on it yet. Unset when the
+	// manifest declares none.
 	DailyLossThreshold *Money `protobuf:"bytes,4,opt,name=daily_loss_threshold,json=dailyLossThreshold,proto3" json:"daily_loss_threshold,omitempty"`
 	// Markets the bot trades, for example BTC/USDT.
 	Markets []string `protobuf:"bytes,5,rep,name=markets,proto3" json:"markets,omitempty"`
@@ -1711,7 +2092,7 @@ type MoneyCard struct {
 
 func (x *MoneyCard) Reset() {
 	*x = MoneyCard{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[15]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1723,7 +2104,7 @@ func (x *MoneyCard) String() string {
 func (*MoneyCard) ProtoMessage() {}
 
 func (x *MoneyCard) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[15]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1736,7 +2117,7 @@ func (x *MoneyCard) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MoneyCard.ProtoReflect.Descriptor instead.
 func (*MoneyCard) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{15}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *MoneyCard) GetBudget() *Money {
@@ -1805,7 +2186,7 @@ type SettingField struct {
 
 func (x *SettingField) Reset() {
 	*x = SettingField{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[16]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1817,7 +2198,7 @@ func (x *SettingField) String() string {
 func (*SettingField) ProtoMessage() {}
 
 func (x *SettingField) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[16]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1830,7 +2211,7 @@ func (x *SettingField) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SettingField.ProtoReflect.Descriptor instead.
 func (*SettingField) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{16}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SettingField) GetName() string {
@@ -1882,83 +2263,9 @@ func (x *SettingField) GetMaximum() string {
 	return ""
 }
 
-// ValidateStrategyRequest checks a bot and stores it as a version.
-type ValidateStrategyRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Name of the strategy.
-	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// The manifest: settings, events, limits and behaviour examples, as a JSON
-	// object whose shape GetStrategyReference's manifest_schema gives. Write
-	// amounts as decimal strings.
-	Manifest *structpb.Struct `protobuf:"bytes,2,opt,name=manifest,proto3" json:"manifest,omitempty"`
-	// The bot code: at most 65536 bytes (64 KiB) of UTF-8.
-	Code string `protobuf:"bytes,3,opt,name=code,proto3" json:"code,omitempty"`
-	// Runtime version to validate against. Empty means the current one.
-	RuntimeVersion string `protobuf:"bytes,4,opt,name=runtime_version,json=runtimeVersion,proto3" json:"runtime_version,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
-}
-
-func (x *ValidateStrategyRequest) Reset() {
-	*x = ValidateStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[17]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *ValidateStrategyRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*ValidateStrategyRequest) ProtoMessage() {}
-
-func (x *ValidateStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[17]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use ValidateStrategyRequest.ProtoReflect.Descriptor instead.
-func (*ValidateStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{17}
-}
-
-func (x *ValidateStrategyRequest) GetName() string {
-	if x != nil {
-		return x.Name
-	}
-	return ""
-}
-
-func (x *ValidateStrategyRequest) GetManifest() *structpb.Struct {
-	if x != nil {
-		return x.Manifest
-	}
-	return nil
-}
-
-func (x *ValidateStrategyRequest) GetCode() string {
-	if x != nil {
-		return x.Code
-	}
-	return ""
-}
-
-func (x *ValidateStrategyRequest) GetRuntimeVersion() string {
-	if x != nil {
-		return x.RuntimeVersion
-	}
-	return ""
-}
-
-// ValidateStrategyResponse is the outcome of validating a bot.
-type ValidateStrategyResponse struct {
+// VersionValidation is a version's check result: whether the bot is valid,
+// its errors and warnings, and what it may do with money.
+type VersionValidation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// ID of the stored version, derived from the runtime version, manifest and
 	// code: the same content always gets the same ID.
@@ -1975,26 +2282,29 @@ type ValidateStrategyResponse struct {
 	// What the bot may do with money. Set only when valid.
 	MoneyCard *MoneyCard `protobuf:"bytes,6,opt,name=money_card,json=moneyCard,proto3" json:"money_card,omitempty"`
 	// The settings a user may change. Set only when valid.
-	SettingsForm  []*SettingField `protobuf:"bytes,7,rep,name=settings_form,json=settingsForm,proto3" json:"settings_form,omitempty"`
+	SettingsForm []*SettingField `protobuf:"bytes,7,rep,name=settings_form,json=settingsForm,proto3" json:"settings_form,omitempty"`
+	// What wakes the bot, what it checks and what it may do, read from its
+	// code and manifest. Set only when valid.
+	Flow          *StrategyFlow `protobuf:"bytes,8,opt,name=flow,proto3" json:"flow,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *ValidateStrategyResponse) Reset() {
-	*x = ValidateStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[18]
+func (x *VersionValidation) Reset() {
+	*x = VersionValidation{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *ValidateStrategyResponse) String() string {
+func (x *VersionValidation) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*ValidateStrategyResponse) ProtoMessage() {}
+func (*VersionValidation) ProtoMessage() {}
 
-func (x *ValidateStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[18]
+func (x *VersionValidation) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2005,56 +2315,63 @@ func (x *ValidateStrategyResponse) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use ValidateStrategyResponse.ProtoReflect.Descriptor instead.
-func (*ValidateStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{18}
+// Deprecated: Use VersionValidation.ProtoReflect.Descriptor instead.
+func (*VersionValidation) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *ValidateStrategyResponse) GetVersionId() string {
+func (x *VersionValidation) GetVersionId() string {
 	if x != nil {
 		return x.VersionId
 	}
 	return ""
 }
 
-func (x *ValidateStrategyResponse) GetRuntimeVersion() string {
+func (x *VersionValidation) GetRuntimeVersion() string {
 	if x != nil {
 		return x.RuntimeVersion
 	}
 	return ""
 }
 
-func (x *ValidateStrategyResponse) GetValid() bool {
+func (x *VersionValidation) GetValid() bool {
 	if x != nil {
 		return x.Valid
 	}
 	return false
 }
 
-func (x *ValidateStrategyResponse) GetErrors() []*ValidationIssue {
+func (x *VersionValidation) GetErrors() []*ValidationIssue {
 	if x != nil {
 		return x.Errors
 	}
 	return nil
 }
 
-func (x *ValidateStrategyResponse) GetWarnings() []*ValidationIssue {
+func (x *VersionValidation) GetWarnings() []*ValidationIssue {
 	if x != nil {
 		return x.Warnings
 	}
 	return nil
 }
 
-func (x *ValidateStrategyResponse) GetMoneyCard() *MoneyCard {
+func (x *VersionValidation) GetMoneyCard() *MoneyCard {
 	if x != nil {
 		return x.MoneyCard
 	}
 	return nil
 }
 
-func (x *ValidateStrategyResponse) GetSettingsForm() []*SettingField {
+func (x *VersionValidation) GetSettingsForm() []*SettingField {
 	if x != nil {
 		return x.SettingsForm
+	}
+	return nil
+}
+
+func (x *VersionValidation) GetFlow() *StrategyFlow {
+	if x != nil {
+		return x.Flow
 	}
 	return nil
 }
@@ -2070,7 +2387,7 @@ type RunScenariosRequest struct {
 
 func (x *RunScenariosRequest) Reset() {
 	*x = RunScenariosRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[19]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2082,7 +2399,7 @@ func (x *RunScenariosRequest) String() string {
 func (*RunScenariosRequest) ProtoMessage() {}
 
 func (x *RunScenariosRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[19]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2095,7 +2412,7 @@ func (x *RunScenariosRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunScenariosRequest.ProtoReflect.Descriptor instead.
 func (*RunScenariosRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{19}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *RunScenariosRequest) GetVersionId() string {
@@ -2110,7 +2427,8 @@ type ScenarioResult struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The example's name, from the manifest.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
-	// True when the code made exactly the expected orders.
+	// True when the handler ran without an error, made exactly the expected
+	// orders and cancels, in order, and watches every expected level.
 	Passed bool `protobuf:"varint,2,opt,name=passed,proto3" json:"passed,omitempty"`
 	// The orders the example expects, as the manifest writes them.
 	Expected []*structpb.Struct `protobuf:"bytes,3,rep,name=expected,proto3" json:"expected,omitempty"`
@@ -2126,7 +2444,7 @@ type ScenarioResult struct {
 
 func (x *ScenarioResult) Reset() {
 	*x = ScenarioResult{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[20]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[21]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2138,7 +2456,7 @@ func (x *ScenarioResult) String() string {
 func (*ScenarioResult) ProtoMessage() {}
 
 func (x *ScenarioResult) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[20]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[21]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2151,7 +2469,7 @@ func (x *ScenarioResult) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioResult.ProtoReflect.Descriptor instead.
 func (*ScenarioResult) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{20}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{21}
 }
 
 func (x *ScenarioResult) GetName() string {
@@ -2214,7 +2532,7 @@ type RunScenariosResponse struct {
 
 func (x *RunScenariosResponse) Reset() {
 	*x = RunScenariosResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[21]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2226,7 +2544,7 @@ func (x *RunScenariosResponse) String() string {
 func (*RunScenariosResponse) ProtoMessage() {}
 
 func (x *RunScenariosResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[21]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2239,7 +2557,7 @@ func (x *RunScenariosResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RunScenariosResponse.ProtoReflect.Descriptor instead.
 func (*RunScenariosResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{21}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{22}
 }
 
 func (x *RunScenariosResponse) GetVersionId() string {
@@ -2291,7 +2609,7 @@ type BacktestMetrics struct {
 
 func (x *BacktestMetrics) Reset() {
 	*x = BacktestMetrics{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[22]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[23]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2303,7 +2621,7 @@ func (x *BacktestMetrics) String() string {
 func (*BacktestMetrics) ProtoMessage() {}
 
 func (x *BacktestMetrics) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[22]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[23]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2316,7 +2634,7 @@ func (x *BacktestMetrics) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BacktestMetrics.ProtoReflect.Descriptor instead.
 func (*BacktestMetrics) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{22}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{23}
 }
 
 func (x *BacktestMetrics) GetReturnPercent() string {
@@ -2374,7 +2692,7 @@ type Baseline struct {
 
 func (x *Baseline) Reset() {
 	*x = Baseline{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[23]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[24]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2386,7 +2704,7 @@ func (x *Baseline) String() string {
 func (*Baseline) ProtoMessage() {}
 
 func (x *Baseline) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[23]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[24]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2399,7 +2717,7 @@ func (x *Baseline) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Baseline.ProtoReflect.Descriptor instead.
 func (*Baseline) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{23}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{24}
 }
 
 func (x *Baseline) GetName() string {
@@ -2439,7 +2757,7 @@ type BacktestTrade struct {
 
 func (x *BacktestTrade) Reset() {
 	*x = BacktestTrade{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[24]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2451,7 +2769,7 @@ func (x *BacktestTrade) String() string {
 func (*BacktestTrade) ProtoMessage() {}
 
 func (x *BacktestTrade) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[24]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2464,7 +2782,7 @@ func (x *BacktestTrade) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BacktestTrade.ProtoReflect.Descriptor instead.
 func (*BacktestTrade) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{24}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{25}
 }
 
 func (x *BacktestTrade) GetTime() *timestamppb.Timestamp {
@@ -2531,7 +2849,7 @@ type DataGap struct {
 
 func (x *DataGap) Reset() {
 	*x = DataGap{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[25]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2543,7 +2861,7 @@ func (x *DataGap) String() string {
 func (*DataGap) ProtoMessage() {}
 
 func (x *DataGap) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[25]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2556,7 +2874,7 @@ func (x *DataGap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DataGap.ProtoReflect.Descriptor instead.
 func (*DataGap) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{25}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{26}
 }
 
 func (x *DataGap) GetMarket() string {
@@ -2614,7 +2932,7 @@ type BacktestReport struct {
 
 func (x *BacktestReport) Reset() {
 	*x = BacktestReport{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[26]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2626,7 +2944,7 @@ func (x *BacktestReport) String() string {
 func (*BacktestReport) ProtoMessage() {}
 
 func (x *BacktestReport) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[26]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2639,7 +2957,7 @@ func (x *BacktestReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BacktestReport.ProtoReflect.Descriptor instead.
 func (*BacktestReport) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{26}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{27}
 }
 
 func (x *BacktestReport) GetFidelity() string {
@@ -2751,7 +3069,7 @@ type Backtest struct {
 
 func (x *Backtest) Reset() {
 	*x = Backtest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[27]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2763,7 +3081,7 @@ func (x *Backtest) String() string {
 func (*Backtest) ProtoMessage() {}
 
 func (x *Backtest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[27]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2776,7 +3094,7 @@ func (x *Backtest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Backtest.ProtoReflect.Descriptor instead.
 func (*Backtest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{27}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{28}
 }
 
 func (x *Backtest) GetBacktestId() uint64 {
@@ -2883,7 +3201,7 @@ type StartBacktestRequest struct {
 
 func (x *StartBacktestRequest) Reset() {
 	*x = StartBacktestRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[28]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2895,7 +3213,7 @@ func (x *StartBacktestRequest) String() string {
 func (*StartBacktestRequest) ProtoMessage() {}
 
 func (x *StartBacktestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[28]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2908,7 +3226,7 @@ func (x *StartBacktestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartBacktestRequest.ProtoReflect.Descriptor instead.
 func (*StartBacktestRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{28}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{29}
 }
 
 func (x *StartBacktestRequest) GetVersionId() string {
@@ -2972,7 +3290,7 @@ type StartBacktestResponse struct {
 
 func (x *StartBacktestResponse) Reset() {
 	*x = StartBacktestResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[29]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[30]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2984,7 +3302,7 @@ func (x *StartBacktestResponse) String() string {
 func (*StartBacktestResponse) ProtoMessage() {}
 
 func (x *StartBacktestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[29]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[30]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2997,7 +3315,7 @@ func (x *StartBacktestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StartBacktestResponse.ProtoReflect.Descriptor instead.
 func (*StartBacktestResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{29}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{30}
 }
 
 func (x *StartBacktestResponse) GetBacktestId() uint64 {
@@ -3032,7 +3350,7 @@ type GetBacktestRequest struct {
 
 func (x *GetBacktestRequest) Reset() {
 	*x = GetBacktestRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[30]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[31]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3044,7 +3362,7 @@ func (x *GetBacktestRequest) String() string {
 func (*GetBacktestRequest) ProtoMessage() {}
 
 func (x *GetBacktestRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[30]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[31]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3057,7 +3375,7 @@ func (x *GetBacktestRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBacktestRequest.ProtoReflect.Descriptor instead.
 func (*GetBacktestRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{30}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{31}
 }
 
 func (x *GetBacktestRequest) GetBacktestId() uint64 {
@@ -3078,7 +3396,7 @@ type GetBacktestResponse struct {
 
 func (x *GetBacktestResponse) Reset() {
 	*x = GetBacktestResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[31]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[32]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3090,7 +3408,7 @@ func (x *GetBacktestResponse) String() string {
 func (*GetBacktestResponse) ProtoMessage() {}
 
 func (x *GetBacktestResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[31]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[32]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3103,7 +3421,7 @@ func (x *GetBacktestResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBacktestResponse.ProtoReflect.Descriptor instead.
 func (*GetBacktestResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{31}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{32}
 }
 
 func (x *GetBacktestResponse) GetBacktest() *Backtest {
@@ -3126,7 +3444,7 @@ type ScenarioSummary struct {
 
 func (x *ScenarioSummary) Reset() {
 	*x = ScenarioSummary{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[32]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[33]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3138,7 +3456,7 @@ func (x *ScenarioSummary) String() string {
 func (*ScenarioSummary) ProtoMessage() {}
 
 func (x *ScenarioSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[32]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[33]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3151,7 +3469,7 @@ func (x *ScenarioSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ScenarioSummary.ProtoReflect.Descriptor instead.
 func (*ScenarioSummary) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{32}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{33}
 }
 
 func (x *ScenarioSummary) GetName() string {
@@ -3189,7 +3507,7 @@ type BacktestSummary struct {
 
 func (x *BacktestSummary) Reset() {
 	*x = BacktestSummary{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[33]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3201,7 +3519,7 @@ func (x *BacktestSummary) String() string {
 func (*BacktestSummary) ProtoMessage() {}
 
 func (x *BacktestSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[33]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3214,7 +3532,7 @@ func (x *BacktestSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BacktestSummary.ProtoReflect.Descriptor instead.
 func (*BacktestSummary) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{33}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{34}
 }
 
 func (x *BacktestSummary) GetBacktestId() uint64 {
@@ -3270,7 +3588,7 @@ type ExplainStrategyRequest struct {
 
 func (x *ExplainStrategyRequest) Reset() {
 	*x = ExplainStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[34]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3282,7 +3600,7 @@ func (x *ExplainStrategyRequest) String() string {
 func (*ExplainStrategyRequest) ProtoMessage() {}
 
 func (x *ExplainStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[34]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3295,7 +3613,7 @@ func (x *ExplainStrategyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainStrategyRequest.ProtoReflect.Descriptor instead.
 func (*ExplainStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{34}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{35}
 }
 
 func (x *ExplainStrategyRequest) GetVersionId() string {
@@ -3336,7 +3654,7 @@ type ExplainStrategyResponse struct {
 
 func (x *ExplainStrategyResponse) Reset() {
 	*x = ExplainStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[35]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3348,7 +3666,7 @@ func (x *ExplainStrategyResponse) String() string {
 func (*ExplainStrategyResponse) ProtoMessage() {}
 
 func (x *ExplainStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[35]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3361,7 +3679,7 @@ func (x *ExplainStrategyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ExplainStrategyResponse.ProtoReflect.Descriptor instead.
 func (*ExplainStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{35}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{36}
 }
 
 func (x *ExplainStrategyResponse) GetVersionId() string {
@@ -3426,14 +3744,23 @@ type SettingValue struct {
 	// Setting name, from the settings form.
 	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
 	// Its value, as a string: an amount or number as an exact decimal.
-	Value         string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	Value string `protobuf:"bytes,2,opt,name=value,proto3" json:"value,omitempty"`
+	// What the setting controls, from the settings form. Set by GetBot;
+	// leave it empty in requests.
+	Description string `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	// Kind of value, from the settings form, for example quote for an amount
+	// of the quote asset. Set by GetBot; leave it empty in requests.
+	Kind string `protobuf:"bytes,4,opt,name=kind,proto3" json:"kind,omitempty"`
+	// Asset of an amount setting, from the settings form. Empty for other
+	// kinds. Set by GetBot; leave it empty in requests.
+	Asset         string `protobuf:"bytes,5,opt,name=asset,proto3" json:"asset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SettingValue) Reset() {
 	*x = SettingValue{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[36]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3445,7 +3772,7 @@ func (x *SettingValue) String() string {
 func (*SettingValue) ProtoMessage() {}
 
 func (x *SettingValue) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[36]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3458,7 +3785,7 @@ func (x *SettingValue) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SettingValue.ProtoReflect.Descriptor instead.
 func (*SettingValue) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{36}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{37}
 }
 
 func (x *SettingValue) GetName() string {
@@ -3471,6 +3798,27 @@ func (x *SettingValue) GetName() string {
 func (x *SettingValue) GetValue() string {
 	if x != nil {
 		return x.Value
+	}
+	return ""
+}
+
+func (x *SettingValue) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *SettingValue) GetKind() string {
+	if x != nil {
+		return x.Kind
+	}
+	return ""
+}
+
+func (x *SettingValue) GetAsset() string {
+	if x != nil {
+		return x.Asset
 	}
 	return ""
 }
@@ -3495,14 +3843,19 @@ type DeployProposalSummary struct {
 	ScenariosPassed uint32 `protobuf:"varint,6,opt,name=scenarios_passed,json=scenariosPassed,proto3" json:"scenarios_passed,omitempty"`
 	// The version's latest backtest. Omitted when the bot cannot be
 	// backtested.
-	Backtest      *BacktestSummary `protobuf:"bytes,7,opt,name=backtest,proto3" json:"backtest,omitempty"`
+	Backtest *BacktestSummary `protobuf:"bytes,7,opt,name=backtest,proto3" json:"backtest,omitempty"`
+	// The strategy the proposal came from. Zero once the strategy is deleted.
+	StrategyId uint64 `protobuf:"fixed64,9,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// The strategy's revision proposed, whose version is version_id. Zero once
+	// the strategy is deleted.
+	Revision      uint64 `protobuf:"varint,10,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeployProposalSummary) Reset() {
 	*x = DeployProposalSummary{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[37]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3514,7 +3867,7 @@ func (x *DeployProposalSummary) String() string {
 func (*DeployProposalSummary) ProtoMessage() {}
 
 func (x *DeployProposalSummary) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[37]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3527,7 +3880,7 @@ func (x *DeployProposalSummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeployProposalSummary.ProtoReflect.Descriptor instead.
 func (*DeployProposalSummary) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{37}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{38}
 }
 
 func (x *DeployProposalSummary) GetVersionId() string {
@@ -3586,11 +3939,29 @@ func (x *DeployProposalSummary) GetBacktest() *BacktestSummary {
 	return nil
 }
 
+func (x *DeployProposalSummary) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+func (x *DeployProposalSummary) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 // ProposeDeployRequest records a deploy proposal. It never deploys.
 type ProposeDeployRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Version to deploy.
-	VersionId string `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	// Public ID of the caller's strategy to deploy.
+	StrategyId uint64 `protobuf:"fixed64,7,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// The strategy's revision to deploy, as SaveDraftVersion and GetStrategy
+	// return it: its version is the one proposed. A revision the strategy
+	// doesn't have, zero included, is REVISION_NOT_FOUND.
+	Revision uint64 `protobuf:"varint,8,opt,name=revision,proto3" json:"revision,omitempty"`
 	// Name of the new bot.
 	BotName string `protobuf:"bytes,2,opt,name=bot_name,json=botName,proto3" json:"bot_name,omitempty"`
 	// Values for the version's settings form, at most 64, each setting once.
@@ -3604,8 +3975,8 @@ type ProposeDeployRequest struct {
 	// request with the same key is IDEMPOTENCY_CONFLICT.
 	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	// The subaccount that funds the bot. Zero means the main account. It must
-	// belong to the caller's main account; another subaccount is refused as
-	// not found.
+	// be an active subaccount of the caller's main account; any other,
+	// including a disabled one, is FUNDING_SUBACCOUNT_NOT_FOUND.
 	FundingSubaccountId uint64 `protobuf:"fixed64,6,opt,name=funding_subaccount_id,json=fundingSubaccountId,proto3" json:"funding_subaccount_id,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -3613,7 +3984,7 @@ type ProposeDeployRequest struct {
 
 func (x *ProposeDeployRequest) Reset() {
 	*x = ProposeDeployRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[38]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3625,7 +3996,7 @@ func (x *ProposeDeployRequest) String() string {
 func (*ProposeDeployRequest) ProtoMessage() {}
 
 func (x *ProposeDeployRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[38]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3638,14 +4009,21 @@ func (x *ProposeDeployRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeDeployRequest.ProtoReflect.Descriptor instead.
 func (*ProposeDeployRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{38}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{39}
 }
 
-func (x *ProposeDeployRequest) GetVersionId() string {
+func (x *ProposeDeployRequest) GetStrategyId() uint64 {
 	if x != nil {
-		return x.VersionId
+		return x.StrategyId
 	}
-	return ""
+	return 0
+}
+
+func (x *ProposeDeployRequest) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 func (x *ProposeDeployRequest) GetBotName() string {
@@ -3690,6 +4068,8 @@ type ProposeDeployResponse struct {
 	// Public proposal ID.
 	ProposalId uint64 `protobuf:"fixed64,1,opt,name=proposal_id,json=proposalId,proto3" json:"proposal_id,omitempty"`
 	// The website page where the user reviews the proposal and deploys it.
+	// Its path names the proposal by its public ID in base58, as the website
+	// shows every ID, for example https://…/bots/deploy/<base58 proposal ID>.
 	DeployUrl string `protobuf:"bytes,2,opt,name=deploy_url,json=deployUrl,proto3" json:"deploy_url,omitempty"`
 	// What the proposal binds.
 	Summary *DeployProposalSummary `protobuf:"bytes,3,opt,name=summary,proto3" json:"summary,omitempty"`
@@ -3701,7 +4081,7 @@ type ProposeDeployResponse struct {
 
 func (x *ProposeDeployResponse) Reset() {
 	*x = ProposeDeployResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[39]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3713,7 +4093,7 @@ func (x *ProposeDeployResponse) String() string {
 func (*ProposeDeployResponse) ProtoMessage() {}
 
 func (x *ProposeDeployResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[39]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3726,7 +4106,7 @@ func (x *ProposeDeployResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ProposeDeployResponse.ProtoReflect.Descriptor instead.
 func (*ProposeDeployResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{39}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{40}
 }
 
 func (x *ProposeDeployResponse) GetProposalId() uint64 {
@@ -3777,14 +4157,18 @@ type DeployStatus struct {
 	// When the proposal expires if not deployed.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// When the state last changed.
-	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// The step the deploy failed in: VALIDATING, CREATING_SUBACCOUNT, FUNDING
+	// or DEPLOYING. Set when a deploy fails, by the deploy flow, beside
+	// failure; unset in any other state.
+	FailedAt      DeployStatus_State `protobuf:"varint,9,opt,name=failed_at,json=failedAt,proto3,enum=strategies.v1.DeployStatus_State" json:"failed_at,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *DeployStatus) Reset() {
 	*x = DeployStatus{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[40]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[41]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3796,7 +4180,7 @@ func (x *DeployStatus) String() string {
 func (*DeployStatus) ProtoMessage() {}
 
 func (x *DeployStatus) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[40]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[41]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3809,7 +4193,7 @@ func (x *DeployStatus) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeployStatus.ProtoReflect.Descriptor instead.
 func (*DeployStatus) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{40}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{41}
 }
 
 func (x *DeployStatus) GetProposalId() uint64 {
@@ -3868,6 +4252,13 @@ func (x *DeployStatus) GetUpdatedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *DeployStatus) GetFailedAt() DeployStatus_State {
+	if x != nil {
+		return x.FailedAt
+	}
+	return DeployStatus_STATE_UNSPECIFIED
+}
+
 // GetDeployStatusRequest reads one deploy proposal of the caller.
 type GetDeployStatusRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3879,7 +4270,7 @@ type GetDeployStatusRequest struct {
 
 func (x *GetDeployStatusRequest) Reset() {
 	*x = GetDeployStatusRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[41]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[42]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3891,7 +4282,7 @@ func (x *GetDeployStatusRequest) String() string {
 func (*GetDeployStatusRequest) ProtoMessage() {}
 
 func (x *GetDeployStatusRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[41]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[42]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3904,7 +4295,7 @@ func (x *GetDeployStatusRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDeployStatusRequest.ProtoReflect.Descriptor instead.
 func (*GetDeployStatusRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{41}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{42}
 }
 
 func (x *GetDeployStatusRequest) GetProposalId() uint64 {
@@ -3925,7 +4316,7 @@ type GetDeployStatusResponse struct {
 
 func (x *GetDeployStatusResponse) Reset() {
 	*x = GetDeployStatusResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[42]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[43]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3937,7 +4328,7 @@ func (x *GetDeployStatusResponse) String() string {
 func (*GetDeployStatusResponse) ProtoMessage() {}
 
 func (x *GetDeployStatusResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[42]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[43]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3950,7 +4341,7 @@ func (x *GetDeployStatusResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetDeployStatusResponse.ProtoReflect.Descriptor instead.
 func (*GetDeployStatusResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{42}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{43}
 }
 
 func (x *GetDeployStatusResponse) GetStatus() *DeployStatus {
@@ -3960,12 +4351,144 @@ func (x *GetDeployStatusResponse) GetStatus() *DeployStatus {
 	return nil
 }
 
+// GetDeployProposalRequest reads one deploy proposal of the caller, as its
+// deploy page shows it.
+type GetDeployProposalRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public proposal ID.
+	ProposalId    uint64 `protobuf:"fixed64,1,opt,name=proposal_id,json=proposalId,proto3" json:"proposal_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetDeployProposalRequest) Reset() {
+	*x = GetDeployProposalRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDeployProposalRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDeployProposalRequest) ProtoMessage() {}
+
+func (x *GetDeployProposalRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDeployProposalRequest.ProtoReflect.Descriptor instead.
+func (*GetDeployProposalRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *GetDeployProposalRequest) GetProposalId() uint64 {
+	if x != nil {
+		return x.ProposalId
+	}
+	return 0
+}
+
+// GetDeployProposalResponse is a deploy proposal as the user approves it.
+type GetDeployProposalResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public proposal ID.
+	ProposalId uint64 `protobuf:"fixed64,1,opt,name=proposal_id,json=proposalId,proto3" json:"proposal_id,omitempty"`
+	// What the user approves: the version, the bot's name, its limits, every
+	// setting with its value, and the funding, as the proposal recorded them.
+	Summary *DeployProposalSummary `protobuf:"bytes,2,opt,name=summary,proto3" json:"summary,omitempty"`
+	// Where the proposal is, and when it expires if not deployed.
+	Status *DeployStatus `protobuf:"bytes,3,opt,name=status,proto3" json:"status,omitempty"`
+	// When the proposal was recorded.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// Current label of the subaccount the funding comes from, as its owner
+	// named it. Empty when the funding comes from the main account or the
+	// subaccount has no label.
+	FundingSubaccountLabel string `protobuf:"bytes,5,opt,name=funding_subaccount_label,json=fundingSubaccountLabel,proto3" json:"funding_subaccount_label,omitempty"`
+	unknownFields          protoimpl.UnknownFields
+	sizeCache              protoimpl.SizeCache
+}
+
+func (x *GetDeployProposalResponse) Reset() {
+	*x = GetDeployProposalResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetDeployProposalResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetDeployProposalResponse) ProtoMessage() {}
+
+func (x *GetDeployProposalResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetDeployProposalResponse.ProtoReflect.Descriptor instead.
+func (*GetDeployProposalResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *GetDeployProposalResponse) GetProposalId() uint64 {
+	if x != nil {
+		return x.ProposalId
+	}
+	return 0
+}
+
+func (x *GetDeployProposalResponse) GetSummary() *DeployProposalSummary {
+	if x != nil {
+		return x.Summary
+	}
+	return nil
+}
+
+func (x *GetDeployProposalResponse) GetStatus() *DeployStatus {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *GetDeployProposalResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *GetDeployProposalResponse) GetFundingSubaccountLabel() string {
+	if x != nil {
+		return x.FundingSubaccountLabel
+	}
+	return ""
+}
+
 // Bot is one bot of the caller.
 type Bot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public bot ID.
 	BotId uint64 `protobuf:"fixed64,1,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
-	// The bot's name.
+	// The bot's name, as approved when the bot was deployed.
 	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
 	// Public ID of the bot's own subaccount, which the caller's main account
 	// owns.
@@ -3984,14 +4507,31 @@ type Bot struct {
 	// When the bot was deployed.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// Quote asset of the bot's markets, for example USDT.
-	QuoteAsset    string `protobuf:"bytes,10,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
+	QuoteAsset string `protobuf:"bytes,10,opt,name=quote_asset,json=quoteAsset,proto3" json:"quote_asset,omitempty"`
+	// Markets the bot trades, as its version's money card names them, for
+	// example BTC/USDT.
+	Markets []string `protobuf:"bytes,11,rep,name=markets,proto3" json:"markets,omitempty"`
+	// Where the bot's initial funding came from, and how much. Absent until
+	// the deploy flow records the deploy proposal the bot came from.
+	Funding *BotFunding `protobuf:"bytes,12,opt,name=funding,proto3" json:"funding,omitempty"`
+	// Share of the time since the bot was first deployed during which it was
+	// running, as an exact decimal from 0 to 1 rounded to 6 decimal places,
+	// for example "0.9875". A bot runs from each start to the stop the user
+	// recorded; time it spent paused counts as running. Empty before the bot
+	// first starts.
+	UptimeRatio string `protobuf:"bytes,13,opt,name=uptime_ratio,json=uptimeRatio,proto3" json:"uptime_ratio,omitempty"`
+	// When the bot last started running. Set only while it is RUNNING.
+	RunningSince *timestamppb.Timestamp `protobuf:"bytes,14,opt,name=running_since,json=runningSince,proto3" json:"running_since,omitempty"`
+	// Why the bot paused. Set only with PAUSED, which is read only once the
+	// bot's pause has been reported to the service.
+	PauseReason   Bot_PauseReason `protobuf:"varint,15,opt,name=pause_reason,json=pauseReason,proto3,enum=strategies.v1.Bot_PauseReason" json:"pause_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Bot) Reset() {
 	*x = Bot{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[43]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[46]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4003,7 +4543,7 @@ func (x *Bot) String() string {
 func (*Bot) ProtoMessage() {}
 
 func (x *Bot) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[43]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[46]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4016,7 +4556,7 @@ func (x *Bot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Bot.ProtoReflect.Descriptor instead.
 func (*Bot) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{43}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{46}
 }
 
 func (x *Bot) GetBotId() uint64 {
@@ -4089,6 +4629,164 @@ func (x *Bot) GetQuoteAsset() string {
 	return ""
 }
 
+func (x *Bot) GetMarkets() []string {
+	if x != nil {
+		return x.Markets
+	}
+	return nil
+}
+
+func (x *Bot) GetFunding() *BotFunding {
+	if x != nil {
+		return x.Funding
+	}
+	return nil
+}
+
+func (x *Bot) GetUptimeRatio() string {
+	if x != nil {
+		return x.UptimeRatio
+	}
+	return ""
+}
+
+func (x *Bot) GetRunningSince() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RunningSince
+	}
+	return nil
+}
+
+func (x *Bot) GetPauseReason() Bot_PauseReason {
+	if x != nil {
+		return x.PauseReason
+	}
+	return Bot_PAUSE_REASON_UNSPECIFIED
+}
+
+// BotFunding is where a bot's initial funding came from, as its deploy
+// proposal recorded it.
+type BotFunding struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public ID of the subaccount the funding came from. Zero means the main
+	// account.
+	SubaccountId uint64 `protobuf:"fixed64,1,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// Current label of that subaccount, as its owner named it. Empty for the
+	// main account or a subaccount without a label.
+	SubaccountLabel string `protobuf:"bytes,2,opt,name=subaccount_label,json=subaccountLabel,proto3" json:"subaccount_label,omitempty"`
+	// What moved into the bot's subaccount when it was deployed, one entry
+	// per asset.
+	InitialFunding []*Money `protobuf:"bytes,3,rep,name=initial_funding,json=initialFunding,proto3" json:"initial_funding,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *BotFunding) Reset() {
+	*x = BotFunding{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotFunding) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotFunding) ProtoMessage() {}
+
+func (x *BotFunding) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotFunding.ProtoReflect.Descriptor instead.
+func (*BotFunding) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *BotFunding) GetSubaccountId() uint64 {
+	if x != nil {
+		return x.SubaccountId
+	}
+	return 0
+}
+
+func (x *BotFunding) GetSubaccountLabel() string {
+	if x != nil {
+		return x.SubaccountLabel
+	}
+	return ""
+}
+
+func (x *BotFunding) GetInitialFunding() []*Money {
+	if x != nil {
+		return x.InitialFunding
+	}
+	return nil
+}
+
+// BotStatusCount is how many of the caller's bots are in one status.
+type BotStatusCount struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The status.
+	Status Bot_Status `protobuf:"varint,1,opt,name=status,proto3,enum=strategies.v1.Bot_Status" json:"status,omitempty"`
+	// How many of the caller's bots are in it.
+	Count         uint32 `protobuf:"varint,2,opt,name=count,proto3" json:"count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotStatusCount) Reset() {
+	*x = BotStatusCount{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotStatusCount) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotStatusCount) ProtoMessage() {}
+
+func (x *BotStatusCount) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotStatusCount.ProtoReflect.Descriptor instead.
+func (*BotStatusCount) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *BotStatusCount) GetStatus() Bot_Status {
+	if x != nil {
+		return x.Status
+	}
+	return Bot_STATUS_UNSPECIFIED
+}
+
+func (x *BotStatusCount) GetCount() uint32 {
+	if x != nil {
+		return x.Count
+	}
+	return 0
+}
+
 // ListBotsRequest lists the caller's bots.
 type ListBotsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -4103,7 +4801,7 @@ type ListBotsRequest struct {
 
 func (x *ListBotsRequest) Reset() {
 	*x = ListBotsRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[44]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[49]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4115,7 +4813,7 @@ func (x *ListBotsRequest) String() string {
 func (*ListBotsRequest) ProtoMessage() {}
 
 func (x *ListBotsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[44]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[49]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4128,7 +4826,7 @@ func (x *ListBotsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotsRequest.ProtoReflect.Descriptor instead.
 func (*ListBotsRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{44}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{49}
 }
 
 func (x *ListBotsRequest) GetLimit() uint32 {
@@ -4148,17 +4846,21 @@ func (x *ListBotsRequest) GetPageToken() string {
 // ListBotsResponse returns one page of the caller's bots.
 type ListBotsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Bots, newest first.
+	// Bots, newest deployed first, then by bot ID, descending.
 	Bots []*Bot `protobuf:"bytes,1,rep,name=bots,proto3" json:"bots,omitempty"`
 	// Cursor for the next page. Empty when no more results exist.
 	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	// How many of all the caller's bots, not only this page's, are in each
+	// status: one entry per status that has a bot, in status order. Exact when
+	// read, and the same shape on every page. Not a pagination total.
+	StatusCounts  []*BotStatusCount `protobuf:"bytes,3,rep,name=status_counts,json=statusCounts,proto3" json:"status_counts,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListBotsResponse) Reset() {
 	*x = ListBotsResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[45]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[50]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4170,7 +4872,7 @@ func (x *ListBotsResponse) String() string {
 func (*ListBotsResponse) ProtoMessage() {}
 
 func (x *ListBotsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[45]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[50]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4183,7 +4885,7 @@ func (x *ListBotsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotsResponse.ProtoReflect.Descriptor instead.
 func (*ListBotsResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{45}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{50}
 }
 
 func (x *ListBotsResponse) GetBots() []*Bot {
@@ -4198,6 +4900,13 @@ func (x *ListBotsResponse) GetNextPageToken() string {
 		return x.NextPageToken
 	}
 	return ""
+}
+
+func (x *ListBotsResponse) GetStatusCounts() []*BotStatusCount {
+	if x != nil {
+		return x.StatusCounts
+	}
+	return nil
 }
 
 // BotBalance is one asset balance of a bot's subaccount.
@@ -4215,7 +4924,7 @@ type BotBalance struct {
 
 func (x *BotBalance) Reset() {
 	*x = BotBalance{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[46]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[51]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4227,7 +4936,7 @@ func (x *BotBalance) String() string {
 func (*BotBalance) ProtoMessage() {}
 
 func (x *BotBalance) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[46]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[51]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4240,7 +4949,7 @@ func (x *BotBalance) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotBalance.ProtoReflect.Descriptor instead.
 func (*BotBalance) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{46}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{51}
 }
 
 func (x *BotBalance) GetAsset() string {
@@ -4290,7 +4999,7 @@ type BotOrder struct {
 
 func (x *BotOrder) Reset() {
 	*x = BotOrder{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[47]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[52]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4302,7 +5011,7 @@ func (x *BotOrder) String() string {
 func (*BotOrder) ProtoMessage() {}
 
 func (x *BotOrder) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[47]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[52]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4315,7 +5024,7 @@ func (x *BotOrder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotOrder.ProtoReflect.Descriptor instead.
 func (*BotOrder) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{47}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{52}
 }
 
 func (x *BotOrder) GetOrderId() uint64 {
@@ -4395,7 +5104,7 @@ type BotDecision struct {
 
 func (x *BotDecision) Reset() {
 	*x = BotDecision{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[48]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[53]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4407,7 +5116,7 @@ func (x *BotDecision) String() string {
 func (*BotDecision) ProtoMessage() {}
 
 func (x *BotDecision) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[48]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[53]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4420,7 +5129,7 @@ func (x *BotDecision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotDecision.ProtoReflect.Descriptor instead.
 func (*BotDecision) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{48}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{53}
 }
 
 func (x *BotDecision) GetDecidedAt() *timestamppb.Timestamp {
@@ -4473,7 +5182,7 @@ type BotError struct {
 
 func (x *BotError) Reset() {
 	*x = BotError{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[49]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[54]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4485,7 +5194,7 @@ func (x *BotError) String() string {
 func (*BotError) ProtoMessage() {}
 
 func (x *BotError) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[49]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[54]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4498,7 +5207,7 @@ func (x *BotError) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotError.ProtoReflect.Descriptor instead.
 func (*BotError) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{49}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{54}
 }
 
 func (x *BotError) GetTime() *timestamppb.Timestamp {
@@ -4533,7 +5242,7 @@ type GetBotRequest struct {
 
 func (x *GetBotRequest) Reset() {
 	*x = GetBotRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[50]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[55]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4545,7 +5254,7 @@ func (x *GetBotRequest) String() string {
 func (*GetBotRequest) ProtoMessage() {}
 
 func (x *GetBotRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[50]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[55]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4558,7 +5267,7 @@ func (x *GetBotRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBotRequest.ProtoReflect.Descriptor instead.
 func (*GetBotRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{50}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{55}
 }
 
 func (x *GetBotRequest) GetBotId() uint64 {
@@ -4568,23 +5277,153 @@ func (x *GetBotRequest) GetBotId() uint64 {
 	return 0
 }
 
+// StopBotRequest stops one bot.
+type StopBotRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public bot ID.
+	BotId uint64 `protobuf:"fixed64,1,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
+	// What happens to the bot's orders. Required.
+	Mode StopMode `protobuf:"varint,2,opt,name=mode,proto3,enum=strategies.v1.StopMode" json:"mode,omitempty"`
+	// Client-chosen key, unique per caller, that makes the call idempotent: the
+	// same key and request return the same stop, of the bot's run the first
+	// call stopped, with its status as it stands now (STOPPED once the stop is
+	// reported complete), even after the bot has been deployed again, and
+	// never stop the bot a second time; another request with the same key is
+	// IDEMPOTENCY_CONFLICT. Required.
+	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *StopBotRequest) Reset() {
+	*x = StopBotRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopBotRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopBotRequest) ProtoMessage() {}
+
+func (x *StopBotRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopBotRequest.ProtoReflect.Descriptor instead.
+func (*StopBotRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *StopBotRequest) GetBotId() uint64 {
+	if x != nil {
+		return x.BotId
+	}
+	return 0
+}
+
+func (x *StopBotRequest) GetMode() StopMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StopMode_STOP_UNSPECIFIED
+}
+
+func (x *StopBotRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+// StopBotResponse is the stopped bot.
+type StopBotResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The stopped bot: its ID, name, subaccount, version, creation time and
+	// status. It reads STOPPING until the bot's stop, which has no deadline,
+	// has been reported complete to the service, and STOPPED after. GetBot
+	// reads the rest of the bot.
+	Bot *Bot `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
+	// The stop mode the bot is being stopped with.
+	Mode          StopMode `protobuf:"varint,2,opt,name=mode,proto3,enum=strategies.v1.StopMode" json:"mode,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StopBotResponse) Reset() {
+	*x = StopBotResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StopBotResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StopBotResponse) ProtoMessage() {}
+
+func (x *StopBotResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StopBotResponse.ProtoReflect.Descriptor instead.
+func (*StopBotResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *StopBotResponse) GetBot() *Bot {
+	if x != nil {
+		return x.Bot
+	}
+	return nil
+}
+
+func (x *StopBotResponse) GetMode() StopMode {
+	if x != nil {
+		return x.Mode
+	}
+	return StopMode_STOP_UNSPECIFIED
+}
+
 // GetBotResponse is a bot with its money rules, account and recent
-// decisions.
+// decisions. Balances, open orders, decisions and errors are not available
+// yet: those fields are empty until they are.
 type GetBotResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The bot.
 	Bot *Bot `protobuf:"bytes,1,opt,name=bot,proto3" json:"bot,omitempty"`
-	// What the bot may do with money.
+	// What the bot may do with money, from the version it runs.
 	MoneyCard *MoneyCard `protobuf:"bytes,2,opt,name=money_card,json=moneyCard,proto3" json:"money_card,omitempty"`
-	// Its settings, with their values, in settings-form order.
+	// Its settings, with their values, in settings-form order, each with its
+	// description, kind and asset from the version's settings form. Empty
+	// until the deploy flow records the deploy proposal the bot came from.
 	Settings []*SettingValue `protobuf:"bytes,3,rep,name=settings,proto3" json:"settings,omitempty"`
-	// Balances of its subaccount, by asset.
+	// Balances of its subaccount, by asset. Empty until available.
 	Balances []*BotBalance `protobuf:"bytes,4,rep,name=balances,proto3" json:"balances,omitempty"`
-	// Open orders of its subaccount, newest first.
+	// Open orders of its subaccount, newest first. Empty until available.
 	OpenOrders []*BotOrder `protobuf:"bytes,5,rep,name=open_orders,json=openOrders,proto3" json:"open_orders,omitempty"`
-	// Its last decisions, newest first: at most 20.
+	// Its last decisions, newest first: at most 20. Empty until available.
 	Decisions []*BotDecision `protobuf:"bytes,6,rep,name=decisions,proto3" json:"decisions,omitempty"`
-	// Its last errors, newest first: at most 20.
+	// Its last errors, newest first: at most 20. Empty until available.
 	Errors        []*BotError `protobuf:"bytes,7,rep,name=errors,proto3" json:"errors,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4592,7 +5431,7 @@ type GetBotResponse struct {
 
 func (x *GetBotResponse) Reset() {
 	*x = GetBotResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[51]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[58]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4604,7 +5443,7 @@ func (x *GetBotResponse) String() string {
 func (*GetBotResponse) ProtoMessage() {}
 
 func (x *GetBotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[51]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[58]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4617,7 +5456,7 @@ func (x *GetBotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBotResponse.ProtoReflect.Descriptor instead.
 func (*GetBotResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{51}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{58}
 }
 
 func (x *GetBotResponse) GetBot() *Bot {
@@ -4669,6 +5508,1937 @@ func (x *GetBotResponse) GetErrors() []*BotError {
 	return nil
 }
 
+// ListBotVersionsRequest lists the versions one bot of the caller ran.
+type ListBotVersionsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public bot ID.
+	BotId uint64 `protobuf:"fixed64,1,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
+	// Maximum number of entries to return: default 50, max 200.
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque, keyset-backed and exclusive cursor from a previous response's
+	// next_page_token. It is bound to the caller and bot_id; reuse it only
+	// with the same bot_id.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotVersionsRequest) Reset() {
+	*x = ListBotVersionsRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotVersionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotVersionsRequest) ProtoMessage() {}
+
+func (x *ListBotVersionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotVersionsRequest.ProtoReflect.Descriptor instead.
+func (*ListBotVersionsRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ListBotVersionsRequest) GetBotId() uint64 {
+	if x != nil {
+		return x.BotId
+	}
+	return 0
+}
+
+func (x *ListBotVersionsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListBotVersionsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// BotVersion is one run of a bot on one version.
+type BotVersion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The version the bot ran. GetStrategyVersion reads it.
+	VersionId string `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	// The version's strategy name.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Runtime version the version was validated against.
+	RuntimeVersion string `protobuf:"bytes,3,opt,name=runtime_version,json=runtimeVersion,proto3" json:"runtime_version,omitempty"`
+	// When the bot started running this version.
+	StartedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	// When the stop of this run was recorded. Omitted while the run has no
+	// stop.
+	StoppedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=stopped_at,json=stoppedAt,proto3" json:"stopped_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotVersion) Reset() {
+	*x = BotVersion{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotVersion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotVersion) ProtoMessage() {}
+
+func (x *BotVersion) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotVersion.ProtoReflect.Descriptor instead.
+func (*BotVersion) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *BotVersion) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *BotVersion) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *BotVersion) GetRuntimeVersion() string {
+	if x != nil {
+		return x.RuntimeVersion
+	}
+	return ""
+}
+
+func (x *BotVersion) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *BotVersion) GetStoppedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StoppedAt
+	}
+	return nil
+}
+
+// ListBotVersionsResponse returns one page of a bot's versions.
+type ListBotVersionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// One entry per run of the bot, newest started first: a version deployed
+	// again appears again.
+	Versions []*BotVersion `protobuf:"bytes,1,rep,name=versions,proto3" json:"versions,omitempty"`
+	// Cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListBotVersionsResponse) Reset() {
+	*x = ListBotVersionsResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListBotVersionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListBotVersionsResponse) ProtoMessage() {}
+
+func (x *ListBotVersionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListBotVersionsResponse.ProtoReflect.Descriptor instead.
+func (*ListBotVersionsResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *ListBotVersionsResponse) GetVersions() []*BotVersion {
+	if x != nil {
+		return x.Versions
+	}
+	return nil
+}
+
+func (x *ListBotVersionsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+// GetStrategyVersionRequest reads one strategy version of the caller.
+type GetStrategyVersionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Version to read.
+	VersionId     string `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStrategyVersionRequest) Reset() {
+	*x = GetStrategyVersionRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[62]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStrategyVersionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStrategyVersionRequest) ProtoMessage() {}
+
+func (x *GetStrategyVersionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[62]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStrategyVersionRequest.ProtoReflect.Descriptor instead.
+func (*GetStrategyVersionRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{62}
+}
+
+func (x *GetStrategyVersionRequest) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+// GetStrategyVersionResponse is a stored strategy version: what a new
+// strategy can start from.
+type GetStrategyVersionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The version's ID.
+	VersionId string `protobuf:"bytes,1,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	// Name of the strategy.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// The runtime version it was validated against.
+	RuntimeVersion string `protobuf:"bytes,3,opt,name=runtime_version,json=runtimeVersion,proto3" json:"runtime_version,omitempty"`
+	// The manifest, as it was saved.
+	Manifest *structpb.Struct `protobuf:"bytes,4,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	// The bot code.
+	Code string `protobuf:"bytes,5,opt,name=code,proto3" json:"code,omitempty"`
+	// The settings a user may change. Empty when the version did not
+	// validate.
+	SettingsForm []*SettingField `protobuf:"bytes,6,rep,name=settings_form,json=settingsForm,proto3" json:"settings_form,omitempty"`
+	// True when the version validated without errors.
+	Valid bool `protobuf:"varint,7,opt,name=valid,proto3" json:"valid,omitempty"`
+	// When the version was first stored.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// The version's flow: what wakes the bot, what it checks and what it may
+	// do. Not set for a version that did not validate, or that was stored
+	// before flows existed.
+	Flow          *StrategyFlow `protobuf:"bytes,9,opt,name=flow,proto3" json:"flow,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStrategyVersionResponse) Reset() {
+	*x = GetStrategyVersionResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[63]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStrategyVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStrategyVersionResponse) ProtoMessage() {}
+
+func (x *GetStrategyVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[63]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStrategyVersionResponse.ProtoReflect.Descriptor instead.
+func (*GetStrategyVersionResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{63}
+}
+
+func (x *GetStrategyVersionResponse) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *GetStrategyVersionResponse) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *GetStrategyVersionResponse) GetRuntimeVersion() string {
+	if x != nil {
+		return x.RuntimeVersion
+	}
+	return ""
+}
+
+func (x *GetStrategyVersionResponse) GetManifest() *structpb.Struct {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
+
+func (x *GetStrategyVersionResponse) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *GetStrategyVersionResponse) GetSettingsForm() []*SettingField {
+	if x != nil {
+		return x.SettingsForm
+	}
+	return nil
+}
+
+func (x *GetStrategyVersionResponse) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *GetStrategyVersionResponse) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *GetStrategyVersionResponse) GetFlow() *StrategyFlow {
+	if x != nil {
+		return x.Flow
+	}
+	return nil
+}
+
+// StrategyFlow is the flow of a version: what wakes the bot (triggers), what
+// it checks (conditions) and what it may do (actions), as a graph read from
+// its code and manifest. The same version always has the same flow.
+type StrategyFlow struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Every trigger, condition and action.
+	Nodes []*FlowNode `protobuf:"bytes,1,rep,name=nodes,proto3" json:"nodes,omitempty"`
+	// Every edge between them.
+	Edges []*FlowEdge `protobuf:"bytes,2,rep,name=edges,proto3" json:"edges,omitempty"`
+	// Parts of the code the flow could not place, for example a loop or a
+	// helper function. Empty when complete is true.
+	Notes []string `protobuf:"bytes,3,rep,name=notes,proto3" json:"notes,omitempty"`
+	// Whether every path of every handler is in the graph. When false, the
+	// graph shows only what was placed and notes say what was not.
+	Complete      bool `protobuf:"varint,4,opt,name=complete,proto3" json:"complete,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StrategyFlow) Reset() {
+	*x = StrategyFlow{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[64]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyFlow) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyFlow) ProtoMessage() {}
+
+func (x *StrategyFlow) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[64]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyFlow.ProtoReflect.Descriptor instead.
+func (*StrategyFlow) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{64}
+}
+
+func (x *StrategyFlow) GetNodes() []*FlowNode {
+	if x != nil {
+		return x.Nodes
+	}
+	return nil
+}
+
+func (x *StrategyFlow) GetEdges() []*FlowEdge {
+	if x != nil {
+		return x.Edges
+	}
+	return nil
+}
+
+func (x *StrategyFlow) GetNotes() []string {
+	if x != nil {
+		return x.Notes
+	}
+	return nil
+}
+
+func (x *StrategyFlow) GetComplete() bool {
+	if x != nil {
+		return x.Complete
+	}
+	return false
+}
+
+// FlowNode is one trigger, condition or action of a flow.
+type FlowNode struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable within the version, for example "t0", "c3" or "a1".
+	NodeId string `protobuf:"bytes,1,opt,name=node_id,json=nodeId,proto3" json:"node_id,omitempty"`
+	// What it is.
+	Kind FlowNode_Kind `protobuf:"varint,2,opt,name=kind,proto3,enum=strategies.v1.FlowNode_Kind" json:"kind,omitempty"`
+	// What the node shows: a plain description of the code, for example
+	// "RSI(BTC/USDT, 1d, 14) > 75" or "Buy BTC/USDT for budget". For a
+	// trigger: a schedule in words, for example "Every Monday 09:00 UTC";
+	// another manifest event as the money card names it (the same text as
+	// event); otherwise what wakes the bot, for example "An order fills".
+	Label string `protobuf:"bytes,3,opt,name=label,proto3" json:"label,omitempty"`
+	// Where it is in the code. Not set for a trigger.
+	Span *SourceSpan `protobuf:"bytes,4,opt,name=span,proto3" json:"span,omitempty"`
+	// For a trigger woken by a manifest event: the event, as the money card
+	// names it, for example "schedule mon 09:00 UTC". Empty otherwise.
+	Event string `protobuf:"bytes,5,opt,name=event,proto3" json:"event,omitempty"`
+	// For an action: BUY, SELL, CANCEL, LOG, NOTIFY, PAUSE, WATCH, UNWATCH or
+	// TRIGGER. Empty otherwise.
+	Action string `protobuf:"bytes,6,opt,name=action,proto3" json:"action,omitempty"`
+	// The settings the node reads, by name.
+	Settings      []string `protobuf:"bytes,7,rep,name=settings,proto3" json:"settings,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlowNode) Reset() {
+	*x = FlowNode{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[65]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlowNode) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlowNode) ProtoMessage() {}
+
+func (x *FlowNode) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[65]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlowNode.ProtoReflect.Descriptor instead.
+func (*FlowNode) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{65}
+}
+
+func (x *FlowNode) GetNodeId() string {
+	if x != nil {
+		return x.NodeId
+	}
+	return ""
+}
+
+func (x *FlowNode) GetKind() FlowNode_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return FlowNode_KIND_UNSPECIFIED
+}
+
+func (x *FlowNode) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+func (x *FlowNode) GetSpan() *SourceSpan {
+	if x != nil {
+		return x.Span
+	}
+	return nil
+}
+
+func (x *FlowNode) GetEvent() string {
+	if x != nil {
+		return x.Event
+	}
+	return ""
+}
+
+func (x *FlowNode) GetAction() string {
+	if x != nil {
+		return x.Action
+	}
+	return ""
+}
+
+func (x *FlowNode) GetSettings() []string {
+	if x != nil {
+		return x.Settings
+	}
+	return nil
+}
+
+// FlowEdge is one edge of a flow.
+type FlowEdge struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The node it starts from.
+	FromNodeId string `protobuf:"bytes,1,opt,name=from_node_id,json=fromNodeId,proto3" json:"from_node_id,omitempty"`
+	// The node it leads to.
+	ToNodeId string `protobuf:"bytes,2,opt,name=to_node_id,json=toNodeId,proto3" json:"to_node_id,omitempty"`
+	// "true" or "false" out of a condition; empty otherwise.
+	Branch        string `protobuf:"bytes,3,opt,name=branch,proto3" json:"branch,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *FlowEdge) Reset() {
+	*x = FlowEdge{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[66]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *FlowEdge) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*FlowEdge) ProtoMessage() {}
+
+func (x *FlowEdge) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[66]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use FlowEdge.ProtoReflect.Descriptor instead.
+func (*FlowEdge) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{66}
+}
+
+func (x *FlowEdge) GetFromNodeId() string {
+	if x != nil {
+		return x.FromNodeId
+	}
+	return ""
+}
+
+func (x *FlowEdge) GetToNodeId() string {
+	if x != nil {
+		return x.ToNodeId
+	}
+	return ""
+}
+
+func (x *FlowEdge) GetBranch() string {
+	if x != nil {
+		return x.Branch
+	}
+	return ""
+}
+
+// SourceSpan is a range of lines of a version's code, 1-based and
+// inclusive.
+type SourceSpan struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The first line.
+	StartLine uint32 `protobuf:"varint,1,opt,name=start_line,json=startLine,proto3" json:"start_line,omitempty"`
+	// The last line.
+	EndLine       uint32 `protobuf:"varint,2,opt,name=end_line,json=endLine,proto3" json:"end_line,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SourceSpan) Reset() {
+	*x = SourceSpan{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[67]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SourceSpan) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SourceSpan) ProtoMessage() {}
+
+func (x *SourceSpan) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[67]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SourceSpan.ProtoReflect.Descriptor instead.
+func (*SourceSpan) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{67}
+}
+
+func (x *SourceSpan) GetStartLine() uint32 {
+	if x != nil {
+		return x.StartLine
+	}
+	return 0
+}
+
+func (x *SourceSpan) GetEndLine() uint32 {
+	if x != nil {
+		return x.EndLine
+	}
+	return 0
+}
+
+// Strategy is one of the caller's strategies: a named bot and the ordered
+// history of its saved drafts. Its head is the draft of its current
+// revision.
+type Strategy struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public strategy ID.
+	StrategyId uint64 `protobuf:"fixed64,1,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// Name of the strategy.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// The current revision: one per save that changed the draft, from 1. Zero
+	// when nothing was saved yet.
+	Revision uint64 `protobuf:"varint,3,opt,name=revision,proto3" json:"revision,omitempty"`
+	// The version of the current revision. GetStrategyVersion reads it. Empty
+	// when revision is zero.
+	HeadVersionId string `protobuf:"bytes,4,opt,name=head_version_id,json=headVersionId,proto3" json:"head_version_id,omitempty"`
+	// True when the current revision's version validated without errors.
+	// False when revision is zero.
+	Valid bool `protobuf:"varint,5,opt,name=valid,proto3" json:"valid,omitempty"`
+	// What the strategy started from.
+	Origin *StrategyOrigin `protobuf:"bytes,6,opt,name=origin,proto3" json:"origin,omitempty"`
+	// When the strategy was created.
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// When the strategy was last saved or renamed.
+	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	// The newest bot deployed from one of the strategy's deploy proposals that
+	// hasn't stopped. Unset when there is none. A bot deployed from another
+	// strategy's proposal is never this strategy's, even when it runs the same
+	// version. Set only for a caller who may read the bot with GetBot: a
+	// session, an API key with READ_STRATEGIES, or a connected app with the
+	// account:read scope. Every response that returns a strategy follows this
+	// rule, RenameStrategy and CreateStrategy included.
+	Bot           *StrategyBot `protobuf:"bytes,9,opt,name=bot,proto3" json:"bot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Strategy) Reset() {
+	*x = Strategy{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Strategy) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Strategy) ProtoMessage() {}
+
+func (x *Strategy) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Strategy.ProtoReflect.Descriptor instead.
+func (*Strategy) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *Strategy) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+func (x *Strategy) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *Strategy) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *Strategy) GetHeadVersionId() string {
+	if x != nil {
+		return x.HeadVersionId
+	}
+	return ""
+}
+
+func (x *Strategy) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *Strategy) GetOrigin() *StrategyOrigin {
+	if x != nil {
+		return x.Origin
+	}
+	return nil
+}
+
+func (x *Strategy) GetCreatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Strategy) GetUpdatedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.UpdatedAt
+	}
+	return nil
+}
+
+func (x *Strategy) GetBot() *StrategyBot {
+	if x != nil {
+		return x.Bot
+	}
+	return nil
+}
+
+// StrategyBot is a bot deployed from a strategy, as the strategy shows it.
+type StrategyBot struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public bot ID. GetBot reads the bot.
+	BotId uint64 `protobuf:"fixed64,1,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
+	// The bot's state, as GetBot reads it: RUNNING or STOPPING.
+	Status        Bot_Status `protobuf:"varint,2,opt,name=status,proto3,enum=strategies.v1.Bot_Status" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StrategyBot) Reset() {
+	*x = StrategyBot{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyBot) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyBot) ProtoMessage() {}
+
+func (x *StrategyBot) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyBot.ProtoReflect.Descriptor instead.
+func (*StrategyBot) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *StrategyBot) GetBotId() uint64 {
+	if x != nil {
+		return x.BotId
+	}
+	return 0
+}
+
+func (x *StrategyBot) GetStatus() Bot_Status {
+	if x != nil {
+		return x.Status
+	}
+	return Bot_STATUS_UNSPECIFIED
+}
+
+// StrategyOrigin is what a strategy started from. Unset means a blank
+// strategy.
+type StrategyOrigin struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The starting point.
+	//
+	// Types that are valid to be assigned to Source:
+	//
+	//	*StrategyOrigin_TemplateId
+	//	*StrategyOrigin_Duplicate
+	Source        isStrategyOrigin_Source `protobuf_oneof:"source"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StrategyOrigin) Reset() {
+	*x = StrategyOrigin{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyOrigin) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyOrigin) ProtoMessage() {}
+
+func (x *StrategyOrigin) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyOrigin.ProtoReflect.Descriptor instead.
+func (*StrategyOrigin) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *StrategyOrigin) GetSource() isStrategyOrigin_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *StrategyOrigin) GetTemplateId() string {
+	if x != nil {
+		if x, ok := x.Source.(*StrategyOrigin_TemplateId); ok {
+			return x.TemplateId
+		}
+	}
+	return ""
+}
+
+func (x *StrategyOrigin) GetDuplicate() *StrategyDuplicateOrigin {
+	if x != nil {
+		if x, ok := x.Source.(*StrategyOrigin_Duplicate); ok {
+			return x.Duplicate
+		}
+	}
+	return nil
+}
+
+type isStrategyOrigin_Source interface {
+	isStrategyOrigin_Source()
+}
+
+type StrategyOrigin_TemplateId struct {
+	// The bot template it started from.
+	TemplateId string `protobuf:"bytes,1,opt,name=template_id,json=templateId,proto3,oneof"`
+}
+
+type StrategyOrigin_Duplicate struct {
+	// The version of the caller's it was copied from.
+	Duplicate *StrategyDuplicateOrigin `protobuf:"bytes,2,opt,name=duplicate,proto3,oneof"`
+}
+
+func (*StrategyOrigin_TemplateId) isStrategyOrigin_Source() {}
+
+func (*StrategyOrigin_Duplicate) isStrategyOrigin_Source() {}
+
+// StrategyDuplicateOrigin is the version of the caller's a strategy was
+// copied from. A copy depends on the version only, never on a strategy
+// that saved it.
+type StrategyDuplicateOrigin struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The version copied, which is the strategy's revision 1.
+	SourceVersionId string `protobuf:"bytes,2,opt,name=source_version_id,json=sourceVersionId,proto3" json:"source_version_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *StrategyDuplicateOrigin) Reset() {
+	*x = StrategyDuplicateOrigin{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyDuplicateOrigin) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyDuplicateOrigin) ProtoMessage() {}
+
+func (x *StrategyDuplicateOrigin) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyDuplicateOrigin.ProtoReflect.Descriptor instead.
+func (*StrategyDuplicateOrigin) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *StrategyDuplicateOrigin) GetSourceVersionId() string {
+	if x != nil {
+		return x.SourceVersionId
+	}
+	return ""
+}
+
+// StrategyRevision is one saved draft of a strategy.
+type StrategyRevision struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The revision number, from 1.
+	Revision uint64 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	// The version saved. GetStrategyVersion reads it.
+	VersionId string `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	// True when the version validated without errors.
+	Valid bool `protobuf:"varint,3,opt,name=valid,proto3" json:"valid,omitempty"`
+	// When the draft was saved.
+	SavedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=saved_at,json=savedAt,proto3" json:"saved_at,omitempty"`
+	// How the caller that saved it signed in.
+	SavedBy       StrategyRevision_SavedBy `protobuf:"varint,5,opt,name=saved_by,json=savedBy,proto3,enum=strategies.v1.StrategyRevision_SavedBy" json:"saved_by,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StrategyRevision) Reset() {
+	*x = StrategyRevision{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyRevision) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyRevision) ProtoMessage() {}
+
+func (x *StrategyRevision) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyRevision.ProtoReflect.Descriptor instead.
+func (*StrategyRevision) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *StrategyRevision) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *StrategyRevision) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *StrategyRevision) GetValid() bool {
+	if x != nil {
+		return x.Valid
+	}
+	return false
+}
+
+func (x *StrategyRevision) GetSavedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.SavedAt
+	}
+	return nil
+}
+
+func (x *StrategyRevision) GetSavedBy() StrategyRevision_SavedBy {
+	if x != nil {
+		return x.SavedBy
+	}
+	return StrategyRevision_SAVED_BY_UNSPECIFIED
+}
+
+// CreateStrategyRequest creates one strategy of the caller.
+type CreateStrategyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Name of the strategy.
+	Name string `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// What the strategy starts from. Unset creates a blank strategy, with no
+	// revision until its first save.
+	//
+	// Types that are valid to be assigned to Source:
+	//
+	//	*CreateStrategyRequest_TemplateId
+	//	*CreateStrategyRequest_VersionId
+	Source isCreateStrategyRequest_Source `protobuf_oneof:"source"`
+	// Client-chosen key, unique per caller, that makes the call idempotent: the
+	// same key and request return the strategy the first call created, as it
+	// stands now, and never create a second one; another request with the same
+	// key, a SaveDraftVersion's included, is IDEMPOTENCY_CONFLICT. Required.
+	IdempotencyKey string `protobuf:"bytes,4,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CreateStrategyRequest) Reset() {
+	*x = CreateStrategyRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[73]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateStrategyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateStrategyRequest) ProtoMessage() {}
+
+func (x *CreateStrategyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[73]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateStrategyRequest.ProtoReflect.Descriptor instead.
+func (*CreateStrategyRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{73}
+}
+
+func (x *CreateStrategyRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *CreateStrategyRequest) GetSource() isCreateStrategyRequest_Source {
+	if x != nil {
+		return x.Source
+	}
+	return nil
+}
+
+func (x *CreateStrategyRequest) GetTemplateId() string {
+	if x != nil {
+		if x, ok := x.Source.(*CreateStrategyRequest_TemplateId); ok {
+			return x.TemplateId
+		}
+	}
+	return ""
+}
+
+func (x *CreateStrategyRequest) GetVersionId() string {
+	if x != nil {
+		if x, ok := x.Source.(*CreateStrategyRequest_VersionId); ok {
+			return x.VersionId
+		}
+	}
+	return ""
+}
+
+func (x *CreateStrategyRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+type isCreateStrategyRequest_Source interface {
+	isCreateStrategyRequest_Source()
+}
+
+type CreateStrategyRequest_TemplateId struct {
+	// A bot template, from ListStrategyTemplates: its manifest and code are
+	// checked and saved as revision 1.
+	TemplateId string `protobuf:"bytes,2,opt,name=template_id,json=templateId,proto3,oneof"`
+}
+
+type CreateStrategyRequest_VersionId struct {
+	// One of the caller's own versions, saved as revision 1 of the new
+	// strategy.
+	VersionId string `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3,oneof"`
+}
+
+func (*CreateStrategyRequest_TemplateId) isCreateStrategyRequest_Source() {}
+
+func (*CreateStrategyRequest_VersionId) isCreateStrategyRequest_Source() {}
+
+// CreateStrategyResponse is the created strategy.
+type CreateStrategyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The strategy, as it stands now.
+	Strategy *Strategy `protobuf:"bytes,1,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	// The check result of revision 1's version. Unset for a blank strategy.
+	Version       *VersionValidation `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateStrategyResponse) Reset() {
+	*x = CreateStrategyResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[74]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateStrategyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateStrategyResponse) ProtoMessage() {}
+
+func (x *CreateStrategyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[74]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateStrategyResponse.ProtoReflect.Descriptor instead.
+func (*CreateStrategyResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{74}
+}
+
+func (x *CreateStrategyResponse) GetStrategy() *Strategy {
+	if x != nil {
+		return x.Strategy
+	}
+	return nil
+}
+
+func (x *CreateStrategyResponse) GetVersion() *VersionValidation {
+	if x != nil {
+		return x.Version
+	}
+	return nil
+}
+
+// SaveDraftVersionRequest checks a bot and saves it as the next revision of
+// one of the caller's strategies.
+type SaveDraftVersionRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public strategy ID.
+	StrategyId uint64 `protobuf:"fixed64,1,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// The revision this draft was made from: the strategy's current revision,
+	// zero for its first save. Any other value is DRAFT_REVISION_CONFLICT.
+	ExpectedRevision uint64 `protobuf:"varint,2,opt,name=expected_revision,json=expectedRevision,proto3" json:"expected_revision,omitempty"`
+	// Name of the strategy. The save renames the strategy to it.
+	Name string `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	// The manifest: settings, events, limits and behaviour examples, as a JSON
+	// object whose shape the reference's manifest section describes. Write
+	// amounts as decimal strings. At most 65536 bytes (64 KiB) as compact JSON.
+	Manifest *structpb.Struct `protobuf:"bytes,4,opt,name=manifest,proto3" json:"manifest,omitempty"`
+	// The bot code: at most 65536 bytes (64 KiB) of UTF-8.
+	Code string `protobuf:"bytes,5,opt,name=code,proto3" json:"code,omitempty"`
+	// Runtime version to check against. Empty means the current one.
+	RuntimeVersion string `protobuf:"bytes,6,opt,name=runtime_version,json=runtimeVersion,proto3" json:"runtime_version,omitempty"`
+	// Client-chosen key, unique per caller, that makes the call idempotent: the
+	// same key and request return the revision the first call saved, even
+	// after later saves moved the strategy past it; another request with the
+	// same key, a CreateStrategy's included, is IDEMPOTENCY_CONFLICT.
+	// Optional: without it, a retry after a save that landed is
+	// DRAFT_REVISION_CONFLICT.
+	IdempotencyKey string `protobuf:"bytes,7,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *SaveDraftVersionRequest) Reset() {
+	*x = SaveDraftVersionRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[75]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveDraftVersionRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveDraftVersionRequest) ProtoMessage() {}
+
+func (x *SaveDraftVersionRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[75]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveDraftVersionRequest.ProtoReflect.Descriptor instead.
+func (*SaveDraftVersionRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{75}
+}
+
+func (x *SaveDraftVersionRequest) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+func (x *SaveDraftVersionRequest) GetExpectedRevision() uint64 {
+	if x != nil {
+		return x.ExpectedRevision
+	}
+	return 0
+}
+
+func (x *SaveDraftVersionRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *SaveDraftVersionRequest) GetManifest() *structpb.Struct {
+	if x != nil {
+		return x.Manifest
+	}
+	return nil
+}
+
+func (x *SaveDraftVersionRequest) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *SaveDraftVersionRequest) GetRuntimeVersion() string {
+	if x != nil {
+		return x.RuntimeVersion
+	}
+	return ""
+}
+
+func (x *SaveDraftVersionRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+// SaveDraftVersionResponse is the saved draft.
+type SaveDraftVersionResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The revision the draft was saved as. When the draft's content is the
+	// current revision's, no revision is added and this is the current
+	// revision; a new name still renames the strategy.
+	Revision uint64 `protobuf:"varint,1,opt,name=revision,proto3" json:"revision,omitempty"`
+	// The check result of the saved version. A bot with mistakes is saved
+	// too, with valid false and its errors.
+	Version       *VersionValidation `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SaveDraftVersionResponse) Reset() {
+	*x = SaveDraftVersionResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[76]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SaveDraftVersionResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SaveDraftVersionResponse) ProtoMessage() {}
+
+func (x *SaveDraftVersionResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[76]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SaveDraftVersionResponse.ProtoReflect.Descriptor instead.
+func (*SaveDraftVersionResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{76}
+}
+
+func (x *SaveDraftVersionResponse) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
+func (x *SaveDraftVersionResponse) GetVersion() *VersionValidation {
+	if x != nil {
+		return x.Version
+	}
+	return nil
+}
+
+// GetStrategyRequest reads one strategy of the caller.
+type GetStrategyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public strategy ID.
+	StrategyId    uint64 `protobuf:"fixed64,1,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStrategyRequest) Reset() {
+	*x = GetStrategyRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[77]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStrategyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStrategyRequest) ProtoMessage() {}
+
+func (x *GetStrategyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[77]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStrategyRequest.ProtoReflect.Descriptor instead.
+func (*GetStrategyRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{77}
+}
+
+func (x *GetStrategyRequest) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+// GetStrategyResponse is a strategy and its current draft.
+type GetStrategyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The strategy.
+	Strategy *Strategy `protobuf:"bytes,1,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	// The version of the current revision, as GetStrategyVersion reads it.
+	// Unset when revision is zero.
+	Head          *GetStrategyVersionResponse `protobuf:"bytes,2,opt,name=head,proto3" json:"head,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetStrategyResponse) Reset() {
+	*x = GetStrategyResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[78]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetStrategyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetStrategyResponse) ProtoMessage() {}
+
+func (x *GetStrategyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[78]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetStrategyResponse.ProtoReflect.Descriptor instead.
+func (*GetStrategyResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{78}
+}
+
+func (x *GetStrategyResponse) GetStrategy() *Strategy {
+	if x != nil {
+		return x.Strategy
+	}
+	return nil
+}
+
+func (x *GetStrategyResponse) GetHead() *GetStrategyVersionResponse {
+	if x != nil {
+		return x.Head
+	}
+	return nil
+}
+
+// ListStrategiesRequest lists the caller's strategies.
+type ListStrategiesRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Maximum number of strategies to return: default 50, max 200.
+	Limit uint32 `protobuf:"varint,1,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque, keyset-backed and exclusive cursor from a previous response's
+	// next_page_token. It is bound to the caller.
+	PageToken     string `protobuf:"bytes,2,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStrategiesRequest) Reset() {
+	*x = ListStrategiesRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[79]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStrategiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStrategiesRequest) ProtoMessage() {}
+
+func (x *ListStrategiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[79]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStrategiesRequest.ProtoReflect.Descriptor instead.
+func (*ListStrategiesRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{79}
+}
+
+func (x *ListStrategiesRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListStrategiesRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// ListStrategiesResponse returns one page of the caller's strategies.
+type ListStrategiesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Strategies, most recently saved or renamed first, then by strategy ID,
+	// descending.
+	Strategies []*Strategy `protobuf:"bytes,1,rep,name=strategies,proto3" json:"strategies,omitempty"`
+	// Cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStrategiesResponse) Reset() {
+	*x = ListStrategiesResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[80]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStrategiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStrategiesResponse) ProtoMessage() {}
+
+func (x *ListStrategiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[80]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStrategiesResponse.ProtoReflect.Descriptor instead.
+func (*ListStrategiesResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{80}
+}
+
+func (x *ListStrategiesResponse) GetStrategies() []*Strategy {
+	if x != nil {
+		return x.Strategies
+	}
+	return nil
+}
+
+func (x *ListStrategiesResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+// ListStrategyRevisionsRequest lists the saved drafts of one strategy of
+// the caller.
+type ListStrategyRevisionsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public strategy ID.
+	StrategyId uint64 `protobuf:"fixed64,1,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// Maximum number of revisions to return: default 50, max 200.
+	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Opaque, keyset-backed and exclusive cursor from a previous response's
+	// next_page_token. It is bound to the caller and strategy_id; reuse it
+	// only with the same strategy_id.
+	PageToken     string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStrategyRevisionsRequest) Reset() {
+	*x = ListStrategyRevisionsRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[81]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStrategyRevisionsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStrategyRevisionsRequest) ProtoMessage() {}
+
+func (x *ListStrategyRevisionsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[81]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStrategyRevisionsRequest.ProtoReflect.Descriptor instead.
+func (*ListStrategyRevisionsRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{81}
+}
+
+func (x *ListStrategyRevisionsRequest) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+func (x *ListStrategyRevisionsRequest) GetLimit() uint32 {
+	if x != nil {
+		return x.Limit
+	}
+	return 0
+}
+
+func (x *ListStrategyRevisionsRequest) GetPageToken() string {
+	if x != nil {
+		return x.PageToken
+	}
+	return ""
+}
+
+// ListStrategyRevisionsResponse returns one page of a strategy's revisions.
+type ListStrategyRevisionsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Revisions, newest first. Every revision is kept.
+	Revisions []*StrategyRevision `protobuf:"bytes,1,rep,name=revisions,proto3" json:"revisions,omitempty"`
+	// Cursor for the next page. Empty when no more results exist.
+	NextPageToken string `protobuf:"bytes,2,opt,name=next_page_token,json=nextPageToken,proto3" json:"next_page_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListStrategyRevisionsResponse) Reset() {
+	*x = ListStrategyRevisionsResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[82]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListStrategyRevisionsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListStrategyRevisionsResponse) ProtoMessage() {}
+
+func (x *ListStrategyRevisionsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[82]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListStrategyRevisionsResponse.ProtoReflect.Descriptor instead.
+func (*ListStrategyRevisionsResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{82}
+}
+
+func (x *ListStrategyRevisionsResponse) GetRevisions() []*StrategyRevision {
+	if x != nil {
+		return x.Revisions
+	}
+	return nil
+}
+
+func (x *ListStrategyRevisionsResponse) GetNextPageToken() string {
+	if x != nil {
+		return x.NextPageToken
+	}
+	return ""
+}
+
+// RenameStrategyRequest renames one strategy of the caller.
+type RenameStrategyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public strategy ID.
+	StrategyId uint64 `protobuf:"fixed64,1,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// The new name.
+	Name          string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameStrategyRequest) Reset() {
+	*x = RenameStrategyRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[83]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameStrategyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameStrategyRequest) ProtoMessage() {}
+
+func (x *RenameStrategyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[83]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameStrategyRequest.ProtoReflect.Descriptor instead.
+func (*RenameStrategyRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{83}
+}
+
+func (x *RenameStrategyRequest) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+func (x *RenameStrategyRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+// RenameStrategyResponse is the renamed strategy.
+type RenameStrategyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The strategy, as it stands now.
+	Strategy      *Strategy `protobuf:"bytes,1,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RenameStrategyResponse) Reset() {
+	*x = RenameStrategyResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[84]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RenameStrategyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RenameStrategyResponse) ProtoMessage() {}
+
+func (x *RenameStrategyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[84]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RenameStrategyResponse.ProtoReflect.Descriptor instead.
+func (*RenameStrategyResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{84}
+}
+
+func (x *RenameStrategyResponse) GetStrategy() *Strategy {
+	if x != nil {
+		return x.Strategy
+	}
+	return nil
+}
+
+// DeleteStrategyRequest deletes one strategy of the caller.
+type DeleteStrategyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public strategy ID.
+	StrategyId    uint64 `protobuf:"fixed64,1,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteStrategyRequest) Reset() {
+	*x = DeleteStrategyRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[85]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteStrategyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteStrategyRequest) ProtoMessage() {}
+
+func (x *DeleteStrategyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[85]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteStrategyRequest.ProtoReflect.Descriptor instead.
+func (*DeleteStrategyRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{85}
+}
+
+func (x *DeleteStrategyRequest) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+// DeleteStrategyResponse confirms the strategy is deleted.
+type DeleteStrategyResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteStrategyResponse) Reset() {
+	*x = DeleteStrategyResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[86]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteStrategyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteStrategyResponse) ProtoMessage() {}
+
+func (x *DeleteStrategyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[86]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteStrategyResponse.ProtoReflect.Descriptor instead.
+func (*DeleteStrategyResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{86}
+}
+
 // BotLogEntry is one line of a bot's log.
 type BotLogEntry struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -4686,7 +7456,7 @@ type BotLogEntry struct {
 
 func (x *BotLogEntry) Reset() {
 	*x = BotLogEntry{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[52]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[87]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4698,7 +7468,7 @@ func (x *BotLogEntry) String() string {
 func (*BotLogEntry) ProtoMessage() {}
 
 func (x *BotLogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[52]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[87]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4711,7 +7481,7 @@ func (x *BotLogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotLogEntry.ProtoReflect.Descriptor instead.
 func (*BotLogEntry) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{52}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{87}
 }
 
 func (x *BotLogEntry) GetSequence() uint64 {
@@ -4762,7 +7532,7 @@ type ListBotLogsRequest struct {
 
 func (x *ListBotLogsRequest) Reset() {
 	*x = ListBotLogsRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[53]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4774,7 +7544,7 @@ func (x *ListBotLogsRequest) String() string {
 func (*ListBotLogsRequest) ProtoMessage() {}
 
 func (x *ListBotLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[53]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4787,7 +7557,7 @@ func (x *ListBotLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotLogsRequest.ProtoReflect.Descriptor instead.
 func (*ListBotLogsRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{53}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *ListBotLogsRequest) GetBotId() uint64 {
@@ -4833,7 +7603,7 @@ type ListBotLogsResponse struct {
 
 func (x *ListBotLogsResponse) Reset() {
 	*x = ListBotLogsResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[54]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4845,7 +7615,7 @@ func (x *ListBotLogsResponse) String() string {
 func (*ListBotLogsResponse) ProtoMessage() {}
 
 func (x *ListBotLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[54]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4858,7 +7628,7 @@ func (x *ListBotLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotLogsResponse.ProtoReflect.Descriptor instead.
 func (*ListBotLogsResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{54}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *ListBotLogsResponse) GetEntries() []*BotLogEntry {
@@ -4886,7 +7656,15 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x04bots\x18\x03 \x01(\rR\x04bots\x12\"\n" +
 	"\rnext_vip_tier\x18\x04 \x01(\rR\vnextVipTier\x12 \n" +
 	"\fnext_bot_cap\x18\x05 \x01(\rR\n" +
-	"nextBotCap\"\x9b\x02\n" +
+	"nextBotCap\"V\n" +
+	"\x11StrategyCapDetail\x12!\n" +
+	"\fstrategy_cap\x18\x01 \x01(\rR\vstrategyCap\x12\x1e\n" +
+	"\n" +
+	"strategies\x18\x02 \x01(\rR\n" +
+	"strategies\"\\\n" +
+	"\x16RevisionConflictDetail\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\x04R\brevision\x12&\n" +
+	"\x0fhead_version_id\x18\x02 \x01(\tR\rheadVersionId\"\xb4\x03\n" +
 	"\vErrorDetail\x12,\n" +
 	"\x04code\x18\x01 \x01(\x0e2\x18.strategies.v1.ErrorCodeR\x04code\x12\x1d\n" +
 	"\n" +
@@ -4895,7 +7673,9 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"retryAfter\x124\n" +
 	"\abot_cap\x18\x04 \x01(\v2\x1b.strategies.v1.BotCapDetailR\x06botCap\x12\x18\n" +
 	"\amarkets\x18\x05 \x03(\tR\amarkets\x122\n" +
-	"\tshortfall\x18\x06 \x03(\v2\x14.strategies.v1.MoneyR\tshortfall\"f\n" +
+	"\tshortfall\x18\x06 \x03(\v2\x14.strategies.v1.MoneyR\tshortfall\x12C\n" +
+	"\fstrategy_cap\x18\a \x01(\v2 .strategies.v1.StrategyCapDetailR\vstrategyCap\x12R\n" +
+	"\x11revision_conflict\x18\b \x01(\v2%.strategies.v1.RevisionConflictDetailR\x10revisionConflict\"f\n" +
 	"\x05Money\x12\x1f\n" +
 	"\x05asset\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18 R\x05asset\x12<\n" +
 	"\x06amount\x18\x02 \x01(\tB$\xbaH!r\x1f2\x1d^[0-9]{1,30}(\\.[0-9]{1,18})?$R\x06amount\"~\n" +
@@ -4922,7 +7702,7 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"parameters\x12\x18\n" +
 	"\aoutputs\x18\x04 \x03(\tR\aoutputs\x12\x1f\n" +
 	"\vwarmup_bars\x18\x05 \x01(\tR\n" +
-	"warmupBars\"\xf2\x02\n" +
+	"warmupBars\"\x8a\x02\n" +
 	"\x0eStrategyLimits\x12%\n" +
 	"\x0fcpu_ms_per_call\x18\x01 \x01(\rR\fcpuMsPerCall\x121\n" +
 	"\x15memory_bytes_per_call\x18\x02 \x01(\x04R\x12memoryBytesPerCall\x12\x1f\n" +
@@ -4930,9 +7710,7 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"stateBytes\x12\x1d\n" +
 	"\n" +
 	"code_bytes\x18\x04 \x01(\x04R\tcodeBytes\x12%\n" +
-	"\x0emanifest_bytes\x18\x05 \x01(\x04R\rmanifestBytes\x12:\n" +
-	"\x19unique_indicator_settings\x18\x06 \x01(\rR\x17uniqueIndicatorSettings\x12*\n" +
-	"\x11backtests_per_day\x18\a \x01(\rR\x0fbacktestsPerDay\x127\n" +
+	"\x0emanifest_bytes\x18\x05 \x01(\x04R\rmanifestBytes\x127\n" +
 	"\x18scenario_runs_per_minute\x18\b \x01(\rR\x15scenarioRunsPerMinute\"O\n" +
 	"\x1bGetStrategyReferenceRequest\x120\n" +
 	"\x0fruntime_version\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x18@R\x0eruntimeVersion\"\xd1\x03\n" +
@@ -4983,13 +7761,8 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x05asset\x18\x04 \x01(\tR\x05asset\x12#\n" +
 	"\rdefault_value\x18\x05 \x01(\tR\fdefaultValue\x12\x18\n" +
 	"\aminimum\x18\x06 \x01(\tR\aminimum\x12\x18\n" +
-	"\amaximum\x18\a \x01(\tR\amaximum\"\xc8\x01\n" +
-	"\x17ValidateStrategyRequest\x12\x1d\n" +
-	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12;\n" +
-	"\bmanifest\x18\x02 \x01(\v2\x17.google.protobuf.StructB\x06\xbaH\x03\xc8\x01\x01R\bmanifest\x12\x1f\n" +
-	"\x04code\x18\x03 \x01(\tB\v\xbaH\br\x06\x10\x01(\x80\x80\x04R\x04code\x120\n" +
-	"\x0fruntime_version\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18@R\x0eruntimeVersion\"\xe7\x02\n" +
-	"\x18ValidateStrategyResponse\x12\x1d\n" +
+	"\amaximum\x18\a \x01(\tR\amaximum\"\x91\x03\n" +
+	"\x11VersionValidation\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12'\n" +
 	"\x0fruntime_version\x18\x02 \x01(\tR\x0eruntimeVersion\x12\x14\n" +
@@ -4998,7 +7771,8 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\bwarnings\x18\x05 \x03(\v2\x1e.strategies.v1.ValidationIssueR\bwarnings\x127\n" +
 	"\n" +
 	"money_card\x18\x06 \x01(\v2\x18.strategies.v1.MoneyCardR\tmoneyCard\x12@\n" +
-	"\rsettings_form\x18\a \x03(\v2\x1b.strategies.v1.SettingFieldR\fsettingsForm\"@\n" +
+	"\rsettings_form\x18\a \x03(\v2\x1b.strategies.v1.SettingFieldR\fsettingsForm\x12/\n" +
+	"\x04flow\x18\b \x01(\v2\x1b.strategies.v1.StrategyFlowR\x04flow\"@\n" +
 	"\x13RunScenariosRequest\x12)\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tB\n" +
@@ -5127,10 +7901,13 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\bbacktest\x18\x05 \x01(\v2\x1e.strategies.v1.BacktestSummaryR\bbacktest\x124\n" +
 	"\x16backtest_absent_reason\x18\x06 \x01(\tR\x14backtestAbsentReason\x12\x1a\n" +
 	"\bwarnings\x18\a \x03(\tR\bwarnings\x12 \n" +
-	"\vlimitations\x18\b \x03(\tR\vlimitations\"M\n" +
+	"\vlimitations\x18\b \x03(\tR\vlimitations\"\x99\x01\n" +
 	"\fSettingValue\x12\x1d\n" +
 	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12\x1e\n" +
-	"\x05value\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x05value\"\x8e\x03\n" +
+	"\x05value\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\x05value\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x12\n" +
+	"\x04kind\x18\x04 \x01(\tR\x04kind\x12\x14\n" +
+	"\x05asset\x18\x05 \x01(\tR\x05asset\"\xcb\x03\n" +
 	"\x15DeployProposalSummary\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x01 \x01(\tR\tversionId\x12\x19\n" +
@@ -5141,11 +7918,15 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x15funding_subaccount_id\x18\b \x01(\x06R\x13fundingSubaccountId\x12.\n" +
 	"\afunding\x18\x05 \x03(\v2\x14.strategies.v1.MoneyR\afunding\x12)\n" +
 	"\x10scenarios_passed\x18\x06 \x01(\rR\x0fscenariosPassed\x12:\n" +
-	"\bbacktest\x18\a \x01(\v2\x1e.strategies.v1.BacktestSummaryR\bbacktest\"\xe4\x02\n" +
-	"\x14ProposeDeployRequest\x12)\n" +
-	"\n" +
-	"version_id\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\tversionId\x12$\n" +
+	"\bbacktest\x18\a \x01(\v2\x1e.strategies.v1.BacktestSummaryR\bbacktest\x12\x1f\n" +
+	"\vstrategy_id\x18\t \x01(\x06R\n" +
+	"strategyId\x12\x1a\n" +
+	"\brevision\x18\n" +
+	" \x01(\x04R\brevision\"\x86\x03\n" +
+	"\x14ProposeDeployRequest\x12/\n" +
+	"\vstrategy_id\x18\a \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
+	"strategyId\x12\x1a\n" +
+	"\brevision\x18\b \x01(\x04R\brevision\x12$\n" +
 	"\bbot_name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\abotName\x12A\n" +
 	"\bsettings\x18\x03 \x03(\v2\x1b.strategies.v1.SettingValueB\b\xbaH\x05\x92\x01\x02\x10@R\bsettings\x12:\n" +
 	"\afunding\x18\x04 \x03(\v2\x14.strategies.v1.MoneyB\n" +
@@ -5159,7 +7940,7 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"deploy_url\x18\x02 \x01(\tR\tdeployUrl\x12>\n" +
 	"\asummary\x18\x03 \x01(\v2$.strategies.v1.DeployProposalSummaryR\asummary\x129\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xdf\x03\n" +
+	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\x9f\x04\n" +
 	"\fDeployStatus\x12\x1f\n" +
 	"\vproposal_id\x18\x01 \x01(\x06R\n" +
 	"proposalId\x127\n" +
@@ -5171,7 +7952,8 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x129\n" +
 	"\n" +
-	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\"\x94\x01\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12>\n" +
+	"\tfailed_at\x18\t \x01(\x0e2!.strategies.v1.DeployStatus.StateR\bfailedAt\"\x94\x01\n" +
 	"\x05State\x12\x15\n" +
 	"\x11STATE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bPROPOSED\x10\x01\x12\x0e\n" +
@@ -5188,7 +7970,18 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\vproposal_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
 	"proposalId\"N\n" +
 	"\x17GetDeployStatusResponse\x123\n" +
-	"\x06status\x18\x01 \x01(\v2\x1b.strategies.v1.DeployStatusR\x06status\"\x8c\x04\n" +
+	"\x06status\x18\x01 \x01(\v2\x1b.strategies.v1.DeployStatusR\x06status\"K\n" +
+	"\x18GetDeployProposalRequest\x12/\n" +
+	"\vproposal_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
+	"proposalId\"\xa6\x02\n" +
+	"\x19GetDeployProposalResponse\x12\x1f\n" +
+	"\vproposal_id\x18\x01 \x01(\x06R\n" +
+	"proposalId\x12>\n" +
+	"\asummary\x18\x02 \x01(\v2$.strategies.v1.DeployProposalSummaryR\asummary\x123\n" +
+	"\x06status\x18\x03 \x01(\v2\x1b.strategies.v1.DeployStatusR\x06status\x129\n" +
+	"\n" +
+	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x128\n" +
+	"\x18funding_subaccount_label\x18\x05 \x01(\tR\x16fundingSubaccountLabel\"\xdd\x06\n" +
 	"\x03Bot\x12\x15\n" +
 	"\x06bot_id\x18\x01 \x01(\x06R\x05botId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -5203,7 +7996,12 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"created_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1f\n" +
 	"\vquote_asset\x18\n" +
 	" \x01(\tR\n" +
-	"quoteAsset\"t\n" +
+	"quoteAsset\x12\x18\n" +
+	"\amarkets\x18\v \x03(\tR\amarkets\x123\n" +
+	"\afunding\x18\f \x01(\v2\x19.strategies.v1.BotFundingR\afunding\x12!\n" +
+	"\fuptime_ratio\x18\r \x01(\tR\vuptimeRatio\x12?\n" +
+	"\rrunning_since\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\frunningSince\x12A\n" +
+	"\fpause_reason\x18\x0f \x01(\x0e2\x1e.strategies.v1.Bot.PauseReasonR\vpauseReason\"c\n" +
 	"\x06Status\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tDEPLOYING\x10\x01\x12\v\n" +
@@ -5211,15 +8009,28 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\bSTOPPING\x10\x03\x12\v\n" +
 	"\aSTOPPED\x10\x04\x12\n" +
 	"\n" +
-	"\x06PAUSED\x10\x05\x12\x0f\n" +
-	"\vQUARANTINED\x10\x06\"Z\n" +
+	"\x06PAUSED\x10\x05\"j\n" +
+	"\vPauseReason\x12\x1c\n" +
+	"\x18PAUSE_REASON_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vBOT_DECIDED\x10\x01\x12\x15\n" +
+	"\x11FAILURES_IN_A_ROW\x10\x02\x12\x15\n" +
+	"\x11ENVIRONMENT_RESET\x10\x03\"\x9b\x01\n" +
+	"\n" +
+	"BotFunding\x12#\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12)\n" +
+	"\x10subaccount_label\x18\x02 \x01(\tR\x0fsubaccountLabel\x12=\n" +
+	"\x0finitial_funding\x18\x03 \x03(\v2\x14.strategies.v1.MoneyR\x0einitialFunding\"Y\n" +
+	"\x0eBotStatusCount\x121\n" +
+	"\x06status\x18\x01 \x01(\x0e2\x19.strategies.v1.Bot.StatusR\x06status\x12\x14\n" +
+	"\x05count\x18\x02 \x01(\rR\x05count\"Z\n" +
 	"\x0fListBotsRequest\x12\x1e\n" +
 	"\x05limit\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"b\n" +
+	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\xa6\x01\n" +
 	"\x10ListBotsResponse\x12&\n" +
 	"\x04bots\x18\x01 \x03(\v2\x12.strategies.v1.BotR\x04bots\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"N\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\x12B\n" +
+	"\rstatus_counts\x18\x03 \x03(\v2\x1d.strategies.v1.BotStatusCountR\fstatusCounts\"N\n" +
 	"\n" +
 	"BotBalance\x12\x14\n" +
 	"\x05asset\x18\x01 \x01(\tR\x05asset\x12\x12\n" +
@@ -5247,7 +8058,14 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x05event\x18\x02 \x01(\tR\x05event\x12\x18\n" +
 	"\amessage\x18\x03 \x01(\tR\amessage\"6\n" +
 	"\rGetBotRequest\x12%\n" +
-	"\x06bot_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05botId\"\x84\x03\n" +
+	"\x06bot_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05botId\"\xbb\x01\n" +
+	"\x0eStopBotRequest\x12%\n" +
+	"\x06bot_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05botId\x128\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x17.strategies.v1.StopModeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04mode\x12H\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tB\x1f\xbaH\x1cr\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKey\"d\n" +
+	"\x0fStopBotResponse\x12$\n" +
+	"\x03bot\x18\x01 \x01(\v2\x12.strategies.v1.BotR\x03bot\x12+\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x17.strategies.v1.StopModeR\x04mode\"\x84\x03\n" +
 	"\x0eGetBotResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.strategies.v1.BotR\x03bot\x127\n" +
 	"\n" +
@@ -5257,7 +8075,164 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\vopen_orders\x18\x05 \x03(\v2\x17.strategies.v1.BotOrderR\n" +
 	"openOrders\x128\n" +
 	"\tdecisions\x18\x06 \x03(\v2\x1a.strategies.v1.BotDecisionR\tdecisions\x12/\n" +
-	"\x06errors\x18\a \x03(\v2\x17.strategies.v1.BotErrorR\x06errors\"\xe8\x01\n" +
+	"\x06errors\x18\a \x03(\v2\x17.strategies.v1.BotErrorR\x06errors\"\x88\x01\n" +
+	"\x16ListBotVersionsRequest\x12%\n" +
+	"\x06bot_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05botId\x12\x1e\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\xde\x01\n" +
+	"\n" +
+	"BotVersion\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x01 \x01(\tR\tversionId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12'\n" +
+	"\x0fruntime_version\x18\x03 \x01(\tR\x0eruntimeVersion\x129\n" +
+	"\n" +
+	"started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x129\n" +
+	"\n" +
+	"stopped_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstoppedAt\"x\n" +
+	"\x17ListBotVersionsResponse\x125\n" +
+	"\bversions\x18\x01 \x03(\v2\x19.strategies.v1.BotVersionR\bversions\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"F\n" +
+	"\x19GetStrategyVersionRequest\x12)\n" +
+	"\n" +
+	"version_id\x18\x01 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\tversionId\"\x85\x03\n" +
+	"\x1aGetStrategyVersionResponse\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x01 \x01(\tR\tversionId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12'\n" +
+	"\x0fruntime_version\x18\x03 \x01(\tR\x0eruntimeVersion\x123\n" +
+	"\bmanifest\x18\x04 \x01(\v2\x17.google.protobuf.StructR\bmanifest\x12\x12\n" +
+	"\x04code\x18\x05 \x01(\tR\x04code\x12@\n" +
+	"\rsettings_form\x18\x06 \x03(\v2\x1b.strategies.v1.SettingFieldR\fsettingsForm\x12\x14\n" +
+	"\x05valid\x18\a \x01(\bR\x05valid\x129\n" +
+	"\n" +
+	"created_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12/\n" +
+	"\x04flow\x18\t \x01(\v2\x1b.strategies.v1.StrategyFlowR\x04flow\"\x9e\x01\n" +
+	"\fStrategyFlow\x12-\n" +
+	"\x05nodes\x18\x01 \x03(\v2\x17.strategies.v1.FlowNodeR\x05nodes\x12-\n" +
+	"\x05edges\x18\x02 \x03(\v2\x17.strategies.v1.FlowEdgeR\x05edges\x12\x14\n" +
+	"\x05notes\x18\x03 \x03(\tR\x05notes\x12\x1a\n" +
+	"\bcomplete\x18\x04 \x01(\bR\bcomplete\"\xaa\x02\n" +
+	"\bFlowNode\x12\x17\n" +
+	"\anode_id\x18\x01 \x01(\tR\x06nodeId\x120\n" +
+	"\x04kind\x18\x02 \x01(\x0e2\x1c.strategies.v1.FlowNode.KindR\x04kind\x12\x14\n" +
+	"\x05label\x18\x03 \x01(\tR\x05label\x12-\n" +
+	"\x04span\x18\x04 \x01(\v2\x19.strategies.v1.SourceSpanR\x04span\x12\x14\n" +
+	"\x05event\x18\x05 \x01(\tR\x05event\x12\x16\n" +
+	"\x06action\x18\x06 \x01(\tR\x06action\x12\x1a\n" +
+	"\bsettings\x18\a \x03(\tR\bsettings\"D\n" +
+	"\x04Kind\x12\x14\n" +
+	"\x10KIND_UNSPECIFIED\x10\x00\x12\v\n" +
+	"\aTRIGGER\x10\x01\x12\r\n" +
+	"\tCONDITION\x10\x02\x12\n" +
+	"\n" +
+	"\x06ACTION\x10\x03\"b\n" +
+	"\bFlowEdge\x12 \n" +
+	"\ffrom_node_id\x18\x01 \x01(\tR\n" +
+	"fromNodeId\x12\x1c\n" +
+	"\n" +
+	"to_node_id\x18\x02 \x01(\tR\btoNodeId\x12\x16\n" +
+	"\x06branch\x18\x03 \x01(\tR\x06branch\"F\n" +
+	"\n" +
+	"SourceSpan\x12\x1d\n" +
+	"\n" +
+	"start_line\x18\x01 \x01(\rR\tstartLine\x12\x19\n" +
+	"\bend_line\x18\x02 \x01(\rR\aendLine\"\xf4\x02\n" +
+	"\bStrategy\x12\x1f\n" +
+	"\vstrategy_id\x18\x01 \x01(\x06R\n" +
+	"strategyId\x12\x12\n" +
+	"\x04name\x18\x02 \x01(\tR\x04name\x12\x1a\n" +
+	"\brevision\x18\x03 \x01(\x04R\brevision\x12&\n" +
+	"\x0fhead_version_id\x18\x04 \x01(\tR\rheadVersionId\x12\x14\n" +
+	"\x05valid\x18\x05 \x01(\bR\x05valid\x125\n" +
+	"\x06origin\x18\x06 \x01(\v2\x1d.strategies.v1.StrategyOriginR\x06origin\x129\n" +
+	"\n" +
+	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x129\n" +
+	"\n" +
+	"updated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12,\n" +
+	"\x03bot\x18\t \x01(\v2\x1a.strategies.v1.StrategyBotR\x03bot\"W\n" +
+	"\vStrategyBot\x12\x15\n" +
+	"\x06bot_id\x18\x01 \x01(\x06R\x05botId\x121\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x19.strategies.v1.Bot.StatusR\x06status\"\x85\x01\n" +
+	"\x0eStrategyOrigin\x12!\n" +
+	"\vtemplate_id\x18\x01 \x01(\tH\x00R\n" +
+	"templateId\x12F\n" +
+	"\tduplicate\x18\x02 \x01(\v2&.strategies.v1.StrategyDuplicateOriginH\x00R\tduplicateB\b\n" +
+	"\x06source\"E\n" +
+	"\x17StrategyDuplicateOrigin\x12*\n" +
+	"\x11source_version_id\x18\x02 \x01(\tR\x0fsourceVersionId\"\xb0\x02\n" +
+	"\x10StrategyRevision\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\x04R\brevision\x12\x1d\n" +
+	"\n" +
+	"version_id\x18\x02 \x01(\tR\tversionId\x12\x14\n" +
+	"\x05valid\x18\x03 \x01(\bR\x05valid\x125\n" +
+	"\bsaved_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\asavedAt\x12B\n" +
+	"\bsaved_by\x18\x05 \x01(\x0e2'.strategies.v1.StrategyRevision.SavedByR\asavedBy\"P\n" +
+	"\aSavedBy\x12\x18\n" +
+	"\x14SAVED_BY_UNSPECIFIED\x10\x00\x12\v\n" +
+	"\aSESSION\x10\x01\x12\v\n" +
+	"\aAPI_KEY\x10\x02\x12\x11\n" +
+	"\rCONNECTED_APP\x10\x03\"\xe5\x01\n" +
+	"\x15CreateStrategyRequest\x12\x1d\n" +
+	"\x04name\x18\x01 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12,\n" +
+	"\vtemplate_id\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@H\x00R\n" +
+	"templateId\x12+\n" +
+	"\n" +
+	"version_id\x18\x03 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01H\x00R\tversionId\x12H\n" +
+	"\x0fidempotency_key\x18\x04 \x01(\tB\x1f\xbaH\x1cr\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKeyB\b\n" +
+	"\x06source\"\x89\x01\n" +
+	"\x16CreateStrategyResponse\x123\n" +
+	"\bstrategy\x18\x01 \x01(\v2\x17.strategies.v1.StrategyR\bstrategy\x12:\n" +
+	"\aversion\x18\x02 \x01(\v2 .strategies.v1.VersionValidationR\aversion\"\xf3\x02\n" +
+	"\x17SaveDraftVersionRequest\x12/\n" +
+	"\vstrategy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
+	"strategyId\x12+\n" +
+	"\x11expected_revision\x18\x02 \x01(\x04R\x10expectedRevision\x12\x1d\n" +
+	"\x04name\x18\x03 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12;\n" +
+	"\bmanifest\x18\x04 \x01(\v2\x17.google.protobuf.StructB\x06\xbaH\x03\xc8\x01\x01R\bmanifest\x12\x1f\n" +
+	"\x04code\x18\x05 \x01(\tB\v\xbaH\br\x06\x10\x01(\x80\x80\x04R\x04code\x120\n" +
+	"\x0fruntime_version\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x18@R\x0eruntimeVersion\x12K\n" +
+	"\x0fidempotency_key\x18\a \x01(\tB\"\xbaH\x1f\xd8\x01\x01r\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKey\"r\n" +
+	"\x18SaveDraftVersionResponse\x12\x1a\n" +
+	"\brevision\x18\x01 \x01(\x04R\brevision\x12:\n" +
+	"\aversion\x18\x02 \x01(\v2 .strategies.v1.VersionValidationR\aversion\"E\n" +
+	"\x12GetStrategyRequest\x12/\n" +
+	"\vstrategy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
+	"strategyId\"\x89\x01\n" +
+	"\x13GetStrategyResponse\x123\n" +
+	"\bstrategy\x18\x01 \x01(\v2\x17.strategies.v1.StrategyR\bstrategy\x12=\n" +
+	"\x04head\x18\x02 \x01(\v2).strategies.v1.GetStrategyVersionResponseR\x04head\"`\n" +
+	"\x15ListStrategiesRequest\x12\x1e\n" +
+	"\x05limit\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"y\n" +
+	"\x16ListStrategiesResponse\x127\n" +
+	"\n" +
+	"strategies\x18\x01 \x03(\v2\x17.strategies.v1.StrategyR\n" +
+	"strategies\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\x98\x01\n" +
+	"\x1cListStrategyRevisionsRequest\x12/\n" +
+	"\vstrategy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
+	"strategyId\x12\x1e\n" +
+	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
+	"\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\x86\x01\n" +
+	"\x1dListStrategyRevisionsResponse\x12=\n" +
+	"\trevisions\x18\x01 \x03(\v2\x1f.strategies.v1.StrategyRevisionR\trevisions\x12&\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"g\n" +
+	"\x15RenameStrategyRequest\x12/\n" +
+	"\vstrategy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
+	"strategyId\x12\x1d\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\"M\n" +
+	"\x16RenameStrategyResponse\x123\n" +
+	"\bstrategy\x18\x01 \x01(\v2\x17.strategies.v1.StrategyR\bstrategy\"H\n" +
+	"\x15DeleteStrategyRequest\x12/\n" +
+	"\vstrategy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
+	"strategyId\"\x18\n" +
+	"\x16DeleteStrategyResponse\"\xe8\x01\n" +
 	"\vBotLogEntry\x12\x1a\n" +
 	"\bsequence\x18\x01 \x01(\x04R\bsequence\x12.\n" +
 	"\x04time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x04time\x123\n" +
@@ -5277,7 +8252,7 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"page_token\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"s\n" +
 	"\x13ListBotLogsResponse\x124\n" +
 	"\aentries\x18\x01 \x03(\v2\x1a.strategies.v1.BotLogEntryR\aentries\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*\xcc\x04\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken*\x8f\x06\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11VERSION_NOT_FOUND\x10\x01\x12\x16\n" +
@@ -5302,18 +8277,42 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	" INDICATOR_SETTINGS_LIMIT_REACHED\x10\x13\x12\x18\n" +
 	"\x14IDEMPOTENCY_CONFLICT\x10\x14\x12\x17\n" +
 	"\x13SERVICE_UNAVAILABLE\x10\x15\x12 \n" +
-	"\x1cFUNDING_SUBACCOUNT_NOT_FOUND\x10\x16*4\n" +
+	"\x1cFUNDING_SUBACCOUNT_NOT_FOUND\x10\x16\x12\x13\n" +
+	"\x0fBOT_NOT_RUNNING\x10\x17\x12\x18\n" +
+	"\x14BOT_ALREADY_STOPPING\x10\x18\x12\x16\n" +
+	"\x12STRATEGY_NOT_FOUND\x10\x19\x12\x1b\n" +
+	"\x17DRAFT_REVISION_CONFLICT\x10\x1a\x12\x18\n" +
+	"\x14STRATEGY_CAP_REACHED\x10\x1b\x12\x16\n" +
+	"\x12TEMPLATE_NOT_FOUND\x10\x1c\x12\x13\n" +
+	"\x0fSTRATEGY_IN_USE\x10\x1d\x12\x16\n" +
+	"\x12REVISION_NOT_FOUND\x10\x1e*4\n" +
 	"\tOrderSide\x12\x14\n" +
 	"\x10SIDE_UNSPECIFIED\x10\x00\x12\a\n" +
 	"\x03BUY\x10\x01\x12\b\n" +
-	"\x04SELL\x10\x022\xc0\x1b\n" +
+	"\x04SELL\x10\x02*D\n" +
+	"\bStopMode\x12\x14\n" +
+	"\x10STOP_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vKEEP_ORDERS\x10\x01\x12\x11\n" +
+	"\rCANCEL_ORDERS\x10\x022\xfc4\n" +
 	"\x11StrategiesService\x12\xe2\x02\n" +
 	"\x14GetStrategyReference\x12*.strategies.v1.GetStrategyReferenceRequest\x1a+.strategies.v1.GetStrategyReferenceResponse\"\xf0\x01\xbaG\xe5\x01\n" +
 	"\x12Strategies Service\x12\x16Get Strategy Reference\x1a\xb4\x01Get the bot API reference and the skill pack for writing bots, and the manifest's JSON Schema, the allowed indicators and the limits of one runtime version once they are available.Z\x00\x88\xb5\x18\x01\x90\x02\x01\x12\xf0\x01\n" +
 	"\x15ListStrategyTemplates\x12+.strategies.v1.ListStrategyTemplatesRequest\x1a,.strategies.v1.ListStrategyTemplatesResponse\"|\xbaGr\n" +
-	"\x12Strategies Service\x12\x17List Strategy Templates\x1aAList the bot templates: starting points with a manifest and code.Z\x00\x88\xb5\x18\x01\x90\x02\x01\x12\x97\x02\n" +
-	"\x10ValidateStrategy\x12&.strategies.v1.ValidateStrategyRequest\x1a'.strategies.v1.ValidateStrategyResponse\"\xb1\x01\xbaG\xa4\x01\n" +
-	"\x12Strategies Service\x12\x11Validate Strategy\x1a{Check a bot and store it as an immutable version. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xa2\x02\n" +
+	"\x12Strategies Service\x12\x17List Strategy Templates\x1aAList the bot templates: starting points with a manifest and code.Z\x00\x88\xb5\x18\x01\x90\x02\x01\x12\xbb\x02\n" +
+	"\x0eCreateStrategy\x12$.strategies.v1.CreateStrategyRequest\x1a%.strategies.v1.CreateStrategyResponse\"\xdb\x01\xbaG\xce\x01\n" +
+	"\x12Strategies Service\x12\x0fCreate Strategy\x1a\xa6\x01Create a strategy: blank, from a bot template, or as a copy of one of the caller's versions. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xe1\x02\n" +
+	"\x10SaveDraftVersion\x12&.strategies.v1.SaveDraftVersionRequest\x1a'.strategies.v1.SaveDraftVersionResponse\"\xfb\x01\xbaG\xee\x01\n" +
+	"\x12Strategies Service\x12\x12Save Draft Version\x1a\xc3\x01Check a bot and save it as the next revision of a strategy, valid or not. expected_revision must be the current revision. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xa3\x02\n" +
+	"\vGetStrategy\x12!.strategies.v1.GetStrategyRequest\x1a\".strategies.v1.GetStrategyResponse\"\xcc\x01\xbaG\xbf\x01\n" +
+	"\x12Strategies Service\x12\fGet Strategy\x1a\x9a\x01Read a strategy and the manifest, code and settings form of its current revision. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xa1\x02\n" +
+	"\x0eListStrategies\x12$.strategies.v1.ListStrategiesRequest\x1a%.strategies.v1.ListStrategiesResponse\"\xc1\x01\xbaG\xb4\x01\n" +
+	"\x12Strategies Service\x12\x0fList Strategies\x1a\x8c\x01List the caller's strategies, most recently saved or renamed first. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xc1\x02\n" +
+	"\x15ListStrategyRevisions\x12+.strategies.v1.ListStrategyRevisionsRequest\x1a,.strategies.v1.ListStrategyRevisionsResponse\"\xcc\x01\xbaG\xbf\x01\n" +
+	"\x12Strategies Service\x12\x17List Strategy Revisions\x1a\x8f\x01List a strategy's saved drafts, newest first, with how each was saved. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xf0\x01\n" +
+	"\x0eRenameStrategy\x12$.strategies.v1.RenameStrategyRequest\x1a%.strategies.v1.RenameStrategyResponse\"\x90\x01\xbaG\x83\x01\n" +
+	"\x12Strategies Service\x12\x0fRename Strategy\x1a\\Rename a strategy. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xd9\x02\n" +
+	"\x0eDeleteStrategy\x12$.strategies.v1.DeleteStrategyRequest\x1a%.strategies.v1.DeleteStrategyResponse\"\xf9\x01\xbaG\xec\x01\n" +
+	"\x12Strategies Service\x12\x0fDelete Strategy\x1a\xc4\x01Delete a strategy and its revisions, unless a bot deployed from it is still running or a deploy proposal of it is waiting. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xa2\x02\n" +
 	"\fRunScenarios\x12\".strategies.v1.RunScenariosRequest\x1a#.strategies.v1.RunScenariosResponse\"\xc8\x01\xbaG\xbb\x01\n" +
 	"\x12Strategies Service\x12\rRun Scenarios\x1a\x95\x01Run a version's behaviour examples against its code and record the results. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\x9b\x02\n" +
 	"\rStartBacktest\x12#.strategies.v1.StartBacktestRequest\x1a$.strategies.v1.StartBacktestResponse\"\xbe\x01\xbaG\xb1\x01\n" +
@@ -5321,17 +8320,25 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\vGetBacktest\x12!.strategies.v1.GetBacktestRequest\x1a\".strategies.v1.GetBacktestResponse\"\xad\x01\xbaG\xa0\x01\n" +
 	"\x12Strategies Service\x12\fGet Backtest\x1a|Read one backtest, with its report once it is done. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xd3\x02\n" +
 	"\x0fExplainStrategy\x12%.strategies.v1.ExplainStrategyRequest\x1a&.strategies.v1.ExplainStrategyResponse\"\xf0\x01\xbaG\xe3\x01\n" +
-	"\x12Strategies Service\x12\x10Explain Strategy\x1a\xba\x01Get the review summary of a version: its money rules, settings, behaviour examples, latest backtest and warnings. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xd5\x02\n" +
-	"\rProposeDeploy\x12#.strategies.v1.ProposeDeployRequest\x1a$.strategies.v1.ProposeDeployResponse\"\xf8\x01\xbaG\xeb\x01\n" +
-	"\x12Strategies Service\x12\x0ePropose Deploy\x1a\xc4\x01Record a deploy proposal for a version and get the link where the user deploys it. It never deploys or moves funds. An API key needs PROPOSE_STRATEGY_DEPLOY and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xa6\x02\n" +
+	"\x12Strategies Service\x12\x10Explain Strategy\x1a\xba\x01Get the review summary of a version: its money rules, settings, behaviour examples, latest backtest and warnings. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xe4\x02\n" +
+	"\rProposeDeploy\x12#.strategies.v1.ProposeDeployRequest\x1a$.strategies.v1.ProposeDeployResponse\"\x87\x02\xbaG\xfa\x01\n" +
+	"\x12Strategies Service\x12\x0ePropose Deploy\x1a\xd3\x01Record a deploy proposal for a revision of a strategy and get the link where the user deploys it. It never deploys or moves funds. An API key needs PROPOSE_STRATEGY_DEPLOY and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xa6\x02\n" +
 	"\x0fGetDeployStatus\x12%.strategies.v1.GetDeployStatusRequest\x1a&.strategies.v1.GetDeployStatusResponse\"\xc3\x01\xbaG\xb6\x01\n" +
-	"\x12Strategies Service\x12\x11Get Deploy Status\x1a\x8c\x01Read the step a deploy proposal is at, and its bot once it is live. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xea\x01\n" +
+	"\x12Strategies Service\x12\x11Get Deploy Status\x1a\x8c\x01Read the step a deploy proposal is at, and its bot once it is live. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x91\x03\n" +
+	"\x11GetDeployProposal\x12'.strategies.v1.GetDeployProposalRequest\x1a(.strategies.v1.GetDeployProposalResponse\"\xa8\x02\xbaG\x9b\x02\n" +
+	"\x12Strategies Service\x12\x13Get Deploy Proposal\x1a\xef\x01Read a deploy proposal as the user approves it: the version, the bot's name, its limits, its settings and its funding, with where the proposal is and when it expires. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xea\x01\n" +
 	"\bListBots\x12\x1e.strategies.v1.ListBotsRequest\x1a\x1f.strategies.v1.ListBotsResponse\"\x9c\x01\xbaG\x8f\x01\n" +
 	"\x12Strategies Service\x12\tList Bots\x1anList the caller's bots, newest first. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x8c\x02\n" +
 	"\x06GetBot\x12\x1c.strategies.v1.GetBotRequest\x1a\x1d.strategies.v1.GetBotResponse\"\xc4\x01\xbaG\xb7\x01\n" +
-	"\x12Strategies Service\x12\aGet Bot\x1a\x97\x01Read one bot with its money rules, balances, open orders and recent decisions. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x8e\x02\n" +
+	"\x12Strategies Service\x12\aGet Bot\x1a\x97\x01Read one bot with its money rules, balances, open orders and recent decisions. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xb1\x02\n" +
+	"\x0fListBotVersions\x12%.strategies.v1.ListBotVersionsRequest\x1a&.strategies.v1.ListBotVersionsResponse\"\xce\x01\xbaG\xc1\x01\n" +
+	"\x12Strategies Service\x12\x11List Bot Versions\x1a\x97\x01List the versions a bot ran, newest first, with when each started and stopped. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xaa\x02\n" +
+	"\x12GetStrategyVersion\x12(.strategies.v1.GetStrategyVersionRequest\x1a).strategies.v1.GetStrategyVersionResponse\"\xbe\x01\xbaG\xb1\x01\n" +
+	"\x12Strategies Service\x12\x14Get Strategy Version\x1a\x84\x01Read a strategy version's manifest, code and settings form. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x8e\x02\n" +
 	"\vListBotLogs\x12!.strategies.v1.ListBotLogsRequest\x1a\".strategies.v1.ListBotLogsResponse\"\xb7\x01\xbaG\xaa\x01\n" +
-	"\x12Strategies Service\x12\rList Bot Logs\x1a\x84\x01Read a bot's log lines, decisions and errors, oldest first. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x1a\v\x8a\xb5\x18\atradingB\xf8\x01\xbaG\xac\x01:\xa9\x01\n" +
+	"\x12Strategies Service\x12\rList Bot Logs\x1a\x84\x01Read a bot's log lines, decisions and errors, oldest first. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xd0\x02\n" +
+	"\aStopBot\x12\x1d.strategies.v1.StopBotRequest\x1a\x1e.strategies.v1.StopBotResponse\"\x85\x02\xbaG\xf8\x01\n" +
+	"\x12Strategies Service\x12\bStop Bot\x1a\xd7\x01Stop a bot, handing its open orders to its subaccount or cancelling them. It reads stopping until the stop is reported complete, then stopped. An API key needs STOP_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x1a\v\x8a\xb5\x18\atradingB\xf8\x01\xbaG\xac\x01:\xa9\x01\n" +
 	"\x12Strategies Service\x12\x92\x01Write, test and propose trading bots: the bot format, validation, behaviour examples, backtests, deploy proposals, and reads of the caller's bots.ZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/strategies/v1;strategiesv1b\x06proto3"
 
 var (
@@ -5346,194 +8353,296 @@ func file_strategies_v1_strategies_proto_rawDescGZIP() []byte {
 	return file_strategies_v1_strategies_proto_rawDescData
 }
 
-var file_strategies_v1_strategies_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
-var file_strategies_v1_strategies_proto_msgTypes = make([]protoimpl.MessageInfo, 55)
+var file_strategies_v1_strategies_proto_enumTypes = make([]protoimpl.EnumInfo, 11)
+var file_strategies_v1_strategies_proto_msgTypes = make([]protoimpl.MessageInfo, 90)
 var file_strategies_v1_strategies_proto_goTypes = []any{
 	(ErrorCode)(0),                        // 0: strategies.v1.ErrorCode
 	(OrderSide)(0),                        // 1: strategies.v1.OrderSide
-	(Backtest_Status)(0),                  // 2: strategies.v1.Backtest.Status
-	(ScenarioSummary_Outcome)(0),          // 3: strategies.v1.ScenarioSummary.Outcome
-	(DeployStatus_State)(0),               // 4: strategies.v1.DeployStatus.State
-	(Bot_Status)(0),                       // 5: strategies.v1.Bot.Status
-	(BotLogEntry_Kind)(0),                 // 6: strategies.v1.BotLogEntry.Kind
-	(*BotCapDetail)(nil),                  // 7: strategies.v1.BotCapDetail
-	(*ErrorDetail)(nil),                   // 8: strategies.v1.ErrorDetail
-	(*Money)(nil),                         // 9: strategies.v1.Money
-	(*TimeWindow)(nil),                    // 10: strategies.v1.TimeWindow
-	(*IndicatorLibrary)(nil),              // 11: strategies.v1.IndicatorLibrary
-	(*IndicatorParameter)(nil),            // 12: strategies.v1.IndicatorParameter
-	(*Indicator)(nil),                     // 13: strategies.v1.Indicator
-	(*StrategyLimits)(nil),                // 14: strategies.v1.StrategyLimits
-	(*GetStrategyReferenceRequest)(nil),   // 15: strategies.v1.GetStrategyReferenceRequest
-	(*GetStrategyReferenceResponse)(nil),  // 16: strategies.v1.GetStrategyReferenceResponse
-	(*SkillDocument)(nil),                 // 17: strategies.v1.SkillDocument
-	(*StrategyTemplate)(nil),              // 18: strategies.v1.StrategyTemplate
-	(*ListStrategyTemplatesRequest)(nil),  // 19: strategies.v1.ListStrategyTemplatesRequest
-	(*ListStrategyTemplatesResponse)(nil), // 20: strategies.v1.ListStrategyTemplatesResponse
-	(*ValidationIssue)(nil),               // 21: strategies.v1.ValidationIssue
-	(*MoneyCard)(nil),                     // 22: strategies.v1.MoneyCard
-	(*SettingField)(nil),                  // 23: strategies.v1.SettingField
-	(*ValidateStrategyRequest)(nil),       // 24: strategies.v1.ValidateStrategyRequest
-	(*ValidateStrategyResponse)(nil),      // 25: strategies.v1.ValidateStrategyResponse
-	(*RunScenariosRequest)(nil),           // 26: strategies.v1.RunScenariosRequest
-	(*ScenarioResult)(nil),                // 27: strategies.v1.ScenarioResult
-	(*RunScenariosResponse)(nil),          // 28: strategies.v1.RunScenariosResponse
-	(*BacktestMetrics)(nil),               // 29: strategies.v1.BacktestMetrics
-	(*Baseline)(nil),                      // 30: strategies.v1.Baseline
-	(*BacktestTrade)(nil),                 // 31: strategies.v1.BacktestTrade
-	(*DataGap)(nil),                       // 32: strategies.v1.DataGap
-	(*BacktestReport)(nil),                // 33: strategies.v1.BacktestReport
-	(*Backtest)(nil),                      // 34: strategies.v1.Backtest
-	(*StartBacktestRequest)(nil),          // 35: strategies.v1.StartBacktestRequest
-	(*StartBacktestResponse)(nil),         // 36: strategies.v1.StartBacktestResponse
-	(*GetBacktestRequest)(nil),            // 37: strategies.v1.GetBacktestRequest
-	(*GetBacktestResponse)(nil),           // 38: strategies.v1.GetBacktestResponse
-	(*ScenarioSummary)(nil),               // 39: strategies.v1.ScenarioSummary
-	(*BacktestSummary)(nil),               // 40: strategies.v1.BacktestSummary
-	(*ExplainStrategyRequest)(nil),        // 41: strategies.v1.ExplainStrategyRequest
-	(*ExplainStrategyResponse)(nil),       // 42: strategies.v1.ExplainStrategyResponse
-	(*SettingValue)(nil),                  // 43: strategies.v1.SettingValue
-	(*DeployProposalSummary)(nil),         // 44: strategies.v1.DeployProposalSummary
-	(*ProposeDeployRequest)(nil),          // 45: strategies.v1.ProposeDeployRequest
-	(*ProposeDeployResponse)(nil),         // 46: strategies.v1.ProposeDeployResponse
-	(*DeployStatus)(nil),                  // 47: strategies.v1.DeployStatus
-	(*GetDeployStatusRequest)(nil),        // 48: strategies.v1.GetDeployStatusRequest
-	(*GetDeployStatusResponse)(nil),       // 49: strategies.v1.GetDeployStatusResponse
-	(*Bot)(nil),                           // 50: strategies.v1.Bot
-	(*ListBotsRequest)(nil),               // 51: strategies.v1.ListBotsRequest
-	(*ListBotsResponse)(nil),              // 52: strategies.v1.ListBotsResponse
-	(*BotBalance)(nil),                    // 53: strategies.v1.BotBalance
-	(*BotOrder)(nil),                      // 54: strategies.v1.BotOrder
-	(*BotDecision)(nil),                   // 55: strategies.v1.BotDecision
-	(*BotError)(nil),                      // 56: strategies.v1.BotError
-	(*GetBotRequest)(nil),                 // 57: strategies.v1.GetBotRequest
-	(*GetBotResponse)(nil),                // 58: strategies.v1.GetBotResponse
-	(*BotLogEntry)(nil),                   // 59: strategies.v1.BotLogEntry
-	(*ListBotLogsRequest)(nil),            // 60: strategies.v1.ListBotLogsRequest
-	(*ListBotLogsResponse)(nil),           // 61: strategies.v1.ListBotLogsResponse
-	(*timestamppb.Timestamp)(nil),         // 62: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),               // 63: google.protobuf.Struct
+	(StopMode)(0),                         // 2: strategies.v1.StopMode
+	(Backtest_Status)(0),                  // 3: strategies.v1.Backtest.Status
+	(ScenarioSummary_Outcome)(0),          // 4: strategies.v1.ScenarioSummary.Outcome
+	(DeployStatus_State)(0),               // 5: strategies.v1.DeployStatus.State
+	(Bot_Status)(0),                       // 6: strategies.v1.Bot.Status
+	(Bot_PauseReason)(0),                  // 7: strategies.v1.Bot.PauseReason
+	(FlowNode_Kind)(0),                    // 8: strategies.v1.FlowNode.Kind
+	(StrategyRevision_SavedBy)(0),         // 9: strategies.v1.StrategyRevision.SavedBy
+	(BotLogEntry_Kind)(0),                 // 10: strategies.v1.BotLogEntry.Kind
+	(*BotCapDetail)(nil),                  // 11: strategies.v1.BotCapDetail
+	(*StrategyCapDetail)(nil),             // 12: strategies.v1.StrategyCapDetail
+	(*RevisionConflictDetail)(nil),        // 13: strategies.v1.RevisionConflictDetail
+	(*ErrorDetail)(nil),                   // 14: strategies.v1.ErrorDetail
+	(*Money)(nil),                         // 15: strategies.v1.Money
+	(*TimeWindow)(nil),                    // 16: strategies.v1.TimeWindow
+	(*IndicatorLibrary)(nil),              // 17: strategies.v1.IndicatorLibrary
+	(*IndicatorParameter)(nil),            // 18: strategies.v1.IndicatorParameter
+	(*Indicator)(nil),                     // 19: strategies.v1.Indicator
+	(*StrategyLimits)(nil),                // 20: strategies.v1.StrategyLimits
+	(*GetStrategyReferenceRequest)(nil),   // 21: strategies.v1.GetStrategyReferenceRequest
+	(*GetStrategyReferenceResponse)(nil),  // 22: strategies.v1.GetStrategyReferenceResponse
+	(*SkillDocument)(nil),                 // 23: strategies.v1.SkillDocument
+	(*StrategyTemplate)(nil),              // 24: strategies.v1.StrategyTemplate
+	(*ListStrategyTemplatesRequest)(nil),  // 25: strategies.v1.ListStrategyTemplatesRequest
+	(*ListStrategyTemplatesResponse)(nil), // 26: strategies.v1.ListStrategyTemplatesResponse
+	(*ValidationIssue)(nil),               // 27: strategies.v1.ValidationIssue
+	(*MoneyCard)(nil),                     // 28: strategies.v1.MoneyCard
+	(*SettingField)(nil),                  // 29: strategies.v1.SettingField
+	(*VersionValidation)(nil),             // 30: strategies.v1.VersionValidation
+	(*RunScenariosRequest)(nil),           // 31: strategies.v1.RunScenariosRequest
+	(*ScenarioResult)(nil),                // 32: strategies.v1.ScenarioResult
+	(*RunScenariosResponse)(nil),          // 33: strategies.v1.RunScenariosResponse
+	(*BacktestMetrics)(nil),               // 34: strategies.v1.BacktestMetrics
+	(*Baseline)(nil),                      // 35: strategies.v1.Baseline
+	(*BacktestTrade)(nil),                 // 36: strategies.v1.BacktestTrade
+	(*DataGap)(nil),                       // 37: strategies.v1.DataGap
+	(*BacktestReport)(nil),                // 38: strategies.v1.BacktestReport
+	(*Backtest)(nil),                      // 39: strategies.v1.Backtest
+	(*StartBacktestRequest)(nil),          // 40: strategies.v1.StartBacktestRequest
+	(*StartBacktestResponse)(nil),         // 41: strategies.v1.StartBacktestResponse
+	(*GetBacktestRequest)(nil),            // 42: strategies.v1.GetBacktestRequest
+	(*GetBacktestResponse)(nil),           // 43: strategies.v1.GetBacktestResponse
+	(*ScenarioSummary)(nil),               // 44: strategies.v1.ScenarioSummary
+	(*BacktestSummary)(nil),               // 45: strategies.v1.BacktestSummary
+	(*ExplainStrategyRequest)(nil),        // 46: strategies.v1.ExplainStrategyRequest
+	(*ExplainStrategyResponse)(nil),       // 47: strategies.v1.ExplainStrategyResponse
+	(*SettingValue)(nil),                  // 48: strategies.v1.SettingValue
+	(*DeployProposalSummary)(nil),         // 49: strategies.v1.DeployProposalSummary
+	(*ProposeDeployRequest)(nil),          // 50: strategies.v1.ProposeDeployRequest
+	(*ProposeDeployResponse)(nil),         // 51: strategies.v1.ProposeDeployResponse
+	(*DeployStatus)(nil),                  // 52: strategies.v1.DeployStatus
+	(*GetDeployStatusRequest)(nil),        // 53: strategies.v1.GetDeployStatusRequest
+	(*GetDeployStatusResponse)(nil),       // 54: strategies.v1.GetDeployStatusResponse
+	(*GetDeployProposalRequest)(nil),      // 55: strategies.v1.GetDeployProposalRequest
+	(*GetDeployProposalResponse)(nil),     // 56: strategies.v1.GetDeployProposalResponse
+	(*Bot)(nil),                           // 57: strategies.v1.Bot
+	(*BotFunding)(nil),                    // 58: strategies.v1.BotFunding
+	(*BotStatusCount)(nil),                // 59: strategies.v1.BotStatusCount
+	(*ListBotsRequest)(nil),               // 60: strategies.v1.ListBotsRequest
+	(*ListBotsResponse)(nil),              // 61: strategies.v1.ListBotsResponse
+	(*BotBalance)(nil),                    // 62: strategies.v1.BotBalance
+	(*BotOrder)(nil),                      // 63: strategies.v1.BotOrder
+	(*BotDecision)(nil),                   // 64: strategies.v1.BotDecision
+	(*BotError)(nil),                      // 65: strategies.v1.BotError
+	(*GetBotRequest)(nil),                 // 66: strategies.v1.GetBotRequest
+	(*StopBotRequest)(nil),                // 67: strategies.v1.StopBotRequest
+	(*StopBotResponse)(nil),               // 68: strategies.v1.StopBotResponse
+	(*GetBotResponse)(nil),                // 69: strategies.v1.GetBotResponse
+	(*ListBotVersionsRequest)(nil),        // 70: strategies.v1.ListBotVersionsRequest
+	(*BotVersion)(nil),                    // 71: strategies.v1.BotVersion
+	(*ListBotVersionsResponse)(nil),       // 72: strategies.v1.ListBotVersionsResponse
+	(*GetStrategyVersionRequest)(nil),     // 73: strategies.v1.GetStrategyVersionRequest
+	(*GetStrategyVersionResponse)(nil),    // 74: strategies.v1.GetStrategyVersionResponse
+	(*StrategyFlow)(nil),                  // 75: strategies.v1.StrategyFlow
+	(*FlowNode)(nil),                      // 76: strategies.v1.FlowNode
+	(*FlowEdge)(nil),                      // 77: strategies.v1.FlowEdge
+	(*SourceSpan)(nil),                    // 78: strategies.v1.SourceSpan
+	(*Strategy)(nil),                      // 79: strategies.v1.Strategy
+	(*StrategyBot)(nil),                   // 80: strategies.v1.StrategyBot
+	(*StrategyOrigin)(nil),                // 81: strategies.v1.StrategyOrigin
+	(*StrategyDuplicateOrigin)(nil),       // 82: strategies.v1.StrategyDuplicateOrigin
+	(*StrategyRevision)(nil),              // 83: strategies.v1.StrategyRevision
+	(*CreateStrategyRequest)(nil),         // 84: strategies.v1.CreateStrategyRequest
+	(*CreateStrategyResponse)(nil),        // 85: strategies.v1.CreateStrategyResponse
+	(*SaveDraftVersionRequest)(nil),       // 86: strategies.v1.SaveDraftVersionRequest
+	(*SaveDraftVersionResponse)(nil),      // 87: strategies.v1.SaveDraftVersionResponse
+	(*GetStrategyRequest)(nil),            // 88: strategies.v1.GetStrategyRequest
+	(*GetStrategyResponse)(nil),           // 89: strategies.v1.GetStrategyResponse
+	(*ListStrategiesRequest)(nil),         // 90: strategies.v1.ListStrategiesRequest
+	(*ListStrategiesResponse)(nil),        // 91: strategies.v1.ListStrategiesResponse
+	(*ListStrategyRevisionsRequest)(nil),  // 92: strategies.v1.ListStrategyRevisionsRequest
+	(*ListStrategyRevisionsResponse)(nil), // 93: strategies.v1.ListStrategyRevisionsResponse
+	(*RenameStrategyRequest)(nil),         // 94: strategies.v1.RenameStrategyRequest
+	(*RenameStrategyResponse)(nil),        // 95: strategies.v1.RenameStrategyResponse
+	(*DeleteStrategyRequest)(nil),         // 96: strategies.v1.DeleteStrategyRequest
+	(*DeleteStrategyResponse)(nil),        // 97: strategies.v1.DeleteStrategyResponse
+	(*BotLogEntry)(nil),                   // 98: strategies.v1.BotLogEntry
+	(*ListBotLogsRequest)(nil),            // 99: strategies.v1.ListBotLogsRequest
+	(*ListBotLogsResponse)(nil),           // 100: strategies.v1.ListBotLogsResponse
+	(*timestamppb.Timestamp)(nil),         // 101: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),               // 102: google.protobuf.Struct
 }
 var file_strategies_v1_strategies_proto_depIdxs = []int32{
 	0,   // 0: strategies.v1.ErrorDetail.code:type_name -> strategies.v1.ErrorCode
-	62,  // 1: strategies.v1.ErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
-	7,   // 2: strategies.v1.ErrorDetail.bot_cap:type_name -> strategies.v1.BotCapDetail
-	9,   // 3: strategies.v1.ErrorDetail.shortfall:type_name -> strategies.v1.Money
-	62,  // 4: strategies.v1.TimeWindow.start_time:type_name -> google.protobuf.Timestamp
-	62,  // 5: strategies.v1.TimeWindow.end_time:type_name -> google.protobuf.Timestamp
-	12,  // 6: strategies.v1.Indicator.parameters:type_name -> strategies.v1.IndicatorParameter
-	11,  // 7: strategies.v1.GetStrategyReferenceResponse.indicator_library:type_name -> strategies.v1.IndicatorLibrary
-	63,  // 8: strategies.v1.GetStrategyReferenceResponse.manifest_schema:type_name -> google.protobuf.Struct
-	13,  // 9: strategies.v1.GetStrategyReferenceResponse.indicators:type_name -> strategies.v1.Indicator
-	14,  // 10: strategies.v1.GetStrategyReferenceResponse.limits:type_name -> strategies.v1.StrategyLimits
-	17,  // 11: strategies.v1.GetStrategyReferenceResponse.skill_pack:type_name -> strategies.v1.SkillDocument
-	63,  // 12: strategies.v1.StrategyTemplate.manifest:type_name -> google.protobuf.Struct
-	18,  // 13: strategies.v1.ListStrategyTemplatesResponse.templates:type_name -> strategies.v1.StrategyTemplate
-	9,   // 14: strategies.v1.MoneyCard.budget:type_name -> strategies.v1.Money
-	9,   // 15: strategies.v1.MoneyCard.max_order:type_name -> strategies.v1.Money
-	9,   // 16: strategies.v1.MoneyCard.daily_loss_threshold:type_name -> strategies.v1.Money
-	63,  // 17: strategies.v1.ValidateStrategyRequest.manifest:type_name -> google.protobuf.Struct
-	21,  // 18: strategies.v1.ValidateStrategyResponse.errors:type_name -> strategies.v1.ValidationIssue
-	21,  // 19: strategies.v1.ValidateStrategyResponse.warnings:type_name -> strategies.v1.ValidationIssue
-	22,  // 20: strategies.v1.ValidateStrategyResponse.money_card:type_name -> strategies.v1.MoneyCard
-	23,  // 21: strategies.v1.ValidateStrategyResponse.settings_form:type_name -> strategies.v1.SettingField
-	63,  // 22: strategies.v1.ScenarioResult.expected:type_name -> google.protobuf.Struct
-	63,  // 23: strategies.v1.ScenarioResult.actual:type_name -> google.protobuf.Struct
-	27,  // 24: strategies.v1.RunScenariosResponse.results:type_name -> strategies.v1.ScenarioResult
-	9,   // 25: strategies.v1.BacktestMetrics.fees:type_name -> strategies.v1.Money
-	29,  // 26: strategies.v1.Baseline.metrics:type_name -> strategies.v1.BacktestMetrics
-	62,  // 27: strategies.v1.BacktestTrade.time:type_name -> google.protobuf.Timestamp
-	1,   // 28: strategies.v1.BacktestTrade.side:type_name -> strategies.v1.OrderSide
-	9,   // 29: strategies.v1.BacktestTrade.fee:type_name -> strategies.v1.Money
-	10,  // 30: strategies.v1.DataGap.window:type_name -> strategies.v1.TimeWindow
-	10,  // 31: strategies.v1.BacktestReport.period:type_name -> strategies.v1.TimeWindow
-	10,  // 32: strategies.v1.BacktestReport.held_back_period:type_name -> strategies.v1.TimeWindow
-	29,  // 33: strategies.v1.BacktestReport.metrics:type_name -> strategies.v1.BacktestMetrics
-	29,  // 34: strategies.v1.BacktestReport.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
-	30,  // 35: strategies.v1.BacktestReport.baselines:type_name -> strategies.v1.Baseline
-	31,  // 36: strategies.v1.BacktestReport.trades:type_name -> strategies.v1.BacktestTrade
-	32,  // 37: strategies.v1.BacktestReport.data_gaps:type_name -> strategies.v1.DataGap
-	2,   // 38: strategies.v1.Backtest.status:type_name -> strategies.v1.Backtest.Status
-	10,  // 39: strategies.v1.Backtest.window:type_name -> strategies.v1.TimeWindow
-	62,  // 40: strategies.v1.Backtest.created_at:type_name -> google.protobuf.Timestamp
-	62,  // 41: strategies.v1.Backtest.finished_at:type_name -> google.protobuf.Timestamp
-	33,  // 42: strategies.v1.Backtest.report:type_name -> strategies.v1.BacktestReport
-	62,  // 43: strategies.v1.StartBacktestRequest.start_time:type_name -> google.protobuf.Timestamp
-	62,  // 44: strategies.v1.StartBacktestRequest.end_time:type_name -> google.protobuf.Timestamp
-	43,  // 45: strategies.v1.StartBacktestRequest.settings:type_name -> strategies.v1.SettingValue
-	9,   // 46: strategies.v1.StartBacktestRequest.initial_balances:type_name -> strategies.v1.Money
-	2,   // 47: strategies.v1.StartBacktestResponse.status:type_name -> strategies.v1.Backtest.Status
-	34,  // 48: strategies.v1.GetBacktestResponse.backtest:type_name -> strategies.v1.Backtest
-	3,   // 49: strategies.v1.ScenarioSummary.outcome:type_name -> strategies.v1.ScenarioSummary.Outcome
-	2,   // 50: strategies.v1.BacktestSummary.status:type_name -> strategies.v1.Backtest.Status
-	29,  // 51: strategies.v1.BacktestSummary.metrics:type_name -> strategies.v1.BacktestMetrics
-	29,  // 52: strategies.v1.BacktestSummary.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
-	22,  // 53: strategies.v1.ExplainStrategyResponse.money_card:type_name -> strategies.v1.MoneyCard
-	23,  // 54: strategies.v1.ExplainStrategyResponse.settings:type_name -> strategies.v1.SettingField
-	39,  // 55: strategies.v1.ExplainStrategyResponse.scenarios:type_name -> strategies.v1.ScenarioSummary
-	40,  // 56: strategies.v1.ExplainStrategyResponse.backtest:type_name -> strategies.v1.BacktestSummary
-	22,  // 57: strategies.v1.DeployProposalSummary.money_card:type_name -> strategies.v1.MoneyCard
-	43,  // 58: strategies.v1.DeployProposalSummary.settings:type_name -> strategies.v1.SettingValue
-	9,   // 59: strategies.v1.DeployProposalSummary.funding:type_name -> strategies.v1.Money
-	40,  // 60: strategies.v1.DeployProposalSummary.backtest:type_name -> strategies.v1.BacktestSummary
-	43,  // 61: strategies.v1.ProposeDeployRequest.settings:type_name -> strategies.v1.SettingValue
-	9,   // 62: strategies.v1.ProposeDeployRequest.funding:type_name -> strategies.v1.Money
-	44,  // 63: strategies.v1.ProposeDeployResponse.summary:type_name -> strategies.v1.DeployProposalSummary
-	62,  // 64: strategies.v1.ProposeDeployResponse.expires_at:type_name -> google.protobuf.Timestamp
-	4,   // 65: strategies.v1.DeployStatus.state:type_name -> strategies.v1.DeployStatus.State
-	62,  // 66: strategies.v1.DeployStatus.expires_at:type_name -> google.protobuf.Timestamp
-	62,  // 67: strategies.v1.DeployStatus.updated_at:type_name -> google.protobuf.Timestamp
-	47,  // 68: strategies.v1.GetDeployStatusResponse.status:type_name -> strategies.v1.DeployStatus
-	5,   // 69: strategies.v1.Bot.status:type_name -> strategies.v1.Bot.Status
-	62,  // 70: strategies.v1.Bot.last_decision_at:type_name -> google.protobuf.Timestamp
-	62,  // 71: strategies.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
-	50,  // 72: strategies.v1.ListBotsResponse.bots:type_name -> strategies.v1.Bot
-	1,   // 73: strategies.v1.BotOrder.side:type_name -> strategies.v1.OrderSide
-	62,  // 74: strategies.v1.BotOrder.created_at:type_name -> google.protobuf.Timestamp
-	62,  // 75: strategies.v1.BotDecision.decided_at:type_name -> google.protobuf.Timestamp
-	63,  // 76: strategies.v1.BotDecision.orders:type_name -> google.protobuf.Struct
-	63,  // 77: strategies.v1.BotDecision.snapshot:type_name -> google.protobuf.Struct
-	62,  // 78: strategies.v1.BotError.time:type_name -> google.protobuf.Timestamp
-	50,  // 79: strategies.v1.GetBotResponse.bot:type_name -> strategies.v1.Bot
-	22,  // 80: strategies.v1.GetBotResponse.money_card:type_name -> strategies.v1.MoneyCard
-	43,  // 81: strategies.v1.GetBotResponse.settings:type_name -> strategies.v1.SettingValue
-	53,  // 82: strategies.v1.GetBotResponse.balances:type_name -> strategies.v1.BotBalance
-	54,  // 83: strategies.v1.GetBotResponse.open_orders:type_name -> strategies.v1.BotOrder
-	55,  // 84: strategies.v1.GetBotResponse.decisions:type_name -> strategies.v1.BotDecision
-	56,  // 85: strategies.v1.GetBotResponse.errors:type_name -> strategies.v1.BotError
-	62,  // 86: strategies.v1.BotLogEntry.time:type_name -> google.protobuf.Timestamp
-	6,   // 87: strategies.v1.BotLogEntry.kind:type_name -> strategies.v1.BotLogEntry.Kind
-	62,  // 88: strategies.v1.ListBotLogsRequest.start_time:type_name -> google.protobuf.Timestamp
-	59,  // 89: strategies.v1.ListBotLogsResponse.entries:type_name -> strategies.v1.BotLogEntry
-	15,  // 90: strategies.v1.StrategiesService.GetStrategyReference:input_type -> strategies.v1.GetStrategyReferenceRequest
-	19,  // 91: strategies.v1.StrategiesService.ListStrategyTemplates:input_type -> strategies.v1.ListStrategyTemplatesRequest
-	24,  // 92: strategies.v1.StrategiesService.ValidateStrategy:input_type -> strategies.v1.ValidateStrategyRequest
-	26,  // 93: strategies.v1.StrategiesService.RunScenarios:input_type -> strategies.v1.RunScenariosRequest
-	35,  // 94: strategies.v1.StrategiesService.StartBacktest:input_type -> strategies.v1.StartBacktestRequest
-	37,  // 95: strategies.v1.StrategiesService.GetBacktest:input_type -> strategies.v1.GetBacktestRequest
-	41,  // 96: strategies.v1.StrategiesService.ExplainStrategy:input_type -> strategies.v1.ExplainStrategyRequest
-	45,  // 97: strategies.v1.StrategiesService.ProposeDeploy:input_type -> strategies.v1.ProposeDeployRequest
-	48,  // 98: strategies.v1.StrategiesService.GetDeployStatus:input_type -> strategies.v1.GetDeployStatusRequest
-	51,  // 99: strategies.v1.StrategiesService.ListBots:input_type -> strategies.v1.ListBotsRequest
-	57,  // 100: strategies.v1.StrategiesService.GetBot:input_type -> strategies.v1.GetBotRequest
-	60,  // 101: strategies.v1.StrategiesService.ListBotLogs:input_type -> strategies.v1.ListBotLogsRequest
-	16,  // 102: strategies.v1.StrategiesService.GetStrategyReference:output_type -> strategies.v1.GetStrategyReferenceResponse
-	20,  // 103: strategies.v1.StrategiesService.ListStrategyTemplates:output_type -> strategies.v1.ListStrategyTemplatesResponse
-	25,  // 104: strategies.v1.StrategiesService.ValidateStrategy:output_type -> strategies.v1.ValidateStrategyResponse
-	28,  // 105: strategies.v1.StrategiesService.RunScenarios:output_type -> strategies.v1.RunScenariosResponse
-	36,  // 106: strategies.v1.StrategiesService.StartBacktest:output_type -> strategies.v1.StartBacktestResponse
-	38,  // 107: strategies.v1.StrategiesService.GetBacktest:output_type -> strategies.v1.GetBacktestResponse
-	42,  // 108: strategies.v1.StrategiesService.ExplainStrategy:output_type -> strategies.v1.ExplainStrategyResponse
-	46,  // 109: strategies.v1.StrategiesService.ProposeDeploy:output_type -> strategies.v1.ProposeDeployResponse
-	49,  // 110: strategies.v1.StrategiesService.GetDeployStatus:output_type -> strategies.v1.GetDeployStatusResponse
-	52,  // 111: strategies.v1.StrategiesService.ListBots:output_type -> strategies.v1.ListBotsResponse
-	58,  // 112: strategies.v1.StrategiesService.GetBot:output_type -> strategies.v1.GetBotResponse
-	61,  // 113: strategies.v1.StrategiesService.ListBotLogs:output_type -> strategies.v1.ListBotLogsResponse
-	102, // [102:114] is the sub-list for method output_type
-	90,  // [90:102] is the sub-list for method input_type
-	90,  // [90:90] is the sub-list for extension type_name
-	90,  // [90:90] is the sub-list for extension extendee
-	0,   // [0:90] is the sub-list for field type_name
+	101, // 1: strategies.v1.ErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
+	11,  // 2: strategies.v1.ErrorDetail.bot_cap:type_name -> strategies.v1.BotCapDetail
+	15,  // 3: strategies.v1.ErrorDetail.shortfall:type_name -> strategies.v1.Money
+	12,  // 4: strategies.v1.ErrorDetail.strategy_cap:type_name -> strategies.v1.StrategyCapDetail
+	13,  // 5: strategies.v1.ErrorDetail.revision_conflict:type_name -> strategies.v1.RevisionConflictDetail
+	101, // 6: strategies.v1.TimeWindow.start_time:type_name -> google.protobuf.Timestamp
+	101, // 7: strategies.v1.TimeWindow.end_time:type_name -> google.protobuf.Timestamp
+	18,  // 8: strategies.v1.Indicator.parameters:type_name -> strategies.v1.IndicatorParameter
+	17,  // 9: strategies.v1.GetStrategyReferenceResponse.indicator_library:type_name -> strategies.v1.IndicatorLibrary
+	102, // 10: strategies.v1.GetStrategyReferenceResponse.manifest_schema:type_name -> google.protobuf.Struct
+	19,  // 11: strategies.v1.GetStrategyReferenceResponse.indicators:type_name -> strategies.v1.Indicator
+	20,  // 12: strategies.v1.GetStrategyReferenceResponse.limits:type_name -> strategies.v1.StrategyLimits
+	23,  // 13: strategies.v1.GetStrategyReferenceResponse.skill_pack:type_name -> strategies.v1.SkillDocument
+	102, // 14: strategies.v1.StrategyTemplate.manifest:type_name -> google.protobuf.Struct
+	24,  // 15: strategies.v1.ListStrategyTemplatesResponse.templates:type_name -> strategies.v1.StrategyTemplate
+	15,  // 16: strategies.v1.MoneyCard.budget:type_name -> strategies.v1.Money
+	15,  // 17: strategies.v1.MoneyCard.max_order:type_name -> strategies.v1.Money
+	15,  // 18: strategies.v1.MoneyCard.daily_loss_threshold:type_name -> strategies.v1.Money
+	27,  // 19: strategies.v1.VersionValidation.errors:type_name -> strategies.v1.ValidationIssue
+	27,  // 20: strategies.v1.VersionValidation.warnings:type_name -> strategies.v1.ValidationIssue
+	28,  // 21: strategies.v1.VersionValidation.money_card:type_name -> strategies.v1.MoneyCard
+	29,  // 22: strategies.v1.VersionValidation.settings_form:type_name -> strategies.v1.SettingField
+	75,  // 23: strategies.v1.VersionValidation.flow:type_name -> strategies.v1.StrategyFlow
+	102, // 24: strategies.v1.ScenarioResult.expected:type_name -> google.protobuf.Struct
+	102, // 25: strategies.v1.ScenarioResult.actual:type_name -> google.protobuf.Struct
+	32,  // 26: strategies.v1.RunScenariosResponse.results:type_name -> strategies.v1.ScenarioResult
+	15,  // 27: strategies.v1.BacktestMetrics.fees:type_name -> strategies.v1.Money
+	34,  // 28: strategies.v1.Baseline.metrics:type_name -> strategies.v1.BacktestMetrics
+	101, // 29: strategies.v1.BacktestTrade.time:type_name -> google.protobuf.Timestamp
+	1,   // 30: strategies.v1.BacktestTrade.side:type_name -> strategies.v1.OrderSide
+	15,  // 31: strategies.v1.BacktestTrade.fee:type_name -> strategies.v1.Money
+	16,  // 32: strategies.v1.DataGap.window:type_name -> strategies.v1.TimeWindow
+	16,  // 33: strategies.v1.BacktestReport.period:type_name -> strategies.v1.TimeWindow
+	16,  // 34: strategies.v1.BacktestReport.held_back_period:type_name -> strategies.v1.TimeWindow
+	34,  // 35: strategies.v1.BacktestReport.metrics:type_name -> strategies.v1.BacktestMetrics
+	34,  // 36: strategies.v1.BacktestReport.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
+	35,  // 37: strategies.v1.BacktestReport.baselines:type_name -> strategies.v1.Baseline
+	36,  // 38: strategies.v1.BacktestReport.trades:type_name -> strategies.v1.BacktestTrade
+	37,  // 39: strategies.v1.BacktestReport.data_gaps:type_name -> strategies.v1.DataGap
+	3,   // 40: strategies.v1.Backtest.status:type_name -> strategies.v1.Backtest.Status
+	16,  // 41: strategies.v1.Backtest.window:type_name -> strategies.v1.TimeWindow
+	101, // 42: strategies.v1.Backtest.created_at:type_name -> google.protobuf.Timestamp
+	101, // 43: strategies.v1.Backtest.finished_at:type_name -> google.protobuf.Timestamp
+	38,  // 44: strategies.v1.Backtest.report:type_name -> strategies.v1.BacktestReport
+	101, // 45: strategies.v1.StartBacktestRequest.start_time:type_name -> google.protobuf.Timestamp
+	101, // 46: strategies.v1.StartBacktestRequest.end_time:type_name -> google.protobuf.Timestamp
+	48,  // 47: strategies.v1.StartBacktestRequest.settings:type_name -> strategies.v1.SettingValue
+	15,  // 48: strategies.v1.StartBacktestRequest.initial_balances:type_name -> strategies.v1.Money
+	3,   // 49: strategies.v1.StartBacktestResponse.status:type_name -> strategies.v1.Backtest.Status
+	39,  // 50: strategies.v1.GetBacktestResponse.backtest:type_name -> strategies.v1.Backtest
+	4,   // 51: strategies.v1.ScenarioSummary.outcome:type_name -> strategies.v1.ScenarioSummary.Outcome
+	3,   // 52: strategies.v1.BacktestSummary.status:type_name -> strategies.v1.Backtest.Status
+	34,  // 53: strategies.v1.BacktestSummary.metrics:type_name -> strategies.v1.BacktestMetrics
+	34,  // 54: strategies.v1.BacktestSummary.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
+	28,  // 55: strategies.v1.ExplainStrategyResponse.money_card:type_name -> strategies.v1.MoneyCard
+	29,  // 56: strategies.v1.ExplainStrategyResponse.settings:type_name -> strategies.v1.SettingField
+	44,  // 57: strategies.v1.ExplainStrategyResponse.scenarios:type_name -> strategies.v1.ScenarioSummary
+	45,  // 58: strategies.v1.ExplainStrategyResponse.backtest:type_name -> strategies.v1.BacktestSummary
+	28,  // 59: strategies.v1.DeployProposalSummary.money_card:type_name -> strategies.v1.MoneyCard
+	48,  // 60: strategies.v1.DeployProposalSummary.settings:type_name -> strategies.v1.SettingValue
+	15,  // 61: strategies.v1.DeployProposalSummary.funding:type_name -> strategies.v1.Money
+	45,  // 62: strategies.v1.DeployProposalSummary.backtest:type_name -> strategies.v1.BacktestSummary
+	48,  // 63: strategies.v1.ProposeDeployRequest.settings:type_name -> strategies.v1.SettingValue
+	15,  // 64: strategies.v1.ProposeDeployRequest.funding:type_name -> strategies.v1.Money
+	49,  // 65: strategies.v1.ProposeDeployResponse.summary:type_name -> strategies.v1.DeployProposalSummary
+	101, // 66: strategies.v1.ProposeDeployResponse.expires_at:type_name -> google.protobuf.Timestamp
+	5,   // 67: strategies.v1.DeployStatus.state:type_name -> strategies.v1.DeployStatus.State
+	101, // 68: strategies.v1.DeployStatus.expires_at:type_name -> google.protobuf.Timestamp
+	101, // 69: strategies.v1.DeployStatus.updated_at:type_name -> google.protobuf.Timestamp
+	5,   // 70: strategies.v1.DeployStatus.failed_at:type_name -> strategies.v1.DeployStatus.State
+	52,  // 71: strategies.v1.GetDeployStatusResponse.status:type_name -> strategies.v1.DeployStatus
+	49,  // 72: strategies.v1.GetDeployProposalResponse.summary:type_name -> strategies.v1.DeployProposalSummary
+	52,  // 73: strategies.v1.GetDeployProposalResponse.status:type_name -> strategies.v1.DeployStatus
+	101, // 74: strategies.v1.GetDeployProposalResponse.created_at:type_name -> google.protobuf.Timestamp
+	6,   // 75: strategies.v1.Bot.status:type_name -> strategies.v1.Bot.Status
+	101, // 76: strategies.v1.Bot.last_decision_at:type_name -> google.protobuf.Timestamp
+	101, // 77: strategies.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
+	58,  // 78: strategies.v1.Bot.funding:type_name -> strategies.v1.BotFunding
+	101, // 79: strategies.v1.Bot.running_since:type_name -> google.protobuf.Timestamp
+	7,   // 80: strategies.v1.Bot.pause_reason:type_name -> strategies.v1.Bot.PauseReason
+	15,  // 81: strategies.v1.BotFunding.initial_funding:type_name -> strategies.v1.Money
+	6,   // 82: strategies.v1.BotStatusCount.status:type_name -> strategies.v1.Bot.Status
+	57,  // 83: strategies.v1.ListBotsResponse.bots:type_name -> strategies.v1.Bot
+	59,  // 84: strategies.v1.ListBotsResponse.status_counts:type_name -> strategies.v1.BotStatusCount
+	1,   // 85: strategies.v1.BotOrder.side:type_name -> strategies.v1.OrderSide
+	101, // 86: strategies.v1.BotOrder.created_at:type_name -> google.protobuf.Timestamp
+	101, // 87: strategies.v1.BotDecision.decided_at:type_name -> google.protobuf.Timestamp
+	102, // 88: strategies.v1.BotDecision.orders:type_name -> google.protobuf.Struct
+	102, // 89: strategies.v1.BotDecision.snapshot:type_name -> google.protobuf.Struct
+	101, // 90: strategies.v1.BotError.time:type_name -> google.protobuf.Timestamp
+	2,   // 91: strategies.v1.StopBotRequest.mode:type_name -> strategies.v1.StopMode
+	57,  // 92: strategies.v1.StopBotResponse.bot:type_name -> strategies.v1.Bot
+	2,   // 93: strategies.v1.StopBotResponse.mode:type_name -> strategies.v1.StopMode
+	57,  // 94: strategies.v1.GetBotResponse.bot:type_name -> strategies.v1.Bot
+	28,  // 95: strategies.v1.GetBotResponse.money_card:type_name -> strategies.v1.MoneyCard
+	48,  // 96: strategies.v1.GetBotResponse.settings:type_name -> strategies.v1.SettingValue
+	62,  // 97: strategies.v1.GetBotResponse.balances:type_name -> strategies.v1.BotBalance
+	63,  // 98: strategies.v1.GetBotResponse.open_orders:type_name -> strategies.v1.BotOrder
+	64,  // 99: strategies.v1.GetBotResponse.decisions:type_name -> strategies.v1.BotDecision
+	65,  // 100: strategies.v1.GetBotResponse.errors:type_name -> strategies.v1.BotError
+	101, // 101: strategies.v1.BotVersion.started_at:type_name -> google.protobuf.Timestamp
+	101, // 102: strategies.v1.BotVersion.stopped_at:type_name -> google.protobuf.Timestamp
+	71,  // 103: strategies.v1.ListBotVersionsResponse.versions:type_name -> strategies.v1.BotVersion
+	102, // 104: strategies.v1.GetStrategyVersionResponse.manifest:type_name -> google.protobuf.Struct
+	29,  // 105: strategies.v1.GetStrategyVersionResponse.settings_form:type_name -> strategies.v1.SettingField
+	101, // 106: strategies.v1.GetStrategyVersionResponse.created_at:type_name -> google.protobuf.Timestamp
+	75,  // 107: strategies.v1.GetStrategyVersionResponse.flow:type_name -> strategies.v1.StrategyFlow
+	76,  // 108: strategies.v1.StrategyFlow.nodes:type_name -> strategies.v1.FlowNode
+	77,  // 109: strategies.v1.StrategyFlow.edges:type_name -> strategies.v1.FlowEdge
+	8,   // 110: strategies.v1.FlowNode.kind:type_name -> strategies.v1.FlowNode.Kind
+	78,  // 111: strategies.v1.FlowNode.span:type_name -> strategies.v1.SourceSpan
+	81,  // 112: strategies.v1.Strategy.origin:type_name -> strategies.v1.StrategyOrigin
+	101, // 113: strategies.v1.Strategy.created_at:type_name -> google.protobuf.Timestamp
+	101, // 114: strategies.v1.Strategy.updated_at:type_name -> google.protobuf.Timestamp
+	80,  // 115: strategies.v1.Strategy.bot:type_name -> strategies.v1.StrategyBot
+	6,   // 116: strategies.v1.StrategyBot.status:type_name -> strategies.v1.Bot.Status
+	82,  // 117: strategies.v1.StrategyOrigin.duplicate:type_name -> strategies.v1.StrategyDuplicateOrigin
+	101, // 118: strategies.v1.StrategyRevision.saved_at:type_name -> google.protobuf.Timestamp
+	9,   // 119: strategies.v1.StrategyRevision.saved_by:type_name -> strategies.v1.StrategyRevision.SavedBy
+	79,  // 120: strategies.v1.CreateStrategyResponse.strategy:type_name -> strategies.v1.Strategy
+	30,  // 121: strategies.v1.CreateStrategyResponse.version:type_name -> strategies.v1.VersionValidation
+	102, // 122: strategies.v1.SaveDraftVersionRequest.manifest:type_name -> google.protobuf.Struct
+	30,  // 123: strategies.v1.SaveDraftVersionResponse.version:type_name -> strategies.v1.VersionValidation
+	79,  // 124: strategies.v1.GetStrategyResponse.strategy:type_name -> strategies.v1.Strategy
+	74,  // 125: strategies.v1.GetStrategyResponse.head:type_name -> strategies.v1.GetStrategyVersionResponse
+	79,  // 126: strategies.v1.ListStrategiesResponse.strategies:type_name -> strategies.v1.Strategy
+	83,  // 127: strategies.v1.ListStrategyRevisionsResponse.revisions:type_name -> strategies.v1.StrategyRevision
+	79,  // 128: strategies.v1.RenameStrategyResponse.strategy:type_name -> strategies.v1.Strategy
+	101, // 129: strategies.v1.BotLogEntry.time:type_name -> google.protobuf.Timestamp
+	10,  // 130: strategies.v1.BotLogEntry.kind:type_name -> strategies.v1.BotLogEntry.Kind
+	101, // 131: strategies.v1.ListBotLogsRequest.start_time:type_name -> google.protobuf.Timestamp
+	98,  // 132: strategies.v1.ListBotLogsResponse.entries:type_name -> strategies.v1.BotLogEntry
+	21,  // 133: strategies.v1.StrategiesService.GetStrategyReference:input_type -> strategies.v1.GetStrategyReferenceRequest
+	25,  // 134: strategies.v1.StrategiesService.ListStrategyTemplates:input_type -> strategies.v1.ListStrategyTemplatesRequest
+	84,  // 135: strategies.v1.StrategiesService.CreateStrategy:input_type -> strategies.v1.CreateStrategyRequest
+	86,  // 136: strategies.v1.StrategiesService.SaveDraftVersion:input_type -> strategies.v1.SaveDraftVersionRequest
+	88,  // 137: strategies.v1.StrategiesService.GetStrategy:input_type -> strategies.v1.GetStrategyRequest
+	90,  // 138: strategies.v1.StrategiesService.ListStrategies:input_type -> strategies.v1.ListStrategiesRequest
+	92,  // 139: strategies.v1.StrategiesService.ListStrategyRevisions:input_type -> strategies.v1.ListStrategyRevisionsRequest
+	94,  // 140: strategies.v1.StrategiesService.RenameStrategy:input_type -> strategies.v1.RenameStrategyRequest
+	96,  // 141: strategies.v1.StrategiesService.DeleteStrategy:input_type -> strategies.v1.DeleteStrategyRequest
+	31,  // 142: strategies.v1.StrategiesService.RunScenarios:input_type -> strategies.v1.RunScenariosRequest
+	40,  // 143: strategies.v1.StrategiesService.StartBacktest:input_type -> strategies.v1.StartBacktestRequest
+	42,  // 144: strategies.v1.StrategiesService.GetBacktest:input_type -> strategies.v1.GetBacktestRequest
+	46,  // 145: strategies.v1.StrategiesService.ExplainStrategy:input_type -> strategies.v1.ExplainStrategyRequest
+	50,  // 146: strategies.v1.StrategiesService.ProposeDeploy:input_type -> strategies.v1.ProposeDeployRequest
+	53,  // 147: strategies.v1.StrategiesService.GetDeployStatus:input_type -> strategies.v1.GetDeployStatusRequest
+	55,  // 148: strategies.v1.StrategiesService.GetDeployProposal:input_type -> strategies.v1.GetDeployProposalRequest
+	60,  // 149: strategies.v1.StrategiesService.ListBots:input_type -> strategies.v1.ListBotsRequest
+	66,  // 150: strategies.v1.StrategiesService.GetBot:input_type -> strategies.v1.GetBotRequest
+	70,  // 151: strategies.v1.StrategiesService.ListBotVersions:input_type -> strategies.v1.ListBotVersionsRequest
+	73,  // 152: strategies.v1.StrategiesService.GetStrategyVersion:input_type -> strategies.v1.GetStrategyVersionRequest
+	99,  // 153: strategies.v1.StrategiesService.ListBotLogs:input_type -> strategies.v1.ListBotLogsRequest
+	67,  // 154: strategies.v1.StrategiesService.StopBot:input_type -> strategies.v1.StopBotRequest
+	22,  // 155: strategies.v1.StrategiesService.GetStrategyReference:output_type -> strategies.v1.GetStrategyReferenceResponse
+	26,  // 156: strategies.v1.StrategiesService.ListStrategyTemplates:output_type -> strategies.v1.ListStrategyTemplatesResponse
+	85,  // 157: strategies.v1.StrategiesService.CreateStrategy:output_type -> strategies.v1.CreateStrategyResponse
+	87,  // 158: strategies.v1.StrategiesService.SaveDraftVersion:output_type -> strategies.v1.SaveDraftVersionResponse
+	89,  // 159: strategies.v1.StrategiesService.GetStrategy:output_type -> strategies.v1.GetStrategyResponse
+	91,  // 160: strategies.v1.StrategiesService.ListStrategies:output_type -> strategies.v1.ListStrategiesResponse
+	93,  // 161: strategies.v1.StrategiesService.ListStrategyRevisions:output_type -> strategies.v1.ListStrategyRevisionsResponse
+	95,  // 162: strategies.v1.StrategiesService.RenameStrategy:output_type -> strategies.v1.RenameStrategyResponse
+	97,  // 163: strategies.v1.StrategiesService.DeleteStrategy:output_type -> strategies.v1.DeleteStrategyResponse
+	33,  // 164: strategies.v1.StrategiesService.RunScenarios:output_type -> strategies.v1.RunScenariosResponse
+	41,  // 165: strategies.v1.StrategiesService.StartBacktest:output_type -> strategies.v1.StartBacktestResponse
+	43,  // 166: strategies.v1.StrategiesService.GetBacktest:output_type -> strategies.v1.GetBacktestResponse
+	47,  // 167: strategies.v1.StrategiesService.ExplainStrategy:output_type -> strategies.v1.ExplainStrategyResponse
+	51,  // 168: strategies.v1.StrategiesService.ProposeDeploy:output_type -> strategies.v1.ProposeDeployResponse
+	54,  // 169: strategies.v1.StrategiesService.GetDeployStatus:output_type -> strategies.v1.GetDeployStatusResponse
+	56,  // 170: strategies.v1.StrategiesService.GetDeployProposal:output_type -> strategies.v1.GetDeployProposalResponse
+	61,  // 171: strategies.v1.StrategiesService.ListBots:output_type -> strategies.v1.ListBotsResponse
+	69,  // 172: strategies.v1.StrategiesService.GetBot:output_type -> strategies.v1.GetBotResponse
+	72,  // 173: strategies.v1.StrategiesService.ListBotVersions:output_type -> strategies.v1.ListBotVersionsResponse
+	74,  // 174: strategies.v1.StrategiesService.GetStrategyVersion:output_type -> strategies.v1.GetStrategyVersionResponse
+	100, // 175: strategies.v1.StrategiesService.ListBotLogs:output_type -> strategies.v1.ListBotLogsResponse
+	68,  // 176: strategies.v1.StrategiesService.StopBot:output_type -> strategies.v1.StopBotResponse
+	155, // [155:177] is the sub-list for method output_type
+	133, // [133:155] is the sub-list for method input_type
+	133, // [133:133] is the sub-list for extension type_name
+	133, // [133:133] is the sub-list for extension extendee
+	0,   // [0:133] is the sub-list for field type_name
 }
 
 func init() { file_strategies_v1_strategies_proto_init() }
@@ -5541,13 +8650,21 @@ func file_strategies_v1_strategies_proto_init() {
 	if File_strategies_v1_strategies_proto != nil {
 		return
 	}
+	file_strategies_v1_strategies_proto_msgTypes[70].OneofWrappers = []any{
+		(*StrategyOrigin_TemplateId)(nil),
+		(*StrategyOrigin_Duplicate)(nil),
+	}
+	file_strategies_v1_strategies_proto_msgTypes[73].OneofWrappers = []any{
+		(*CreateStrategyRequest_TemplateId)(nil),
+		(*CreateStrategyRequest_VersionId)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_strategies_v1_strategies_proto_rawDesc), len(file_strategies_v1_strategies_proto_rawDesc)),
-			NumEnums:      7,
-			NumMessages:   55,
+			NumEnums:      11,
+			NumMessages:   90,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

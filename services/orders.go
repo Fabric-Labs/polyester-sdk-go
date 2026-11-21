@@ -383,6 +383,11 @@ type ModifyParams struct {
 }
 
 // ModifyWith modifies an open order from the expanded parameter set.
+//
+// While a cancel of triggers (Triggers.CancelAll, or CancelAllWith with
+// IncludeTriggers) is ending the order's attached legs, a modify that adds or
+// changes an attached take-profit, stop-loss or trailing leg is refused with
+// the retryable ORDER_MODIFY_IN_PROGRESS: retry it once the legs have ended.
 func (s *OrdersService) ModifyWith(ctx context.Context, account AccountScope, params ModifyParams) (models.ModifyOrderResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.ModifyOrderResult{}, err
@@ -450,6 +455,10 @@ type CancelAllParams struct {
 // outcome is unknown, may be admitted after it and stay open. To stop
 // trading, let the in-flight order calls answer first, or send a second
 // cancel-all with a new request ID after the last of them has answered.
+//
+// Every request counts 10 units of the cancel rate limit, a dry run and a
+// retry with the same request ID included; such a retry returns the original
+// result. To cancel only triggers, use Triggers.CancelAll.
 func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, subAccountID, symbol, side *string, dryRun bool, requestID *string) (models.CancelAllOrdersResult, error) {
 	return s.CancelAllWith(ctx, account, CancelAllParams{
 		SubAccountID: subAccountID,

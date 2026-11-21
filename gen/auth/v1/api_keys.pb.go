@@ -111,6 +111,14 @@ const (
 	// API key can create, promote, change or delete an admin key, including the
 	// key itself; only its owner's session with a fresh step-up proof can.
 	ApiKeyPurpose_ADMIN_KEY ApiKeyPurpose = 3
+	// A strategy bot's trade key, created with SetStrategyBotAccess on the
+	// bot's own sub-account and linked to the bot (strategy_bot_id). Its policy
+	// allows spot trading only, within the sub-account's trading limits, and
+	// never an action that moves value out of the account. No other call
+	// changes, revokes or re-binds it until EndStrategyBotAccess revokes it:
+	// FailedPrecondition with AUTH_STRATEGY_BOT_MANAGED. Disabling its
+	// sub-account disables it.
+	ApiKeyPurpose_STRATEGY_BOT ApiKeyPurpose = 4
 )
 
 // Enum value maps for ApiKeyPurpose.
@@ -120,12 +128,14 @@ var (
 		1: "STANDARD",
 		2: "ASSISTANT",
 		3: "ADMIN_KEY",
+		4: "STRATEGY_BOT",
 	}
 	ApiKeyPurpose_value = map[string]int32{
 		"PURPOSE_UNSPECIFIED": 0,
 		"STANDARD":            1,
 		"ASSISTANT":           2,
 		"ADMIN_KEY":           3,
+		"STRATEGY_BOT":        4,
 	}
 )
 
@@ -272,8 +282,13 @@ type ApiKey struct {
 	// Monotonic resource revision used for conditional updates.
 	Revision uint64 `protobuf:"varint,26,opt,name=revision,proto3" json:"revision,omitempty"`
 	// What the key is for. ASSISTANT keys are managed with SetAssistantKeys and
-	// are otherwise listed, updated and revoked like any key.
-	Purpose       ApiKeyPurpose `protobuf:"varint,27,opt,name=purpose,proto3,enum=auth.v1.ApiKeyPurpose" json:"purpose,omitempty"`
+	// are otherwise listed, updated and revoked like any key. STRATEGY_BOT keys
+	// are managed only with SetStrategyBotAccess and EndStrategyBotAccess.
+	Purpose ApiKeyPurpose `protobuf:"varint,27,opt,name=purpose,proto3,enum=auth.v1.ApiKeyPurpose" json:"purpose,omitempty"`
+	// Strategy bot the key trades for: the bot's public ID (opaque ID), the
+	// same bot_id strategies.v1 GetBot takes. Present only on a STRATEGY_BOT
+	// key.
+	StrategyBotId *uint64 `protobuf:"fixed64,28,opt,name=strategy_bot_id,json=strategyBotId,proto3,oneof" json:"strategy_bot_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -420,6 +435,13 @@ func (x *ApiKey) GetPurpose() ApiKeyPurpose {
 	return ApiKeyPurpose_PURPOSE_UNSPECIFIED
 }
 
+func (x *ApiKey) GetStrategyBotId() uint64 {
+	if x != nil && x.StrategyBotId != nil {
+		return *x.StrategyBotId
+	}
+	return 0
+}
+
 // CreateApiKeyRequest creates a new API key. Clients generate the Ed25519 key
 // pair locally and submit only the public key.
 type CreateApiKeyRequest struct {
@@ -444,7 +466,8 @@ type CreateApiKeyRequest struct {
 	// ADMIN_KEY creates an admin key: only the main account's owner may, in a
 	// signed-in session with a fresh step-up proof, for the main account
 	// (subaccount_id unset), with an ip_whitelist that admin keys accept.
-	// ASSISTANT keys are created with SetAssistantKeys.
+	// ASSISTANT keys are created with SetAssistantKeys, STRATEGY_BOT keys with
+	// SetStrategyBotAccess.
 	Purpose       ApiKeyPurpose `protobuf:"varint,8,opt,name=purpose,proto3,enum=auth.v1.ApiKeyPurpose" json:"purpose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -866,7 +889,8 @@ type ApiKeyUpdateSpec struct {
 	// standard key. Only the main account's owner may select it, in a signed-in session
 	// with a fresh step-up proof. A promoted key must act for the main account,
 	// have an IP allowlist that admin keys accept, and have no policy that
-	// allows a money-out action. An assistant key's purpose never changes.
+	// allows a money-out action. An assistant key's purpose never changes, and
+	// no key becomes or stops being a STRATEGY_BOT key.
 	Purpose       ApiKeyPurpose `protobuf:"varint,7,opt,name=purpose,proto3,enum=auth.v1.ApiKeyPurpose" json:"purpose,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1439,11 +1463,337 @@ func (x *DeleteAssistantKeysResponse) GetRevokedKeyIds() []string {
 	return nil
 }
 
+// StrategyBotLimits are the trading limits of a strategy bot's sub-account.
+// They become the sub-account's policy, which also bounds every member and
+// key of the sub-account. The bot's key policy allows the same markets.
+type StrategyBotLimits struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Spot markets the bot may trade, enforced when spot_market_scope is
+	// ALLOWLIST.
+	SpotMarkets []*SpotMarketSelector `protobuf:"bytes,1,rep,name=spot_markets,json=spotMarkets,proto3" json:"spot_markets,omitempty"`
+	// Market-level scope for spot markets. When unspecified, defaults to ALL.
+	SpotMarketScope MarketScope_Value `protobuf:"varint,2,opt,name=spot_market_scope,json=spotMarketScope,proto3,enum=auth.v1.MarketScope_Value" json:"spot_market_scope,omitempty"`
+	// Maximum notional size for any single order, in canonical quote
+	// microunits (one unit is 0.000001 USDT). A value of 0 means no explicit
+	// cap.
+	MaxOrderNotional uint64 `protobuf:"varint,3,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
+	// Maximum number of resting orders at any time. A value of 0 means no
+	// explicit cap.
+	MaxOpenOrders uint32 `protobuf:"varint,4,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *StrategyBotLimits) Reset() {
+	*x = StrategyBotLimits{}
+	mi := &file_auth_v1_api_keys_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyBotLimits) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyBotLimits) ProtoMessage() {}
+
+func (x *StrategyBotLimits) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_api_keys_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyBotLimits.ProtoReflect.Descriptor instead.
+func (*StrategyBotLimits) Descriptor() ([]byte, []int) {
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *StrategyBotLimits) GetSpotMarkets() []*SpotMarketSelector {
+	if x != nil {
+		return x.SpotMarkets
+	}
+	return nil
+}
+
+func (x *StrategyBotLimits) GetSpotMarketScope() MarketScope_Value {
+	if x != nil {
+		return x.SpotMarketScope
+	}
+	return MarketScope_UNSPECIFIED
+}
+
+func (x *StrategyBotLimits) GetMaxOrderNotional() uint64 {
+	if x != nil {
+		return x.MaxOrderNotional
+	}
+	return 0
+}
+
+func (x *StrategyBotLimits) GetMaxOpenOrders() uint32 {
+	if x != nil {
+		return x.MaxOpenOrders
+	}
+	return 0
+}
+
+// SetStrategyBotAccessRequest gives a strategy bot its trade key on its own
+// sub-account.
+type SetStrategyBotAccessRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identifier of the deploy operation, chosen by the caller and unique
+	// within the main account: 1 to 128 characters of letters, digits, '.',
+	// '_', ':' and '-'. Repeating a request under it changes nothing.
+	DeployOperationId string `protobuf:"bytes,1,opt,name=deploy_operation_id,json=deployOperationId,proto3" json:"deploy_operation_id,omitempty"`
+	// Sub-account the bot trades on (opaque ID).
+	SubaccountId uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
+	// Ed25519 public key bytes of the bot's trade key. Must be exactly 32
+	// bytes. The private key or seed must never be sent to the API.
+	PublicKeyEd25519 []byte `protobuf:"bytes,3,opt,name=public_key_ed25519,json=publicKeyEd25519,proto3" json:"public_key_ed25519,omitempty"`
+	// Strategy bot the key trades for: the bot's public ID (opaque ID), the
+	// same bot_id strategies.v1 GetBot takes.
+	StrategyBotId uint64 `protobuf:"fixed64,4,opt,name=strategy_bot_id,json=strategyBotId,proto3" json:"strategy_bot_id,omitempty"`
+	// Trading limits of the sub-account.
+	Limits        *StrategyBotLimits `protobuf:"bytes,5,opt,name=limits,proto3" json:"limits,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SetStrategyBotAccessRequest) Reset() {
+	*x = SetStrategyBotAccessRequest{}
+	mi := &file_auth_v1_api_keys_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetStrategyBotAccessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetStrategyBotAccessRequest) ProtoMessage() {}
+
+func (x *SetStrategyBotAccessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_api_keys_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetStrategyBotAccessRequest.ProtoReflect.Descriptor instead.
+func (*SetStrategyBotAccessRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{20}
+}
+
+func (x *SetStrategyBotAccessRequest) GetDeployOperationId() string {
+	if x != nil {
+		return x.DeployOperationId
+	}
+	return ""
+}
+
+func (x *SetStrategyBotAccessRequest) GetSubaccountId() uint64 {
+	if x != nil {
+		return x.SubaccountId
+	}
+	return 0
+}
+
+func (x *SetStrategyBotAccessRequest) GetPublicKeyEd25519() []byte {
+	if x != nil {
+		return x.PublicKeyEd25519
+	}
+	return nil
+}
+
+func (x *SetStrategyBotAccessRequest) GetStrategyBotId() uint64 {
+	if x != nil {
+		return x.StrategyBotId
+	}
+	return 0
+}
+
+func (x *SetStrategyBotAccessRequest) GetLimits() *StrategyBotLimits {
+	if x != nil {
+		return x.Limits
+	}
+	return nil
+}
+
+// SetStrategyBotAccessResponse names the bot's key and the policies that
+// bound it.
+type SetStrategyBotAccessResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bot's STRATEGY_BOT key, formatted as "ak_" followed by 32 lowercase
+	// hex characters.
+	KeyId string `protobuf:"bytes,1,opt,name=key_id,json=keyId,proto3" json:"key_id,omitempty"`
+	// API policy bound to the key (opaque ID).
+	ApiPolicyId uint64 `protobuf:"fixed64,2,opt,name=api_policy_id,json=apiPolicyId,proto3" json:"api_policy_id,omitempty"`
+	// Sub-account policy bound to the bot's sub-account (opaque ID).
+	SubaccountPolicyId uint64 `protobuf:"fixed64,3,opt,name=subaccount_policy_id,json=subaccountPolicyId,proto3" json:"subaccount_policy_id,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *SetStrategyBotAccessResponse) Reset() {
+	*x = SetStrategyBotAccessResponse{}
+	mi := &file_auth_v1_api_keys_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SetStrategyBotAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SetStrategyBotAccessResponse) ProtoMessage() {}
+
+func (x *SetStrategyBotAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_api_keys_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SetStrategyBotAccessResponse.ProtoReflect.Descriptor instead.
+func (*SetStrategyBotAccessResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *SetStrategyBotAccessResponse) GetKeyId() string {
+	if x != nil {
+		return x.KeyId
+	}
+	return ""
+}
+
+func (x *SetStrategyBotAccessResponse) GetApiPolicyId() uint64 {
+	if x != nil {
+		return x.ApiPolicyId
+	}
+	return 0
+}
+
+func (x *SetStrategyBotAccessResponse) GetSubaccountPolicyId() uint64 {
+	if x != nil {
+		return x.SubaccountPolicyId
+	}
+	return 0
+}
+
+// EndStrategyBotAccessRequest ends a strategy bot's access.
+type EndStrategyBotAccessRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Identifier of the deploy operation SetStrategyBotAccess was called with,
+	// or would be.
+	DeployOperationId string `protobuf:"bytes,1,opt,name=deploy_operation_id,json=deployOperationId,proto3" json:"deploy_operation_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *EndStrategyBotAccessRequest) Reset() {
+	*x = EndStrategyBotAccessRequest{}
+	mi := &file_auth_v1_api_keys_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EndStrategyBotAccessRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EndStrategyBotAccessRequest) ProtoMessage() {}
+
+func (x *EndStrategyBotAccessRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_api_keys_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EndStrategyBotAccessRequest.ProtoReflect.Descriptor instead.
+func (*EndStrategyBotAccessRequest) Descriptor() ([]byte, []int) {
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *EndStrategyBotAccessRequest) GetDeployOperationId() string {
+	if x != nil {
+		return x.DeployOperationId
+	}
+	return ""
+}
+
+// EndStrategyBotAccessResponse names the key the request revoked.
+type EndStrategyBotAccessResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The bot's key this request revoked. Empty when the operation had no
+	// access to end: none was set under it, or it already ended.
+	RevokedKeyId  string `protobuf:"bytes,1,opt,name=revoked_key_id,json=revokedKeyId,proto3" json:"revoked_key_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EndStrategyBotAccessResponse) Reset() {
+	*x = EndStrategyBotAccessResponse{}
+	mi := &file_auth_v1_api_keys_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EndStrategyBotAccessResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EndStrategyBotAccessResponse) ProtoMessage() {}
+
+func (x *EndStrategyBotAccessResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_api_keys_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EndStrategyBotAccessResponse.ProtoReflect.Descriptor instead.
+func (*EndStrategyBotAccessResponse) Descriptor() ([]byte, []int) {
+	return file_auth_v1_api_keys_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *EndStrategyBotAccessResponse) GetRevokedKeyId() string {
+	if x != nil {
+		return x.RevokedKeyId
+	}
+	return ""
+}
+
 var File_auth_v1_api_keys_proto protoreflect.FileDescriptor
 
 const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xf1\x05\n" +
+	"\x16auth/v1/api_keys.proto\x12\aauth.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x16auth/v1/policies.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xb2\x06\n" +
 	"\x06ApiKey\x12/\n" +
 	"\x06key_id\x18\x02 \x01(\tB\x18\xbaH\x15r\x132\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x14\n" +
 	"\x05label\x18\x03 \x01(\tR\x05label\x12\x1b\n" +
@@ -1465,10 +1815,12 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x19 \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
 	"\brevision\x18\x1a \x01(\x04R\brevision\x120\n" +
-	"\apurpose\x18\x1b \x01(\x0e2\x16.auth.v1.ApiKeyPurposeR\apurposeB\x10\n" +
+	"\apurpose\x18\x1b \x01(\x0e2\x16.auth.v1.ApiKeyPurposeR\apurpose\x12+\n" +
+	"\x0fstrategy_bot_id\x18\x1c \x01(\x06H\x02R\rstrategyBotId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_idB\f\n" +
 	"\n" +
-	"_policy_id\"\xe3\x02\n" +
+	"_policy_idB\x12\n" +
+	"\x10_strategy_bot_id\"\xe5\x02\n" +
 	"\x13CreateApiKeyRequest\x12&\n" +
 	"\x05label\x18\x01 \x01(\tB\x10\xe0A\x02\xbaH\n" +
 	"r\b\x98\xb5\x18\x01\x10\x01\x18@R\x05label\x12(\n" +
@@ -1477,9 +1829,8 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x05color\x18\a \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x124\n" +
 	"\fip_whitelist\x18\x04 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10 \x18\x01\"\x05r\x03\xd0\x01\x01R\vipWhitelist\x128\n" +
 	"\x12public_key_ed25519\x18\x05 \x01(\fB\n" +
-	"\xe0A\x02\xbaH\x04z\x02h R\x10publicKeyEd25519\x12<\n" +
-	"\apurpose\x18\b \x01(\x0e2\x16.auth.v1.ApiKeyPurposeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\apurposeB\x10\n" +
+	"\xe0A\x02\xbaH\x04z\x02h R\x10publicKeyEd25519\x12>\n" +
+	"\apurpose\x18\b \x01(\x0e2\x16.auth.v1.ApiKeyPurposeB\f\xbaH\t\x82\x01\x06\x10\x01 \x02 \x04R\apurposeB\x10\n" +
 	"\x0e_subaccount_id\"@\n" +
 	"\x14CreateApiKeyResponse\x12(\n" +
 	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"P\n" +
@@ -1494,7 +1845,7 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x10GetApiKeyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\"=\n" +
 	"\x11GetApiKeyResponse\x12(\n" +
-	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\x9e\x04\n" +
+	"\aapi_key\x18\x01 \x01(\v2\x0f.auth.v1.ApiKeyR\x06apiKey\"\xa0\x04\n" +
 	"\x10ApiKeyUpdateSpec\x12!\n" +
 	"\x05label\x18\x01 \x01(\tB\v\xbaH\br\x06\x98\xb5\x18\x01\x18@R\x05label\x12\x1b\n" +
 	"\x04icon\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
@@ -1503,9 +1854,8 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\x06status\x124\n" +
 	"\fip_whitelist\x18\x05 \x03(\tB\x11\xbaH\x0e\x92\x01\v\x10 \x18\x01\"\x05r\x03\xd0\x01\x01R\vipWhitelist\x129\n" +
 	"\n" +
-	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12<\n" +
-	"\apurpose\x18\a \x01(\x0e2\x16.auth.v1.ApiKeyPurposeB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x02R\apurpose:\xc0\x01\xbaH\xbc\x01\x1a\xb9\x01\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12>\n" +
+	"\apurpose\x18\a \x01(\x0e2\x16.auth.v1.ApiKeyPurposeB\f\xbaH\t\x82\x01\x06\x10\x01 \x02 \x04R\apurpose:\xc0\x01\xbaH\xbc\x01\x1a\xb9\x01\n" +
 	"\x19expires_at_future_or_zero\x12(expires_at must be in the future or zero\x1ar!has(this.expires_at) ? true : this.expires_at == timestamp('1970-01-01T00:00:00Z') ? true : this.expires_at > now\"\x8b\x02\n" +
 	"\x13UpdateApiKeyRequest\x124\n" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12=\n" +
@@ -1536,22 +1886,45 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\bapi_keys\x18\x01 \x03(\v2\x0f.auth.v1.ApiKeyR\aapiKeys\"\x1c\n" +
 	"\x1aDeleteAssistantKeysRequest\"E\n" +
 	"\x1bDeleteAssistantKeysResponse\x12&\n" +
-	"\x0frevoked_key_ids\x18\x01 \x03(\tR\rrevokedKeyIds*U\n" +
+	"\x0frevoked_key_ids\x18\x01 \x03(\tR\rrevokedKeyIds\"\xa7\x04\n" +
+	"\x11StrategyBotLimits\x12>\n" +
+	"\fspot_markets\x18\x01 \x03(\v2\x1b.auth.v1.SpotMarketSelectorR\vspotMarkets\x12P\n" +
+	"\x11spot_market_scope\x18\x02 \x01(\x0e2\x1a.auth.v1.MarketScope.ValueB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fspotMarketScope\x12,\n" +
+	"\x12max_order_notional\x18\x03 \x01(\x04R\x10maxOrderNotional\x12&\n" +
+	"\x0fmax_open_orders\x18\x04 \x01(\rR\rmaxOpenOrders:\xa9\x02\xbaH\xa5\x02\x1a\xa7\x01\n" +
+	"\x1fspot_allowlist_requires_markets\x12Bspot_markets must be non-empty when spot_market_scope is ALLOWLIST\x1a@this.spot_market_scope != 2 ? true : size(this.spot_markets) > 0\x1ay\n" +
+	"\x13spot_markets_unique\x122spot_markets must not contain duplicate symbol IDs\x1a.this.spot_markets.map(m, m.symbol_id).unique()\"\xdc\x02\n" +
+	"\x1bSetStrategyBotAccessRequest\x12Q\n" +
+	"\x13deploy_operation_id\x18\x01 \x01(\tB!\xe0A\x02\xbaH\x1br\x19\x10\x01\x18\x80\x012\x12^[A-Za-z0-9._:-]+$R\x11deployOperationId\x126\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x128\n" +
+	"\x12public_key_ed25519\x18\x03 \x01(\fB\n" +
+	"\xe0A\x02\xbaH\x04z\x02h R\x10publicKeyEd25519\x129\n" +
+	"\x0fstrategy_bot_id\x18\x04 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\rstrategyBotId\x12=\n" +
+	"\x06limits\x18\x05 \x01(\v2\x1a.auth.v1.StrategyBotLimitsB\t\xe0A\x02\xbaH\x03\xc8\x01\x01R\x06limits\"\x8b\x01\n" +
+	"\x1cSetStrategyBotAccessResponse\x12\x15\n" +
+	"\x06key_id\x18\x01 \x01(\tR\x05keyId\x12\"\n" +
+	"\rapi_policy_id\x18\x02 \x01(\x06R\vapiPolicyId\x120\n" +
+	"\x14subaccount_policy_id\x18\x03 \x01(\x06R\x12subaccountPolicyId\"p\n" +
+	"\x1bEndStrategyBotAccessRequest\x12Q\n" +
+	"\x13deploy_operation_id\x18\x01 \x01(\tB!\xe0A\x02\xbaH\x1br\x19\x10\x01\x18\x80\x012\x12^[A-Za-z0-9._:-]+$R\x11deployOperationId\"D\n" +
+	"\x1cEndStrategyBotAccessResponse\x12$\n" +
+	"\x0erevoked_key_id\x18\x01 \x01(\tR\frevokedKeyId*U\n" +
 	"\fApiKeyStatus\x12\x1e\n" +
 	"\x1aAPI_KEY_STATUS_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\v\n" +
 	"\aREVOKED\x10\x02\x12\f\n" +
-	"\bDISABLED\x10\x03*T\n" +
+	"\bDISABLED\x10\x03*f\n" +
 	"\rApiKeyPurpose\x12\x17\n" +
 	"\x13PURPOSE_UNSPECIFIED\x10\x00\x12\f\n" +
 	"\bSTANDARD\x10\x01\x12\r\n" +
 	"\tASSISTANT\x10\x02\x12\r\n" +
-	"\tADMIN_KEY\x10\x03*T\n" +
+	"\tADMIN_KEY\x10\x03\x12\x10\n" +
+	"\fSTRATEGY_BOT\x10\x04*T\n" +
 	"\x12AssistantKeyPreset\x12\x16\n" +
 	"\x12PRESET_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tREAD_ONLY\x10\x01\x12\x17\n" +
-	"\x13TRADE_WITH_APPROVAL\x10\x022\xdd\x12\n" +
+	"\x13TRADE_WITH_APPROVAL\x10\x022\xaf\x17\n" +
 	"\rApiKeyService\x12\xb0\x02\n" +
 	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xe2\x01\xbaG\xb8\x01\n" +
 	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xe3\x02\n" +
@@ -1568,7 +1941,9 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x11ListAssistantKeys\x12!.auth.v1.ListAssistantKeysRequest\x1a\".auth.v1.ListAssistantKeysResponse\"\x94\x01\xbaGm\n" +
 	"\fAuth Service\x12\x13List Assistant Keys\x1aHList the caller's non-revoked Polyester AI assistant keys, newest first.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19\x12\x17/v1/auth/assistant-keys\x12\x83\x02\n" +
 	"\x13DeleteAssistantKeys\x12#.auth.v1.DeleteAssistantKeysRequest\x1a$.auth.v1.DeleteAssistantKeysResponse\"\xa0\x01\xbaGy\n" +
-	"\fAuth Service\x12\x15Delete Assistant Keys\x1aRRevoke every Polyester AI assistant key the caller set up. Needs no step-up proof.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19*\x17/v1/auth/assistant-keys\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x15Delete Assistant Keys\x1aRRevoke every Polyester AI assistant key the caller set up. Needs no step-up proof.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x19*\x17/v1/auth/assistant-keys\x12\xa2\x03\n" +
+	"\x14SetStrategyBotAccess\x12$.auth.v1.SetStrategyBotAccessRequest\x1a%.auth.v1.SetStrategyBotAccessResponse\"\xbc\x02\x90\xb5\x18\x01\x98\xb5\x18\x01\xa2\xb5\x18\x01\x01\xaa\xb5\x18\x14AUTH_INVALID_REQUEST\xaa\xb5\x18\x13AUTH_POLICY_INVALID\xaa\xb5\x18\x1dAUTH_SESSION_KIND_NOT_ALLOWED\xaa\xb5\x18\x17AUTH_TERMS_NOT_ACCEPTED\xaa\xb5\x18\x15AUTH_MFA_NOT_ENROLLED\xaa\xb5\x18\x15AUTH_STEP_UP_REQUIRED\xaa\xb5\x18\x17AUTH_RESOURCE_NOT_FOUND\xaa\xb5\x18\x1dAUTH_SUBACCOUNT_ACCESS_DENIED\xaa\xb5\x18'AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE\xaa\xb5\x18$AUTH_STRATEGY_BOT_OPERATION_CONFLICT\x90\x02\x02\x12\xaa\x01\n" +
+	"\x14EndStrategyBotAccess\x12$.auth.v1.EndStrategyBotAccessRequest\x1a%.auth.v1.EndStrategyBotAccessResponse\"E\x90\xb5\x18\x01\xa2\xb5\x18\x01\x01\xaa\xb5\x18\x14AUTH_INVALID_REQUEST\xaa\xb5\x18\x1dAUTH_SESSION_KIND_NOT_ALLOWED\x90\x02\x02\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_api_keys_proto_rawDescOnce sync.Once
@@ -1583,76 +1958,90 @@ func file_auth_v1_api_keys_proto_rawDescGZIP() []byte {
 }
 
 var file_auth_v1_api_keys_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_auth_v1_api_keys_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
+var file_auth_v1_api_keys_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_auth_v1_api_keys_proto_goTypes = []any{
-	(ApiKeyStatus)(0),                   // 0: auth.v1.ApiKeyStatus
-	(ApiKeyPurpose)(0),                  // 1: auth.v1.ApiKeyPurpose
-	(AssistantKeyPreset)(0),             // 2: auth.v1.AssistantKeyPreset
-	(*ApiKey)(nil),                      // 3: auth.v1.ApiKey
-	(*CreateApiKeyRequest)(nil),         // 4: auth.v1.CreateApiKeyRequest
-	(*CreateApiKeyResponse)(nil),        // 5: auth.v1.CreateApiKeyResponse
-	(*ListApiKeysRequest)(nil),          // 6: auth.v1.ListApiKeysRequest
-	(*ListApiKeysResponse)(nil),         // 7: auth.v1.ListApiKeysResponse
-	(*DeleteApiKeyRequest)(nil),         // 8: auth.v1.DeleteApiKeyRequest
-	(*DeleteApiKeyResponse)(nil),        // 9: auth.v1.DeleteApiKeyResponse
-	(*GetApiKeyRequest)(nil),            // 10: auth.v1.GetApiKeyRequest
-	(*GetApiKeyResponse)(nil),           // 11: auth.v1.GetApiKeyResponse
-	(*ApiKeyUpdateSpec)(nil),            // 12: auth.v1.ApiKeyUpdateSpec
-	(*UpdateApiKeyRequest)(nil),         // 13: auth.v1.UpdateApiKeyRequest
-	(*UpdateApiKeyResponse)(nil),        // 14: auth.v1.UpdateApiKeyResponse
-	(*AssistantKeySpec)(nil),            // 15: auth.v1.AssistantKeySpec
-	(*SetAssistantKeysRequest)(nil),     // 16: auth.v1.SetAssistantKeysRequest
-	(*SetAssistantKeysResponse)(nil),    // 17: auth.v1.SetAssistantKeysResponse
-	(*ListAssistantKeysRequest)(nil),    // 18: auth.v1.ListAssistantKeysRequest
-	(*ListAssistantKeysResponse)(nil),   // 19: auth.v1.ListAssistantKeysResponse
-	(*DeleteAssistantKeysRequest)(nil),  // 20: auth.v1.DeleteAssistantKeysRequest
-	(*DeleteAssistantKeysResponse)(nil), // 21: auth.v1.DeleteAssistantKeysResponse
-	(*timestamppb.Timestamp)(nil),       // 22: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),       // 23: google.protobuf.FieldMask
+	(ApiKeyStatus)(0),                    // 0: auth.v1.ApiKeyStatus
+	(ApiKeyPurpose)(0),                   // 1: auth.v1.ApiKeyPurpose
+	(AssistantKeyPreset)(0),              // 2: auth.v1.AssistantKeyPreset
+	(*ApiKey)(nil),                       // 3: auth.v1.ApiKey
+	(*CreateApiKeyRequest)(nil),          // 4: auth.v1.CreateApiKeyRequest
+	(*CreateApiKeyResponse)(nil),         // 5: auth.v1.CreateApiKeyResponse
+	(*ListApiKeysRequest)(nil),           // 6: auth.v1.ListApiKeysRequest
+	(*ListApiKeysResponse)(nil),          // 7: auth.v1.ListApiKeysResponse
+	(*DeleteApiKeyRequest)(nil),          // 8: auth.v1.DeleteApiKeyRequest
+	(*DeleteApiKeyResponse)(nil),         // 9: auth.v1.DeleteApiKeyResponse
+	(*GetApiKeyRequest)(nil),             // 10: auth.v1.GetApiKeyRequest
+	(*GetApiKeyResponse)(nil),            // 11: auth.v1.GetApiKeyResponse
+	(*ApiKeyUpdateSpec)(nil),             // 12: auth.v1.ApiKeyUpdateSpec
+	(*UpdateApiKeyRequest)(nil),          // 13: auth.v1.UpdateApiKeyRequest
+	(*UpdateApiKeyResponse)(nil),         // 14: auth.v1.UpdateApiKeyResponse
+	(*AssistantKeySpec)(nil),             // 15: auth.v1.AssistantKeySpec
+	(*SetAssistantKeysRequest)(nil),      // 16: auth.v1.SetAssistantKeysRequest
+	(*SetAssistantKeysResponse)(nil),     // 17: auth.v1.SetAssistantKeysResponse
+	(*ListAssistantKeysRequest)(nil),     // 18: auth.v1.ListAssistantKeysRequest
+	(*ListAssistantKeysResponse)(nil),    // 19: auth.v1.ListAssistantKeysResponse
+	(*DeleteAssistantKeysRequest)(nil),   // 20: auth.v1.DeleteAssistantKeysRequest
+	(*DeleteAssistantKeysResponse)(nil),  // 21: auth.v1.DeleteAssistantKeysResponse
+	(*StrategyBotLimits)(nil),            // 22: auth.v1.StrategyBotLimits
+	(*SetStrategyBotAccessRequest)(nil),  // 23: auth.v1.SetStrategyBotAccessRequest
+	(*SetStrategyBotAccessResponse)(nil), // 24: auth.v1.SetStrategyBotAccessResponse
+	(*EndStrategyBotAccessRequest)(nil),  // 25: auth.v1.EndStrategyBotAccessRequest
+	(*EndStrategyBotAccessResponse)(nil), // 26: auth.v1.EndStrategyBotAccessResponse
+	(*timestamppb.Timestamp)(nil),        // 27: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),        // 28: google.protobuf.FieldMask
+	(*SpotMarketSelector)(nil),           // 29: auth.v1.SpotMarketSelector
+	(MarketScope_Value)(0),               // 30: auth.v1.MarketScope.Value
 }
 var file_auth_v1_api_keys_proto_depIdxs = []int32{
 	0,  // 0: auth.v1.ApiKey.status:type_name -> auth.v1.ApiKeyStatus
-	22, // 1: auth.v1.ApiKey.created_at:type_name -> google.protobuf.Timestamp
-	22, // 2: auth.v1.ApiKey.last_used_at:type_name -> google.protobuf.Timestamp
-	22, // 3: auth.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
-	22, // 4: auth.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
+	27, // 1: auth.v1.ApiKey.created_at:type_name -> google.protobuf.Timestamp
+	27, // 2: auth.v1.ApiKey.last_used_at:type_name -> google.protobuf.Timestamp
+	27, // 3: auth.v1.ApiKey.expires_at:type_name -> google.protobuf.Timestamp
+	27, // 4: auth.v1.ApiKey.updated_at:type_name -> google.protobuf.Timestamp
 	1,  // 5: auth.v1.ApiKey.purpose:type_name -> auth.v1.ApiKeyPurpose
 	1,  // 6: auth.v1.CreateApiKeyRequest.purpose:type_name -> auth.v1.ApiKeyPurpose
 	3,  // 7: auth.v1.CreateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
 	3,  // 8: auth.v1.ListApiKeysResponse.api_keys:type_name -> auth.v1.ApiKey
 	3,  // 9: auth.v1.GetApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
 	0,  // 10: auth.v1.ApiKeyUpdateSpec.status:type_name -> auth.v1.ApiKeyStatus
-	22, // 11: auth.v1.ApiKeyUpdateSpec.expires_at:type_name -> google.protobuf.Timestamp
+	27, // 11: auth.v1.ApiKeyUpdateSpec.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 12: auth.v1.ApiKeyUpdateSpec.purpose:type_name -> auth.v1.ApiKeyPurpose
 	12, // 13: auth.v1.UpdateApiKeyRequest.api_key:type_name -> auth.v1.ApiKeyUpdateSpec
-	23, // 14: auth.v1.UpdateApiKeyRequest.update_mask:type_name -> google.protobuf.FieldMask
+	28, // 14: auth.v1.UpdateApiKeyRequest.update_mask:type_name -> google.protobuf.FieldMask
 	3,  // 15: auth.v1.UpdateApiKeyResponse.api_key:type_name -> auth.v1.ApiKey
-	22, // 16: auth.v1.AssistantKeySpec.registration_deadline:type_name -> google.protobuf.Timestamp
+	27, // 16: auth.v1.AssistantKeySpec.registration_deadline:type_name -> google.protobuf.Timestamp
 	2,  // 17: auth.v1.AssistantKeySpec.preset:type_name -> auth.v1.AssistantKeyPreset
 	15, // 18: auth.v1.SetAssistantKeysRequest.keys:type_name -> auth.v1.AssistantKeySpec
 	3,  // 19: auth.v1.SetAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
 	3,  // 20: auth.v1.ListAssistantKeysResponse.api_keys:type_name -> auth.v1.ApiKey
-	4,  // 21: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
-	6,  // 22: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
-	10, // 23: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
-	8,  // 24: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
-	13, // 25: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
-	16, // 26: auth.v1.ApiKeyService.SetAssistantKeys:input_type -> auth.v1.SetAssistantKeysRequest
-	18, // 27: auth.v1.ApiKeyService.ListAssistantKeys:input_type -> auth.v1.ListAssistantKeysRequest
-	20, // 28: auth.v1.ApiKeyService.DeleteAssistantKeys:input_type -> auth.v1.DeleteAssistantKeysRequest
-	5,  // 29: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
-	7,  // 30: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
-	11, // 31: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
-	9,  // 32: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
-	14, // 33: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
-	17, // 34: auth.v1.ApiKeyService.SetAssistantKeys:output_type -> auth.v1.SetAssistantKeysResponse
-	19, // 35: auth.v1.ApiKeyService.ListAssistantKeys:output_type -> auth.v1.ListAssistantKeysResponse
-	21, // 36: auth.v1.ApiKeyService.DeleteAssistantKeys:output_type -> auth.v1.DeleteAssistantKeysResponse
-	29, // [29:37] is the sub-list for method output_type
-	21, // [21:29] is the sub-list for method input_type
-	21, // [21:21] is the sub-list for extension type_name
-	21, // [21:21] is the sub-list for extension extendee
-	0,  // [0:21] is the sub-list for field type_name
+	29, // 21: auth.v1.StrategyBotLimits.spot_markets:type_name -> auth.v1.SpotMarketSelector
+	30, // 22: auth.v1.StrategyBotLimits.spot_market_scope:type_name -> auth.v1.MarketScope.Value
+	22, // 23: auth.v1.SetStrategyBotAccessRequest.limits:type_name -> auth.v1.StrategyBotLimits
+	4,  // 24: auth.v1.ApiKeyService.CreateApiKey:input_type -> auth.v1.CreateApiKeyRequest
+	6,  // 25: auth.v1.ApiKeyService.ListApiKeys:input_type -> auth.v1.ListApiKeysRequest
+	10, // 26: auth.v1.ApiKeyService.GetApiKey:input_type -> auth.v1.GetApiKeyRequest
+	8,  // 27: auth.v1.ApiKeyService.DeleteApiKey:input_type -> auth.v1.DeleteApiKeyRequest
+	13, // 28: auth.v1.ApiKeyService.UpdateApiKey:input_type -> auth.v1.UpdateApiKeyRequest
+	16, // 29: auth.v1.ApiKeyService.SetAssistantKeys:input_type -> auth.v1.SetAssistantKeysRequest
+	18, // 30: auth.v1.ApiKeyService.ListAssistantKeys:input_type -> auth.v1.ListAssistantKeysRequest
+	20, // 31: auth.v1.ApiKeyService.DeleteAssistantKeys:input_type -> auth.v1.DeleteAssistantKeysRequest
+	23, // 32: auth.v1.ApiKeyService.SetStrategyBotAccess:input_type -> auth.v1.SetStrategyBotAccessRequest
+	25, // 33: auth.v1.ApiKeyService.EndStrategyBotAccess:input_type -> auth.v1.EndStrategyBotAccessRequest
+	5,  // 34: auth.v1.ApiKeyService.CreateApiKey:output_type -> auth.v1.CreateApiKeyResponse
+	7,  // 35: auth.v1.ApiKeyService.ListApiKeys:output_type -> auth.v1.ListApiKeysResponse
+	11, // 36: auth.v1.ApiKeyService.GetApiKey:output_type -> auth.v1.GetApiKeyResponse
+	9,  // 37: auth.v1.ApiKeyService.DeleteApiKey:output_type -> auth.v1.DeleteApiKeyResponse
+	14, // 38: auth.v1.ApiKeyService.UpdateApiKey:output_type -> auth.v1.UpdateApiKeyResponse
+	17, // 39: auth.v1.ApiKeyService.SetAssistantKeys:output_type -> auth.v1.SetAssistantKeysResponse
+	19, // 40: auth.v1.ApiKeyService.ListAssistantKeys:output_type -> auth.v1.ListAssistantKeysResponse
+	21, // 41: auth.v1.ApiKeyService.DeleteAssistantKeys:output_type -> auth.v1.DeleteAssistantKeysResponse
+	24, // 42: auth.v1.ApiKeyService.SetStrategyBotAccess:output_type -> auth.v1.SetStrategyBotAccessResponse
+	26, // 43: auth.v1.ApiKeyService.EndStrategyBotAccess:output_type -> auth.v1.EndStrategyBotAccessResponse
+	34, // [34:44] is the sub-list for method output_type
+	24, // [24:34] is the sub-list for method input_type
+	24, // [24:24] is the sub-list for extension type_name
+	24, // [24:24] is the sub-list for extension extendee
+	0,  // [0:24] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_api_keys_proto_init() }
@@ -1660,6 +2049,7 @@ func file_auth_v1_api_keys_proto_init() {
 	if File_auth_v1_api_keys_proto != nil {
 		return
 	}
+	file_auth_v1_policies_proto_init()
 	file_auth_v1_api_keys_proto_msgTypes[0].OneofWrappers = []any{}
 	file_auth_v1_api_keys_proto_msgTypes[1].OneofWrappers = []any{}
 	file_auth_v1_api_keys_proto_msgTypes[3].OneofWrappers = []any{}
@@ -1670,7 +2060,7 @@ func file_auth_v1_api_keys_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_api_keys_proto_rawDesc), len(file_auth_v1_api_keys_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   19,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

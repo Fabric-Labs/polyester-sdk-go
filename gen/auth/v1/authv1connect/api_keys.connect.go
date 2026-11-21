@@ -56,6 +56,12 @@ const (
 	// ApiKeyServiceDeleteAssistantKeysProcedure is the fully-qualified name of the ApiKeyService's
 	// DeleteAssistantKeys RPC.
 	ApiKeyServiceDeleteAssistantKeysProcedure = "/auth.v1.ApiKeyService/DeleteAssistantKeys"
+	// ApiKeyServiceSetStrategyBotAccessProcedure is the fully-qualified name of the ApiKeyService's
+	// SetStrategyBotAccess RPC.
+	ApiKeyServiceSetStrategyBotAccessProcedure = "/auth.v1.ApiKeyService/SetStrategyBotAccess"
+	// ApiKeyServiceEndStrategyBotAccessProcedure is the fully-qualified name of the ApiKeyService's
+	// EndStrategyBotAccess RPC.
+	ApiKeyServiceEndStrategyBotAccessProcedure = "/auth.v1.ApiKeyService/EndStrategyBotAccess"
 )
 
 // ApiKeyServiceClient is a client for the auth.v1.ApiKeyService service.
@@ -133,7 +139,59 @@ type ApiKeyServiceClient interface {
 	// removes access, so it needs no step-up proof. Revocation is permanent. As
 	// for DeleteApiKey, key management sees it at once, and requests signed with
 	// a revoked key are refused within a few seconds of the response.
+	//
+	// It revokes ASSISTANT keys only. A strategy bot is not the assistant: its
+	// STRATEGY_BOT key stays as it is. To cut a bot off, stop the bot, or
+	// disable its sub-account with UpdateSubaccount, which disables the bot's
+	// key at once; a strategy bot's sub-account cannot be enabled again.
 	DeleteAssistantKeys(context.Context, *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error)
+	// Give a strategy bot its trade key on its own sub-account, in one
+	// all-or-nothing change: a sub-account policy that allows spot trading
+	// only, within limits, bound to the sub-account; an API policy that allows
+	// spot trading over the same markets and reading the sub-account's orders,
+	// balances and profit and loss; and a STRATEGY_BOT key with
+	// public_key_ed25519, bound to that API policy and linked to
+	// strategy_bot_id. Neither policy allows an action that moves value out of
+	// the account.
+	//
+	// An MFA-elevated session (one that completed an MFA challenge in the last
+	// 30 minutes) needs no proof; any other session sends a fresh step-up proof
+	// in the X-Auth-Step-Up header, which the change consumes. Without either,
+	// PermissionDenied with AUTH_STEP_UP_REQUIRED. API keys and connected apps
+	// are refused.
+	//
+	// The sub-account must belong to the caller's main account, else
+	// PermissionDenied with AUTH_SUBACCOUNT_ACCESS_DENIED. It must be active
+	// and not a QuickSwap broker vault, with no policy, no API key that is not
+	// revoked, no member and no pending invite; else FailedPrecondition with
+	// AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE. It may hold deposit addresses:
+	// deposits raise the bot's balance.
+	//
+	// deploy_operation_id makes the call idempotent within the main account:
+	// repeating the same request returns the same key and policies and changes
+	// nothing. A different request under the same identifier, or any request
+	// under one EndStrategyBotAccess ended, returns AlreadyExists with
+	// AUTH_STRATEGY_BOT_OPERATION_CONFLICT.
+	//
+	// Until EndStrategyBotAccess, other calls refuse to change the key, its
+	// policy, or the sub-account's policy, keys, members or invites, or to
+	// enable it again: FailedPrecondition with AUTH_STRATEGY_BOT_MANAGED.
+	// Disabling the sub-account, which disables the key, renaming it and
+	// removing its members stay available.
+	SetStrategyBotAccess(context.Context, *connect.Request[v1.SetStrategyBotAccessRequest]) (*connect.Response[v1.SetStrategyBotAccessResponse], error)
+	// End the strategy bot access SetStrategyBotAccess gave under
+	// deploy_operation_id, in one change: revoke the bot's key and release its
+	// sub-account to the account's own management. The revoked key is no
+	// longer a STRATEGY_BOT key, and the sub-account is released whatever state
+	// the key is in: a disabled sub-account stays disabled, and the account
+	// manages it like any other. The sub-account keeps its policy until the
+	// account changes it. The operation stays ended:
+	// SetStrategyBotAccess under it afterwards, even a delayed original
+	// request, returns AlreadyExists with AUTH_STRATEGY_BOT_OPERATION_CONFLICT.
+	// Ending an operation that set no access, or one already ended, succeeds
+	// and revokes nothing. Ending only removes access, so it needs no step-up
+	// proof. API keys and connected apps are refused.
+	EndStrategyBotAccess(context.Context, *connect.Request[v1.EndStrategyBotAccessRequest]) (*connect.Response[v1.EndStrategyBotAccessResponse], error)
 }
 
 // NewApiKeyServiceClient constructs a client for the auth.v1.ApiKeyService service. By default, it
@@ -195,19 +253,35 @@ func NewApiKeyServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 			connect.WithSchema(apiKeyServiceMethods.ByName("DeleteAssistantKeys")),
 			connect.WithClientOptions(opts...),
 		),
+		setStrategyBotAccess: connect.NewClient[v1.SetStrategyBotAccessRequest, v1.SetStrategyBotAccessResponse](
+			httpClient,
+			baseURL+ApiKeyServiceSetStrategyBotAccessProcedure,
+			connect.WithSchema(apiKeyServiceMethods.ByName("SetStrategyBotAccess")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		endStrategyBotAccess: connect.NewClient[v1.EndStrategyBotAccessRequest, v1.EndStrategyBotAccessResponse](
+			httpClient,
+			baseURL+ApiKeyServiceEndStrategyBotAccessProcedure,
+			connect.WithSchema(apiKeyServiceMethods.ByName("EndStrategyBotAccess")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // apiKeyServiceClient implements ApiKeyServiceClient.
 type apiKeyServiceClient struct {
-	createApiKey        *connect.Client[v1.CreateApiKeyRequest, v1.CreateApiKeyResponse]
-	listApiKeys         *connect.Client[v1.ListApiKeysRequest, v1.ListApiKeysResponse]
-	getApiKey           *connect.Client[v1.GetApiKeyRequest, v1.GetApiKeyResponse]
-	deleteApiKey        *connect.Client[v1.DeleteApiKeyRequest, v1.DeleteApiKeyResponse]
-	updateApiKey        *connect.Client[v1.UpdateApiKeyRequest, v1.UpdateApiKeyResponse]
-	setAssistantKeys    *connect.Client[v1.SetAssistantKeysRequest, v1.SetAssistantKeysResponse]
-	listAssistantKeys   *connect.Client[v1.ListAssistantKeysRequest, v1.ListAssistantKeysResponse]
-	deleteAssistantKeys *connect.Client[v1.DeleteAssistantKeysRequest, v1.DeleteAssistantKeysResponse]
+	createApiKey         *connect.Client[v1.CreateApiKeyRequest, v1.CreateApiKeyResponse]
+	listApiKeys          *connect.Client[v1.ListApiKeysRequest, v1.ListApiKeysResponse]
+	getApiKey            *connect.Client[v1.GetApiKeyRequest, v1.GetApiKeyResponse]
+	deleteApiKey         *connect.Client[v1.DeleteApiKeyRequest, v1.DeleteApiKeyResponse]
+	updateApiKey         *connect.Client[v1.UpdateApiKeyRequest, v1.UpdateApiKeyResponse]
+	setAssistantKeys     *connect.Client[v1.SetAssistantKeysRequest, v1.SetAssistantKeysResponse]
+	listAssistantKeys    *connect.Client[v1.ListAssistantKeysRequest, v1.ListAssistantKeysResponse]
+	deleteAssistantKeys  *connect.Client[v1.DeleteAssistantKeysRequest, v1.DeleteAssistantKeysResponse]
+	setStrategyBotAccess *connect.Client[v1.SetStrategyBotAccessRequest, v1.SetStrategyBotAccessResponse]
+	endStrategyBotAccess *connect.Client[v1.EndStrategyBotAccessRequest, v1.EndStrategyBotAccessResponse]
 }
 
 // CreateApiKey calls auth.v1.ApiKeyService.CreateApiKey.
@@ -248,6 +322,16 @@ func (c *apiKeyServiceClient) ListAssistantKeys(ctx context.Context, req *connec
 // DeleteAssistantKeys calls auth.v1.ApiKeyService.DeleteAssistantKeys.
 func (c *apiKeyServiceClient) DeleteAssistantKeys(ctx context.Context, req *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error) {
 	return c.deleteAssistantKeys.CallUnary(ctx, req)
+}
+
+// SetStrategyBotAccess calls auth.v1.ApiKeyService.SetStrategyBotAccess.
+func (c *apiKeyServiceClient) SetStrategyBotAccess(ctx context.Context, req *connect.Request[v1.SetStrategyBotAccessRequest]) (*connect.Response[v1.SetStrategyBotAccessResponse], error) {
+	return c.setStrategyBotAccess.CallUnary(ctx, req)
+}
+
+// EndStrategyBotAccess calls auth.v1.ApiKeyService.EndStrategyBotAccess.
+func (c *apiKeyServiceClient) EndStrategyBotAccess(ctx context.Context, req *connect.Request[v1.EndStrategyBotAccessRequest]) (*connect.Response[v1.EndStrategyBotAccessResponse], error) {
+	return c.endStrategyBotAccess.CallUnary(ctx, req)
 }
 
 // ApiKeyServiceHandler is an implementation of the auth.v1.ApiKeyService service.
@@ -325,7 +409,59 @@ type ApiKeyServiceHandler interface {
 	// removes access, so it needs no step-up proof. Revocation is permanent. As
 	// for DeleteApiKey, key management sees it at once, and requests signed with
 	// a revoked key are refused within a few seconds of the response.
+	//
+	// It revokes ASSISTANT keys only. A strategy bot is not the assistant: its
+	// STRATEGY_BOT key stays as it is. To cut a bot off, stop the bot, or
+	// disable its sub-account with UpdateSubaccount, which disables the bot's
+	// key at once; a strategy bot's sub-account cannot be enabled again.
 	DeleteAssistantKeys(context.Context, *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error)
+	// Give a strategy bot its trade key on its own sub-account, in one
+	// all-or-nothing change: a sub-account policy that allows spot trading
+	// only, within limits, bound to the sub-account; an API policy that allows
+	// spot trading over the same markets and reading the sub-account's orders,
+	// balances and profit and loss; and a STRATEGY_BOT key with
+	// public_key_ed25519, bound to that API policy and linked to
+	// strategy_bot_id. Neither policy allows an action that moves value out of
+	// the account.
+	//
+	// An MFA-elevated session (one that completed an MFA challenge in the last
+	// 30 minutes) needs no proof; any other session sends a fresh step-up proof
+	// in the X-Auth-Step-Up header, which the change consumes. Without either,
+	// PermissionDenied with AUTH_STEP_UP_REQUIRED. API keys and connected apps
+	// are refused.
+	//
+	// The sub-account must belong to the caller's main account, else
+	// PermissionDenied with AUTH_SUBACCOUNT_ACCESS_DENIED. It must be active
+	// and not a QuickSwap broker vault, with no policy, no API key that is not
+	// revoked, no member and no pending invite; else FailedPrecondition with
+	// AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE. It may hold deposit addresses:
+	// deposits raise the bot's balance.
+	//
+	// deploy_operation_id makes the call idempotent within the main account:
+	// repeating the same request returns the same key and policies and changes
+	// nothing. A different request under the same identifier, or any request
+	// under one EndStrategyBotAccess ended, returns AlreadyExists with
+	// AUTH_STRATEGY_BOT_OPERATION_CONFLICT.
+	//
+	// Until EndStrategyBotAccess, other calls refuse to change the key, its
+	// policy, or the sub-account's policy, keys, members or invites, or to
+	// enable it again: FailedPrecondition with AUTH_STRATEGY_BOT_MANAGED.
+	// Disabling the sub-account, which disables the key, renaming it and
+	// removing its members stay available.
+	SetStrategyBotAccess(context.Context, *connect.Request[v1.SetStrategyBotAccessRequest]) (*connect.Response[v1.SetStrategyBotAccessResponse], error)
+	// End the strategy bot access SetStrategyBotAccess gave under
+	// deploy_operation_id, in one change: revoke the bot's key and release its
+	// sub-account to the account's own management. The revoked key is no
+	// longer a STRATEGY_BOT key, and the sub-account is released whatever state
+	// the key is in: a disabled sub-account stays disabled, and the account
+	// manages it like any other. The sub-account keeps its policy until the
+	// account changes it. The operation stays ended:
+	// SetStrategyBotAccess under it afterwards, even a delayed original
+	// request, returns AlreadyExists with AUTH_STRATEGY_BOT_OPERATION_CONFLICT.
+	// Ending an operation that set no access, or one already ended, succeeds
+	// and revokes nothing. Ending only removes access, so it needs no step-up
+	// proof. API keys and connected apps are refused.
+	EndStrategyBotAccess(context.Context, *connect.Request[v1.EndStrategyBotAccessRequest]) (*connect.Response[v1.EndStrategyBotAccessResponse], error)
 }
 
 // NewApiKeyServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -383,6 +519,20 @@ func NewApiKeyServiceHandler(svc ApiKeyServiceHandler, opts ...connect.HandlerOp
 		connect.WithSchema(apiKeyServiceMethods.ByName("DeleteAssistantKeys")),
 		connect.WithHandlerOptions(opts...),
 	)
+	apiKeyServiceSetStrategyBotAccessHandler := connect.NewUnaryHandler(
+		ApiKeyServiceSetStrategyBotAccessProcedure,
+		svc.SetStrategyBotAccess,
+		connect.WithSchema(apiKeyServiceMethods.ByName("SetStrategyBotAccess")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	apiKeyServiceEndStrategyBotAccessHandler := connect.NewUnaryHandler(
+		ApiKeyServiceEndStrategyBotAccessProcedure,
+		svc.EndStrategyBotAccess,
+		connect.WithSchema(apiKeyServiceMethods.ByName("EndStrategyBotAccess")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/auth.v1.ApiKeyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ApiKeyServiceCreateApiKeyProcedure:
@@ -401,6 +551,10 @@ func NewApiKeyServiceHandler(svc ApiKeyServiceHandler, opts ...connect.HandlerOp
 			apiKeyServiceListAssistantKeysHandler.ServeHTTP(w, r)
 		case ApiKeyServiceDeleteAssistantKeysProcedure:
 			apiKeyServiceDeleteAssistantKeysHandler.ServeHTTP(w, r)
+		case ApiKeyServiceSetStrategyBotAccessProcedure:
+			apiKeyServiceSetStrategyBotAccessHandler.ServeHTTP(w, r)
+		case ApiKeyServiceEndStrategyBotAccessProcedure:
+			apiKeyServiceEndStrategyBotAccessHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -440,4 +594,12 @@ func (UnimplementedApiKeyServiceHandler) ListAssistantKeys(context.Context, *con
 
 func (UnimplementedApiKeyServiceHandler) DeleteAssistantKeys(context.Context, *connect.Request[v1.DeleteAssistantKeysRequest]) (*connect.Response[v1.DeleteAssistantKeysResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ApiKeyService.DeleteAssistantKeys is not implemented"))
+}
+
+func (UnimplementedApiKeyServiceHandler) SetStrategyBotAccess(context.Context, *connect.Request[v1.SetStrategyBotAccessRequest]) (*connect.Response[v1.SetStrategyBotAccessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ApiKeyService.SetStrategyBotAccess is not implemented"))
+}
+
+func (UnimplementedApiKeyServiceHandler) EndStrategyBotAccess(context.Context, *connect.Request[v1.EndStrategyBotAccessRequest]) (*connect.Response[v1.EndStrategyBotAccessResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("auth.v1.ApiKeyService.EndStrategyBotAccess is not implemented"))
 }

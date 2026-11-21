@@ -116,6 +116,13 @@ const (
 	// appears with AFFILIATE fees. On a bridge one, on the credited amount,
 	// charged at payout.
 	FeeKind_REFERRAL FeeKind = 6
+	// Estimated network fee withheld from a RETURN of untraded source funds
+	// on the source route. Contingent: charged only if funds are returned.
+	FeeKind_RETURN_NETWORK FeeKind = 7
+	// Estimated network fee withheld from a REFUND of unconverted intermediate
+	// asset on the refund route (refund_zipped_asset_id). Contingent: charged
+	// only if intermediate funds are refunded.
+	FeeKind_REFUND_NETWORK FeeKind = 8
 )
 
 // Enum value maps for FeeKind.
@@ -128,6 +135,8 @@ var (
 		4: "DEPOSIT_NETWORK",
 		5: "WITHDRAWAL_NETWORK",
 		6: "REFERRAL",
+		7: "RETURN_NETWORK",
+		8: "REFUND_NETWORK",
 	}
 	FeeKind_value = map[string]int32{
 		"FEE_UNSPECIFIED":    0,
@@ -137,6 +146,8 @@ var (
 		"DEPOSIT_NETWORK":    4,
 		"WITHDRAWAL_NETWORK": 5,
 		"REFERRAL":           6,
+		"RETURN_NETWORK":     7,
+		"REFUND_NETWORK":     8,
 	}
 )
 
@@ -246,19 +257,17 @@ const (
 	// network's minimum deposit (DEPOSIT_BELOW_MINIMUM) or above
 	// max_deposit_amount (DEPOSIT_ABOVE_MAXIMUM), or one of the wrong
 	// asset or network (WRONG_ASSET), keeps credited_at and is returned from its
-	// credit. One never credited is returned directly, and direct_return
-	// reports that return.
+	// credit. One never credited, such as one that reached the address after
+	// its one eligible deposit (DEPOSIT_ADDRESS_ALREADY_USED) or after it
+	// retired (DEPOSIT_ADDRESS_RETIRED), is returned directly, and
+	// direct_return reports that return; RETURN_ONLY alone does not confirm
+	// that the return completed.
 	DepositDisposition_RETURN_ONLY DepositDisposition = 3
 	// Held for review; it neither executes nor returns until released. A
 	// deposit blocked by its risk screen (SOURCE_SCREENING_BLOCKED) keeps this
 	// disposition after Zipper's compliance team transferred its funds out
 	// (QuickSwap CLOSED).
 	DepositDisposition_ON_HOLD DepositDisposition = 4
-	// Observed on an address that was already retired (DEPOSIT_ADDRESS_RETIRED).
-	// It never executes and is not returned automatically. It is handled only
-	// through support-assisted recovery, and it is potentially unrecoverable.
-	// The broker contacts Polyester broker support with the swap_id.
-	DepositDisposition_MANUAL_RECOVERY DepositDisposition = 5
 )
 
 // Enum value maps for DepositDisposition.
@@ -269,7 +278,6 @@ var (
 		2: "ELIGIBLE",
 		3: "RETURN_ONLY",
 		4: "ON_HOLD",
-		5: "MANUAL_RECOVERY",
 	}
 	DepositDisposition_value = map[string]int32{
 		"DISPOSITION_UNSPECIFIED": 0,
@@ -277,7 +285,6 @@ var (
 		"ELIGIBLE":                2,
 		"RETURN_ONLY":             3,
 		"ON_HOLD":                 4,
-		"MANUAL_RECOVERY":         5,
 	}
 )
 
@@ -387,8 +394,8 @@ const (
 	// returned to return_address and never executes.
 	QuickSwapReason_DEPOSIT_ADDRESS_ALREADY_USED QuickSwapReason = 23
 	// The address was retired when this deposit was observed. The deposit is
-	// MANUAL_RECOVERY: it never executes, is not returned automatically, and is
-	// potentially unrecoverable.
+	// RETURN_ONLY: it never executes and is returned directly to
+	// return_address when it can be; direct_return reports the return.
 	QuickSwapReason_DEPOSIT_ADDRESS_RETIRED QuickSwapReason = 24
 	// The address had not been issued when this deposit was observed; it never executes.
 	QuickSwapReason_DEPOSIT_ADDRESS_NOT_ISSUED QuickSwapReason = 25
@@ -510,12 +517,17 @@ type DepositReturnState int32
 const (
 	// No state; never returned.
 	DepositReturnState_RETURN_UNSPECIFIED DepositReturnState = 0
-	// The return is queued or being sent.
+	// The return is queued or being sent. Its transaction may still be
+	// replaced, so none is reported yet.
 	DepositReturnState_RETURN_PENDING DepositReturnState = 1
-	// The return was sent to return_address; tx_hash is its transaction.
+	// The return reached return_address and is final on its network; tx_hash
+	// is its transaction. Terminal: the return never changes state again.
 	DepositReturnState_RETURN_COMPLETED DepositReturnState = 2
-	// The return is held for review and is not sent until review releases it.
-	// The broker contacts Polyester broker support with the swap_id.
+	// The return is held and is not sent automatically: it was not possible
+	// (for example no return address, or the funds are no longer at the
+	// deposit address), awaits review, or was settled with support's help.
+	// Review can release it, and it then becomes RETURN_PENDING. The broker
+	// contacts Polyester broker support with the swap_id.
 	DepositReturnState_RETURN_HELD DepositReturnState = 3
 )
 
@@ -1869,10 +1881,13 @@ type QuoteFee struct {
 	// trading fee of the first leg of a two-leg route, which is charged in the
 	// intermediate asset (intermediate_asset_id).
 	ZippedAssetId uint32 `protobuf:"varint,2,opt,name=zipped_asset_id,json=zippedAssetId,proto3" json:"zipped_asset_id,omitempty"`
-	// Fee in zipped_asset_id's token units; for a fee charged in the
-	// intermediate asset, in the intermediate asset at its trading precision
-	// (amount.decimals). An estimate for deposit_amount at the quoted prices,
-	// with trading fees rounded up; the fee charged can be higher or lower.
+	// Fee in zipped_asset_id's token units; for a trading fee of the first leg
+	// of a two-leg route, in the intermediate asset at its trading precision
+	// (amount.decimals). A REFUND_NETWORK fee, though paid in the intermediate
+	// asset, is in the refund route's token units and precision (0.72 USDT on
+	// a 6-decimal route is 720000 with decimals 6). An estimate for
+	// deposit_amount at the quoted prices, with trading fees rounded up; the
+	// fee charged can be higher or lower.
 	Amount *TokenAmount `protobuf:"bytes,3,opt,name=amount,proto3" json:"amount,omitempty"`
 	// Rate of a trading fee in basis points of what the leg receives; zero for
 	// a network fee. The rate, not amount, is what is charged: bps of what the
@@ -2111,9 +2126,16 @@ type QuickSwapQuote struct {
 	// The referral applied; set only when the request carried a
 	// referral_code. A QuickSwap's quote keeps the referral fixed at creation:
 	// later changes to the referral program or partner never change it.
-	Referral      *ReferralPricing `protobuf:"bytes,11,opt,name=referral,proto3" json:"referral,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Referral *ReferralPricing `protobuf:"bytes,11,opt,name=referral,proto3" json:"referral,omitempty"`
+	// Estimated network fees charged only if funds are not delivered:
+	// RETURN_NETWORK, then REFUND_NETWORK when the refund route is known. Not
+	// part of fees or expected_amount_out. A partly traded two-leg QuickSwap can
+	// be charged both. The fee withheld is the network's fee at payout time.
+	// Unlike fees, an entry is never omitted: a known fee of zero is listed
+	// with amount "0".
+	ContingentFees []*QuoteFee `protobuf:"bytes,12,rep,name=contingent_fees,json=contingentFees,proto3" json:"contingent_fees,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *QuickSwapQuote) Reset() {
@@ -2223,6 +2245,13 @@ func (x *QuickSwapQuote) GetReferral() *ReferralPricing {
 	return nil
 }
 
+func (x *QuickSwapQuote) GetContingentFees() []*QuoteFee {
+	if x != nil {
+		return x.ContingentFees
+	}
+	return nil
+}
+
 // Screening is the risk screening of a QuickSwap. A source wallet supplied
 // in the request is screened before the deposit address is issued: a
 // rejected wallet makes the QuickSwap REJECTED with
@@ -2291,14 +2320,20 @@ type DepositInstructions struct {
 	// days after issued_at). A deposit can execute only if Polyester detects it
 	// before this time; detection time counts, not block time, and
 	// confirmations may finish later. A deposit detected at or after this time
-	// never executes. A deposit observed on a retired address is
-	// MANUAL_RECOVERY and is not returned automatically; other late deposits
-	// are RETURN_ONLY. For an unfunded address, address_retires_at equals this
-	// time, so there is no separate scheduled return period. Send deposits well
-	// before this time. Never changes.
+	// never executes; it is RETURN_ONLY, and so is a deposit observed after
+	// the address retired. For an unfunded address, address_retires_at equals
+	// this time, so there is no separate scheduled return period. Send
+	// deposits well before this time. Never changes.
 	FundingExpiresAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=funding_expires_at,json=fundingExpiresAt,proto3" json:"funding_expires_at,omitempty"`
-	// After this time the deposit address is retired and funds sent to it may
-	// not be recoverable. For an unfunded address it equals funding_expires_at.
+	// After this time the deposit address is retired, and a deposit sent to
+	// it later never executes. One that Polyester records on this QuickSwap
+	// is listed in deposits as RETURN_ONLY (DEPOSIT_ADDRESS_RETIRED): it is
+	// returned to return_address when it can be, and its direct_return
+	// reports whether it was. One the network refuses before Polyester
+	// records it is not listed in deposits, and nothing on any QuickSwap
+	// reports it or its return; report its transaction to Polyester broker
+	// support with the swap_id. For an unfunded address it equals
+	// funding_expires_at.
 	// After a deposit is accepted it is provisional, a lower bound, until
 	// Polyester releases the deposit address, which can be shortly after the
 	// QuickSwap becomes terminal; from then on it is at least 7 days after all
@@ -2428,9 +2463,9 @@ type Deposit struct {
 	Amount *TokenAmount `protobuf:"bytes,5,opt,name=amount,proto3" json:"amount,omitempty"`
 	// What this deposit may do.
 	Disposition DepositDisposition `protobuf:"varint,8,opt,name=disposition,proto3,enum=swap.quickswap.v1.DepositDisposition" json:"disposition,omitempty"`
-	// Why the disposition is RETURN_ONLY, ON_HOLD or MANUAL_RECOVERY;
-	// REASON_UNSPECIFIED otherwise, and for a deposit ON_HOLD for review
-	// without a more specific reason.
+	// Why the disposition is RETURN_ONLY or ON_HOLD; REASON_UNSPECIFIED
+	// otherwise, and for a deposit ON_HOLD for review without a more specific
+	// reason.
 	Reason QuickSwapReason `protobuf:"varint,9,opt,name=reason,proto3,enum=swap.quickswap.v1.QuickSwapReason" json:"reason,omitempty"`
 	// Current source-network confirmations; zero until the source network
 	// reports any. Never decreases.
@@ -2451,10 +2486,9 @@ type Deposit struct {
 	FlowId string `protobuf:"bytes,14,opt,name=flow_id,json=flowId,proto3" json:"flow_id,omitempty"`
 	// Direct return to return_address of a deposit that was never credited: a
 	// RETURN_ONLY deposit that reached the address after its one eligible
-	// deposit or after its funding window. On a MANUAL_RECOVERY deposit it
-	// reports a direct return once one is recorded. Unset until a direct return
-	// is recorded, and on every other deposit, which is returned through
-	// withdrawals.
+	// deposit, after its funding window or after the address retired. Unset
+	// until a direct return is recorded, and on every other deposit, which is
+	// returned through withdrawals.
 	DirectReturn *DepositReturn `protobuf:"bytes,15,opt,name=direct_return,json=directReturn,proto3" json:"direct_return,omitempty"`
 	// Deposit network fee that Zipper withheld from this deposit when it
 	// took the deposit in, in zipped_asset_id's token units; zero when it
@@ -2602,7 +2636,7 @@ type DepositReturn struct {
 	// Return progress. Accept state values added later.
 	State DepositReturnState `protobuf:"varint,1,opt,name=state,proto3,enum=swap.quickswap.v1.DepositReturnState" json:"state,omitempty"`
 	// Return transaction on the deposit's network, in the network's native
-	// text form; set once RETURN_COMPLETED.
+	// text form; set only once RETURN_COMPLETED, and then never changes.
 	TxHash string `protobuf:"bytes,2,opt,name=tx_hash,json=txHash,proto3" json:"tx_hash,omitempty"`
 	// When the return last changed state.
 	UpdatedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
@@ -3210,9 +3244,8 @@ type QuickSwap struct {
 	// added later. Polling can stop at a terminal status. A terminal status
 	// never changes. Shortly after it, address_retires_at can still move later,
 	// and withdrawal details can be corrected as documented on Withdrawal;
-	// another deposit reaching the address also shows as RETURN_ONLY, and
-	// another deposit observed on an already retired address shows as
-	// MANUAL_RECOVERY. Such a deposit is returned directly, not through
+	// another deposit reaching the address, before or after it retired, also
+	// shows as RETURN_ONLY. Such a deposit is returned directly, not through
 	// withdrawals: its direct_return reports the return, and RETURN_ONLY alone
 	// does not confirm a completed return.
 	// An EXPIRED QuickSwap whose dropped or replaced deposit confirms after all
@@ -3724,9 +3757,14 @@ type QuoteQuickSwapRequest struct {
 	// networks, including the Bitcoin and Solana test networks, and wallets
 	// whose screening is unavailable at the time, are quoted without it; their
 	// deposits are still screened on arrival.
-	SourceWallet  string `protobuf:"bytes,5,opt,name=source_wallet,json=sourceWallet,proto3" json:"source_wallet,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	SourceWallet string `protobuf:"bytes,5,opt,name=source_wallet,json=sourceWallet,proto3" json:"source_wallet,omitempty"`
+	// Optional refund route, as CreateQuickSwapRequest.refund_zipped_asset_id
+	// and validated the same way. On a two-leg route it fixes the intermediate
+	// asset, as create does, and adds REFUND_NETWORK to contingent_fees. It is
+	// unused on a direct route or a bridge.
+	RefundZippedAssetId uint32 `protobuf:"varint,6,opt,name=refund_zipped_asset_id,json=refundZippedAssetId,proto3" json:"refund_zipped_asset_id,omitempty"`
+	unknownFields       protoimpl.UnknownFields
+	sizeCache           protoimpl.SizeCache
 }
 
 func (x *QuoteQuickSwapRequest) Reset() {
@@ -3792,6 +3830,13 @@ func (x *QuoteQuickSwapRequest) GetSourceWallet() string {
 		return x.SourceWallet
 	}
 	return ""
+}
+
+func (x *QuoteQuickSwapRequest) GetRefundZippedAssetId() uint32 {
+	if x != nil {
+		return x.RefundZippedAssetId
+	}
+	return 0
 }
 
 // QuoteQuickSwapResponse is an indicative quote.
@@ -4483,7 +4528,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x0fReferralPricing\x12&\n" +
 	"\x0fbase_broker_bps\x18\x01 \x01(\rR\rbaseBrokerBps\x12!\n" +
 	"\fdiscount_bps\x18\x02 \x01(\rR\vdiscountBps\x12%\n" +
-	"\x0ecommission_bps\x18\x03 \x01(\rR\rcommissionBps\"\xbd\x05\n" +
+	"\x0ecommission_bps\x18\x03 \x01(\rR\rcommissionBps\"\x83\x06\n" +
 	"\x0eQuickSwapQuote\x12E\n" +
 	"\x0edeposit_amount\x18\x01 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\rdepositAmount\x12N\n" +
 	"\x13expected_amount_out\x18\x02 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x11expectedAmountOut\x12D\n" +
@@ -4497,7 +4542,8 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\n" +
 	"expires_at\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12>\n" +
-	"\breferral\x18\v \x01(\v2\".swap.quickswap.v1.ReferralPricingR\breferral\"0\n" +
+	"\breferral\x18\v \x01(\v2\".swap.quickswap.v1.ReferralPricingR\breferral\x12D\n" +
+	"\x0fcontingent_fees\x18\f \x03(\v2\x1b.swap.quickswap.v1.QuoteFeeR\x0econtingentFees\"0\n" +
 	"\tScreening\x12#\n" +
 	"\rsource_wallet\x18\x02 \x01(\tR\fsourceWallet\"\xb6\x03\n" +
 	"\x13DepositInstructions\x12\x18\n" +
@@ -4667,7 +4713,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"account_id\x18\x02 \x01(\x06R\taccountId\x12\x19\n" +
 	"\basset_id\x18\x03 \x01(\rR\aassetId\x126\n" +
 	"\x06amount\x18\x04 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\x06amount\x12;\n" +
-	"\tvalue_usd\x18\x05 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\bvalueUsd\"\xf4\x06\n" +
+	"\tvalue_usd\x18\x05 \x01(\v2\x1e.swap.quickswap.v1.TokenAmountR\bvalueUsd\"\xa9\a\n" +
 	"\x15QuoteQuickSwapRequest\x12?\n" +
 	"\x05terms\x18\x01 \x01(\v2!.swap.quickswap.v1.QuickSwapTermsB\x06\xbaH\x03\xc8\x01\x01R\x05terms\x12'\n" +
 	"\n" +
@@ -4677,7 +4723,8 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\x1aaffiliates.distinct_vaults\x12&each affiliate vault may be named once\x1a\"this.map(a, a.account_id).unique()\x92\x01\x02\x10\x03R\n" +
 	"affiliates\x12,\n" +
 	"\rreferral_code\x18\x04 \x01(\tB\a\xbaH\x04r\x02(@R\freferralCode\x12-\n" +
-	"\rsource_wallet\x18\x05 \x01(\tB\b\xbaH\x05r\x03(\x80\x02R\fsourceWallet:\xda\x03\xbaH\xd6\x03\x1a\xb0\x02\n" +
+	"\rsource_wallet\x18\x05 \x01(\tB\b\xbaH\x05r\x03(\x80\x02R\fsourceWallet\x123\n" +
+	"\x16refund_zipped_asset_id\x18\x06 \x01(\rR\x13refundZippedAssetId:\xda\x03\xbaH\xd6\x03\x1a\xb0\x02\n" +
 	"\"quote_quickswap_request.fees_total\x129broker_bps and the affiliates' bps must total at most 300\x1a\xce\x01this.broker_bps + (this.affiliates.size() > 0 ? this.affiliates[0].bps : 0u) + (this.affiliates.size() > 1 ? this.affiliates[1].bps : 0u) + (this.affiliates.size() > 2 ? this.affiliates[2].bps : 0u) <= 300u\x1a\xa0\x01\n" +
 	"3quote_quickswap_request.referral_without_affiliates\x120referral_code cannot be combined with affiliates\x1a7this.referral_code == '' || this.affiliates.size() == 0\"Q\n" +
 	"\x16QuoteQuickSwapResponse\x127\n" +
@@ -4732,7 +4779,7 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"QuoteBasis\x12\x15\n" +
 	"\x11BASIS_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rSOURCE_AMOUNT\x10\x01\x12\x16\n" +
-	"\x12DESTINATION_AMOUNT\x10\x02*\x81\x01\n" +
+	"\x12DESTINATION_AMOUNT\x10\x02*\xa9\x01\n" +
 	"\aFeeKind\x12\x13\n" +
 	"\x0fFEE_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aSERVICE\x10\x01\x12\n" +
@@ -4741,21 +4788,22 @@ const file_swap_quickswap_v1_quickswap_proto_rawDesc = "" +
 	"\tAFFILIATE\x10\x03\x12\x13\n" +
 	"\x0fDEPOSIT_NETWORK\x10\x04\x12\x16\n" +
 	"\x12WITHDRAWAL_NETWORK\x10\x05\x12\f\n" +
-	"\bREFERRAL\x10\x06*X\n" +
+	"\bREFERRAL\x10\x06\x12\x12\n" +
+	"\x0eRETURN_NETWORK\x10\a\x12\x12\n" +
+	"\x0eREFUND_NETWORK\x10\b*X\n" +
 	"\x13DepositAddressState\x12\x17\n" +
 	"\x13ADDRESS_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06ACTIVE\x10\x01\x12\x0f\n" +
 	"\vREFUND_MODE\x10\x02\x12\v\n" +
-	"\aRETIRED\x10\x03*\x82\x01\n" +
+	"\aRETIRED\x10\x03*m\n" +
 	"\x12DepositDisposition\x12\x1b\n" +
 	"\x17DISPOSITION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
 	"EVALUATING\x10\x01\x12\f\n" +
 	"\bELIGIBLE\x10\x02\x12\x0f\n" +
 	"\vRETURN_ONLY\x10\x03\x12\v\n" +
-	"\aON_HOLD\x10\x04\x12\x13\n" +
-	"\x0fMANUAL_RECOVERY\x10\x05*\xf7\x04\n" +
+	"\aON_HOLD\x10\x04*\xf7\x04\n" +
 	"\x0fQuickSwapReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1b\n" +
 	"\x17SOURCE_SCREENING_FAILED\x10\x01\x12\x18\n" +
@@ -4974,88 +5022,89 @@ var file_swap_quickswap_v1_quickswap_proto_depIdxs = []int32{
 	41, // 15: swap.quickswap.v1.QuickSwapQuote.quoted_at:type_name -> google.protobuf.Timestamp
 	41, // 16: swap.quickswap.v1.QuickSwapQuote.expires_at:type_name -> google.protobuf.Timestamp
 	20, // 17: swap.quickswap.v1.QuickSwapQuote.referral:type_name -> swap.quickswap.v1.ReferralPricing
-	41, // 18: swap.quickswap.v1.DepositInstructions.issued_at:type_name -> google.protobuf.Timestamp
-	41, // 19: swap.quickswap.v1.DepositInstructions.funding_expires_at:type_name -> google.protobuf.Timestamp
-	41, // 20: swap.quickswap.v1.DepositInstructions.address_retires_at:type_name -> google.protobuf.Timestamp
-	2,  // 21: swap.quickswap.v1.DepositInstructions.address_state:type_name -> swap.quickswap.v1.DepositAddressState
-	13, // 22: swap.quickswap.v1.Deposit.amount:type_name -> swap.quickswap.v1.TokenAmount
-	3,  // 23: swap.quickswap.v1.Deposit.disposition:type_name -> swap.quickswap.v1.DepositDisposition
-	4,  // 24: swap.quickswap.v1.Deposit.reason:type_name -> swap.quickswap.v1.QuickSwapReason
-	41, // 25: swap.quickswap.v1.Deposit.detected_at:type_name -> google.protobuf.Timestamp
-	41, // 26: swap.quickswap.v1.Deposit.credited_at:type_name -> google.protobuf.Timestamp
-	25, // 27: swap.quickswap.v1.Deposit.direct_return:type_name -> swap.quickswap.v1.DepositReturn
-	13, // 28: swap.quickswap.v1.Deposit.network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	5,  // 29: swap.quickswap.v1.DepositReturn.state:type_name -> swap.quickswap.v1.DepositReturnState
-	41, // 30: swap.quickswap.v1.DepositReturn.updated_at:type_name -> google.protobuf.Timestamp
-	13, // 31: swap.quickswap.v1.ExecutionProgress.input_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 32: swap.quickswap.v1.ExecutionProgress.executed_input:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 33: swap.quickswap.v1.ExecutionProgress.output_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 34: swap.quickswap.v1.ExecutionProgress.intermediate_remainder:type_name -> swap.quickswap.v1.TokenAmount
-	41, // 35: swap.quickswap.v1.ExecutionProgress.started_at:type_name -> google.protobuf.Timestamp
-	41, // 36: swap.quickswap.v1.ExecutionProgress.deadline:type_name -> google.protobuf.Timestamp
-	41, // 37: swap.quickswap.v1.ExecutionProgress.finished_at:type_name -> google.protobuf.Timestamp
-	27, // 38: swap.quickswap.v1.ExecutionProgress.slices:type_name -> swap.quickswap.v1.ExecutionSlice
-	10, // 39: swap.quickswap.v1.ExecutionProgress.slices_unavailable_reason:type_name -> swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
-	41, // 40: swap.quickswap.v1.ExecutionSlice.planned_at:type_name -> google.protobuf.Timestamp
-	41, // 41: swap.quickswap.v1.ExecutionSlice.executed_at:type_name -> google.protobuf.Timestamp
-	41, // 42: swap.quickswap.v1.ExecutionSlice.finished_at:type_name -> google.protobuf.Timestamp
-	11, // 43: swap.quickswap.v1.ExecutionSlice.state:type_name -> swap.quickswap.v1.ExecutionSlice.State
-	12, // 44: swap.quickswap.v1.ExecutionSlice.reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
-	13, // 45: swap.quickswap.v1.ExecutionSlice.input_traded:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 46: swap.quickswap.v1.ExecutionSlice.output_received:type_name -> swap.quickswap.v1.TokenAmount
-	40, // 47: swap.quickswap.v1.ExecutionSlice.second_leg:type_name -> swap.quickswap.v1.ExecutionSlice.SecondLeg
-	13, // 48: swap.quickswap.v1.ExecutionSlice.intermediate_carried:type_name -> swap.quickswap.v1.TokenAmount
-	12, // 49: swap.quickswap.v1.ExecutionSlice.carry_reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
-	6,  // 50: swap.quickswap.v1.Withdrawal.role:type_name -> swap.quickswap.v1.WithdrawalRole
-	13, // 51: swap.quickswap.v1.Withdrawal.amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 52: swap.quickswap.v1.Withdrawal.network_fee:type_name -> swap.quickswap.v1.TokenAmount
-	7,  // 53: swap.quickswap.v1.Withdrawal.state:type_name -> swap.quickswap.v1.WithdrawalState
-	41, // 54: swap.quickswap.v1.Withdrawal.submitted_at:type_name -> google.protobuf.Timestamp
-	41, // 55: swap.quickswap.v1.Withdrawal.finalized_at:type_name -> google.protobuf.Timestamp
-	13, // 56: swap.quickswap.v1.Withdrawal.unsent_amount:type_name -> swap.quickswap.v1.TokenAmount
-	8,  // 57: swap.quickswap.v1.QuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
-	4,  // 58: swap.quickswap.v1.QuickSwap.reason:type_name -> swap.quickswap.v1.QuickSwapReason
-	18, // 59: swap.quickswap.v1.QuickSwap.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	21, // 60: swap.quickswap.v1.QuickSwap.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
-	23, // 61: swap.quickswap.v1.QuickSwap.deposit_instructions:type_name -> swap.quickswap.v1.DepositInstructions
-	22, // 62: swap.quickswap.v1.QuickSwap.screening:type_name -> swap.quickswap.v1.Screening
-	24, // 63: swap.quickswap.v1.QuickSwap.deposits:type_name -> swap.quickswap.v1.Deposit
-	26, // 64: swap.quickswap.v1.QuickSwap.execution:type_name -> swap.quickswap.v1.ExecutionProgress
-	28, // 65: swap.quickswap.v1.QuickSwap.withdrawals:type_name -> swap.quickswap.v1.Withdrawal
-	41, // 66: swap.quickswap.v1.QuickSwap.created_at:type_name -> google.protobuf.Timestamp
-	41, // 67: swap.quickswap.v1.QuickSwap.updated_at:type_name -> google.protobuf.Timestamp
-	41, // 68: swap.quickswap.v1.QuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
-	30, // 69: swap.quickswap.v1.QuickSwap.fees:type_name -> swap.quickswap.v1.RequestedFees
-	31, // 70: swap.quickswap.v1.QuickSwap.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
-	13, // 71: swap.quickswap.v1.QuickSwap.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 72: swap.quickswap.v1.QuickSwap.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	34, // 73: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	1,  // 74: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
-	13, // 75: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 76: swap.quickswap.v1.ChargedFee.value_usd:type_name -> swap.quickswap.v1.TokenAmount
-	18, // 77: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	34, // 78: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	21, // 79: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
-	18, // 80: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
-	34, // 81: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
-	29, // 82: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	29, // 83: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
-	9,  // 84: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
-	13, // 85: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 86: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 87: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
-	13, // 88: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
-	32, // 89: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
-	35, // 90: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
-	37, // 91: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
-	33, // 92: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
-	36, // 93: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
-	38, // 94: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
-	92, // [92:95] is the sub-list for method output_type
-	89, // [89:92] is the sub-list for method input_type
-	89, // [89:89] is the sub-list for extension type_name
-	89, // [89:89] is the sub-list for extension extendee
-	0,  // [0:89] is the sub-list for field type_name
+	19, // 18: swap.quickswap.v1.QuickSwapQuote.contingent_fees:type_name -> swap.quickswap.v1.QuoteFee
+	41, // 19: swap.quickswap.v1.DepositInstructions.issued_at:type_name -> google.protobuf.Timestamp
+	41, // 20: swap.quickswap.v1.DepositInstructions.funding_expires_at:type_name -> google.protobuf.Timestamp
+	41, // 21: swap.quickswap.v1.DepositInstructions.address_retires_at:type_name -> google.protobuf.Timestamp
+	2,  // 22: swap.quickswap.v1.DepositInstructions.address_state:type_name -> swap.quickswap.v1.DepositAddressState
+	13, // 23: swap.quickswap.v1.Deposit.amount:type_name -> swap.quickswap.v1.TokenAmount
+	3,  // 24: swap.quickswap.v1.Deposit.disposition:type_name -> swap.quickswap.v1.DepositDisposition
+	4,  // 25: swap.quickswap.v1.Deposit.reason:type_name -> swap.quickswap.v1.QuickSwapReason
+	41, // 26: swap.quickswap.v1.Deposit.detected_at:type_name -> google.protobuf.Timestamp
+	41, // 27: swap.quickswap.v1.Deposit.credited_at:type_name -> google.protobuf.Timestamp
+	25, // 28: swap.quickswap.v1.Deposit.direct_return:type_name -> swap.quickswap.v1.DepositReturn
+	13, // 29: swap.quickswap.v1.Deposit.network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	5,  // 30: swap.quickswap.v1.DepositReturn.state:type_name -> swap.quickswap.v1.DepositReturnState
+	41, // 31: swap.quickswap.v1.DepositReturn.updated_at:type_name -> google.protobuf.Timestamp
+	13, // 32: swap.quickswap.v1.ExecutionProgress.input_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 33: swap.quickswap.v1.ExecutionProgress.executed_input:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 34: swap.quickswap.v1.ExecutionProgress.output_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 35: swap.quickswap.v1.ExecutionProgress.intermediate_remainder:type_name -> swap.quickswap.v1.TokenAmount
+	41, // 36: swap.quickswap.v1.ExecutionProgress.started_at:type_name -> google.protobuf.Timestamp
+	41, // 37: swap.quickswap.v1.ExecutionProgress.deadline:type_name -> google.protobuf.Timestamp
+	41, // 38: swap.quickswap.v1.ExecutionProgress.finished_at:type_name -> google.protobuf.Timestamp
+	27, // 39: swap.quickswap.v1.ExecutionProgress.slices:type_name -> swap.quickswap.v1.ExecutionSlice
+	10, // 40: swap.quickswap.v1.ExecutionProgress.slices_unavailable_reason:type_name -> swap.quickswap.v1.ExecutionProgress.SlicesUnavailableReason
+	41, // 41: swap.quickswap.v1.ExecutionSlice.planned_at:type_name -> google.protobuf.Timestamp
+	41, // 42: swap.quickswap.v1.ExecutionSlice.executed_at:type_name -> google.protobuf.Timestamp
+	41, // 43: swap.quickswap.v1.ExecutionSlice.finished_at:type_name -> google.protobuf.Timestamp
+	11, // 44: swap.quickswap.v1.ExecutionSlice.state:type_name -> swap.quickswap.v1.ExecutionSlice.State
+	12, // 45: swap.quickswap.v1.ExecutionSlice.reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
+	13, // 46: swap.quickswap.v1.ExecutionSlice.input_traded:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 47: swap.quickswap.v1.ExecutionSlice.output_received:type_name -> swap.quickswap.v1.TokenAmount
+	40, // 48: swap.quickswap.v1.ExecutionSlice.second_leg:type_name -> swap.quickswap.v1.ExecutionSlice.SecondLeg
+	13, // 49: swap.quickswap.v1.ExecutionSlice.intermediate_carried:type_name -> swap.quickswap.v1.TokenAmount
+	12, // 50: swap.quickswap.v1.ExecutionSlice.carry_reason:type_name -> swap.quickswap.v1.ExecutionSlice.Reason
+	6,  // 51: swap.quickswap.v1.Withdrawal.role:type_name -> swap.quickswap.v1.WithdrawalRole
+	13, // 52: swap.quickswap.v1.Withdrawal.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 53: swap.quickswap.v1.Withdrawal.network_fee:type_name -> swap.quickswap.v1.TokenAmount
+	7,  // 54: swap.quickswap.v1.Withdrawal.state:type_name -> swap.quickswap.v1.WithdrawalState
+	41, // 55: swap.quickswap.v1.Withdrawal.submitted_at:type_name -> google.protobuf.Timestamp
+	41, // 56: swap.quickswap.v1.Withdrawal.finalized_at:type_name -> google.protobuf.Timestamp
+	13, // 57: swap.quickswap.v1.Withdrawal.unsent_amount:type_name -> swap.quickswap.v1.TokenAmount
+	8,  // 58: swap.quickswap.v1.QuickSwap.status:type_name -> swap.quickswap.v1.QuickSwapStatus
+	4,  // 59: swap.quickswap.v1.QuickSwap.reason:type_name -> swap.quickswap.v1.QuickSwapReason
+	18, // 60: swap.quickswap.v1.QuickSwap.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	21, // 61: swap.quickswap.v1.QuickSwap.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
+	23, // 62: swap.quickswap.v1.QuickSwap.deposit_instructions:type_name -> swap.quickswap.v1.DepositInstructions
+	22, // 63: swap.quickswap.v1.QuickSwap.screening:type_name -> swap.quickswap.v1.Screening
+	24, // 64: swap.quickswap.v1.QuickSwap.deposits:type_name -> swap.quickswap.v1.Deposit
+	26, // 65: swap.quickswap.v1.QuickSwap.execution:type_name -> swap.quickswap.v1.ExecutionProgress
+	28, // 66: swap.quickswap.v1.QuickSwap.withdrawals:type_name -> swap.quickswap.v1.Withdrawal
+	41, // 67: swap.quickswap.v1.QuickSwap.created_at:type_name -> google.protobuf.Timestamp
+	41, // 68: swap.quickswap.v1.QuickSwap.updated_at:type_name -> google.protobuf.Timestamp
+	41, // 69: swap.quickswap.v1.QuickSwap.terminal_at:type_name -> google.protobuf.Timestamp
+	30, // 70: swap.quickswap.v1.QuickSwap.fees:type_name -> swap.quickswap.v1.RequestedFees
+	31, // 71: swap.quickswap.v1.QuickSwap.charged_fees:type_name -> swap.quickswap.v1.ChargedFee
+	13, // 72: swap.quickswap.v1.QuickSwap.deposited_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 73: swap.quickswap.v1.QuickSwap.delivered_value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	34, // 74: swap.quickswap.v1.RequestedFees.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	1,  // 75: swap.quickswap.v1.ChargedFee.kind:type_name -> swap.quickswap.v1.FeeKind
+	13, // 76: swap.quickswap.v1.ChargedFee.amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 77: swap.quickswap.v1.ChargedFee.value_usd:type_name -> swap.quickswap.v1.TokenAmount
+	18, // 78: swap.quickswap.v1.QuoteQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	34, // 79: swap.quickswap.v1.QuoteQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	21, // 80: swap.quickswap.v1.QuoteQuickSwapResponse.quote:type_name -> swap.quickswap.v1.QuickSwapQuote
+	18, // 81: swap.quickswap.v1.CreateQuickSwapRequest.terms:type_name -> swap.quickswap.v1.QuickSwapTerms
+	34, // 82: swap.quickswap.v1.CreateQuickSwapRequest.affiliates:type_name -> swap.quickswap.v1.AffiliateShare
+	29, // 83: swap.quickswap.v1.CreateQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	29, // 84: swap.quickswap.v1.GetQuickSwapResponse.quick_swap:type_name -> swap.quickswap.v1.QuickSwap
+	9,  // 85: swap.quickswap.v1.ErrorDetail.code:type_name -> swap.quickswap.v1.ErrorCode
+	13, // 86: swap.quickswap.v1.ErrorDetail.min_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 87: swap.quickswap.v1.ErrorDetail.max_deposit_amount:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 88: swap.quickswap.v1.ExecutionSlice.SecondLeg.input_traded:type_name -> swap.quickswap.v1.TokenAmount
+	13, // 89: swap.quickswap.v1.ExecutionSlice.SecondLeg.output_received:type_name -> swap.quickswap.v1.TokenAmount
+	32, // 90: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:input_type -> swap.quickswap.v1.QuoteQuickSwapRequest
+	35, // 91: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:input_type -> swap.quickswap.v1.CreateQuickSwapRequest
+	37, // 92: swap.quickswap.v1.QuickSwapService.GetQuickSwap:input_type -> swap.quickswap.v1.GetQuickSwapRequest
+	33, // 93: swap.quickswap.v1.QuickSwapService.QuoteQuickSwap:output_type -> swap.quickswap.v1.QuoteQuickSwapResponse
+	36, // 94: swap.quickswap.v1.QuickSwapService.CreateQuickSwap:output_type -> swap.quickswap.v1.CreateQuickSwapResponse
+	38, // 95: swap.quickswap.v1.QuickSwapService.GetQuickSwap:output_type -> swap.quickswap.v1.GetQuickSwapResponse
+	93, // [93:96] is the sub-list for method output_type
+	90, // [90:93] is the sub-list for method input_type
+	90, // [90:90] is the sub-list for extension type_name
+	90, // [90:90] is the sub-list for extension extendee
+	0,  // [0:90] is the sub-list for field type_name
 }
 
 func init() { file_swap_quickswap_v1_quickswap_proto_init() }

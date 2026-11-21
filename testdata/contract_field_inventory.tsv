@@ -1,6 +1,7 @@
 # Every field of the request and reply messages public contracts 1945423c
 # and 5c2119f added or changed, and of the messages nested in their new
-# replies, and of the lifecycle flow views. A guard test walks these messages and fails when a field is missing
+# replies, of the lifecycle flow views, and of the balance read, profit and
+# loss and trigger cancel-all messages. A guard test walks these messages and fails when a field is missing
 # here or listed but gone, so no field of them is dropped by accident.
 #
 # covered: the SDK parameter (request) or model field (reply) that carries it.
@@ -262,3 +263,104 @@ auth.v1.ActivityEvent.actor_account_id	covered	models.SubAccountActivityEvent.Ac
 auth.v1.ActivityEvent.payload_json	covered	models.SubAccountActivityEvent.PayloadJSON
 auth.v1.ActivityEvent.subaccount_id	covered	models.SubAccountActivityEvent.SubaccountID
 auth.v1.ActivityEvent.actor_api_key_id	covered	models.SubAccountActivityEvent.ActorAPIKeyID
+ledger.read.v1.AssetBalance.asset_id	covered	models.AssetBalance.AssetID
+ledger.read.v1.AssetBalance.available	covered	models.AssetBalance.Available
+ledger.read.v1.AssetBalance.funding	covered	models.AssetBalance.Funding
+ledger.read.v1.AssetBalance.funding_revision	covered	models.AssetBalance.FundingRevision
+ledger.read.v1.AssetBalance.reserved	covered	models.AssetBalance.Reserved
+ledger.read.v1.AssetBalance.trading	covered	models.AssetBalance.Trading
+ledger.read.v1.GetBalancesResponse.balances	covered	models.BalancesList.Balances
+ledger.read.v1.GetBalancesResponse.trading_applied_through_ts_ns	covered	models.BalancesList.TradingAppliedThroughTsNs
+ledger.read.v1.GetBalancesResponse.trading_epoch	covered	models.BalancesList.TradingEpoch
+ledger.read.v1.GetBalancesResponse.trading_sequence	covered	models.BalancesList.TradingSequence
+ledger.read.v1.TransferRow.account_code	covered	models.LedgerTransfer.AccountCode
+ledger.read.v1.TransferRow.amount_e18	covered	models.LedgerTransfer.Amount
+ledger.read.v1.TransferRow.asset_id	covered	models.LedgerTransfer.AssetID
+ledger.read.v1.TransferRow.balance_after_e18	covered	models.LedgerTransfer.BalanceAfter
+ledger.read.v1.TransferRow.destination	covered	models.LedgerTransfer.Destination
+ledger.read.v1.TransferRow.flow_id	covered	models.LedgerTransfer.TxID
+ledger.read.v1.TransferRow.is_debit	covered	models.LedgerTransfer.IsDebit
+ledger.read.v1.TransferRow.link_id	covered	models.LedgerTransfer.LinkID
+ledger.read.v1.TransferRow.source	covered	models.LedgerTransfer.Source
+ledger.read.v1.TransferRow.transfer_code	covered	models.LedgerTransfer.TransferType
+ledger.read.v1.TransferRow.transfer_id	covered	models.LedgerTransfer.TransferID
+ledger.read.v1.TransferRow.ts_ns	covered	models.LedgerTransfer.TsNs
+ledger.read.v1.TransferRow.ts_us	covered	models.LedgerTransfer.Timestamp
+pnl.v1.DailyProfitAndLoss.day	covered	models.DailyProfitAndLoss.Day
+pnl.v1.DailyProfitAndLoss.end_equity_usd	covered	models.DailyProfitAndLoss.EndEquityUSD
+pnl.v1.DailyProfitAndLoss.fees_usd	covered	models.DailyProfitAndLoss.FeesUSD
+pnl.v1.DailyProfitAndLoss.net_flow_usd	covered	models.DailyProfitAndLoss.NetFlowUSD
+pnl.v1.DailyProfitAndLoss.notices	covered	models.DailyProfitAndLoss.Notices
+pnl.v1.DailyProfitAndLoss.pnl_usd	covered	models.DailyProfitAndLoss.PnLUSD
+pnl.v1.DailyProfitAndLoss.realized_pnl_usd	covered	models.DailyProfitAndLoss.RealizedPnLUSD
+pnl.v1.DailyProfitAndLoss.start_equity_usd	covered	models.DailyProfitAndLoss.StartEquityUSD
+pnl.v1.DailyProfitAndLoss.trade_count	covered	models.DailyProfitAndLoss.TradeCount
+pnl.v1.DailyProfitAndLoss.unrealized_pnl_at_close_usd	covered	models.DailyProfitAndLoss.UnrealizedPnLAtCloseUSD
+pnl.v1.DailyProfitAndLoss.volume_usd	covered	models.DailyProfitAndLoss.VolumeUSD
+pnl.v1.GetProfitAndLossRequest.product	covered	ProfitAndLossParams.Product
+pnl.v1.GetProfitAndLossRequest.subaccount_id	covered	ProfitAndLossParams.Account, SubAccountID
+pnl.v1.GetProfitAndLossRequest.symbol_id	covered	ProfitAndLossParams.Symbol, SymbolID
+pnl.v1.GetProfitAndLossRequest.window	covered	ProfitAndLossParams.Window
+pnl.v1.GetProfitAndLossResponse.as_of	covered	models.ProfitAndLoss.AsOf
+pnl.v1.GetProfitAndLossResponse.fees_usd	covered	models.ProfitAndLoss.FeesUSD
+pnl.v1.GetProfitAndLossResponse.holdings	covered	models.ProfitAndLoss.Holdings
+pnl.v1.GetProfitAndLossResponse.mark_time	covered	models.ProfitAndLoss.MarkTime
+pnl.v1.GetProfitAndLossResponse.markets	covered	models.ProfitAndLoss.Markets
+pnl.v1.GetProfitAndLossResponse.notices	covered	models.ProfitAndLoss.Notices
+pnl.v1.GetProfitAndLossResponse.pnl_usd	covered	models.ProfitAndLoss.PnLUSD
+pnl.v1.GetProfitAndLossResponse.products	covered	models.ProfitAndLoss.Products
+pnl.v1.GetProfitAndLossResponse.realized_pnl_usd	covered	models.ProfitAndLoss.RealizedPnLUSD
+pnl.v1.GetProfitAndLossResponse.unrealized_pnl_change_usd	covered	models.ProfitAndLoss.UnrealizedPnLChangeUSD
+pnl.v1.GetProfitAndLossResponse.unrealized_pnl_usd	covered	models.ProfitAndLoss.UnrealizedPnLUSD
+pnl.v1.GetProfitAndLossResponse.volume_usd	covered	models.ProfitAndLoss.VolumeUSD
+pnl.v1.GetProfitAndLossResponse.window_start	covered	models.ProfitAndLoss.WindowStart
+pnl.v1.GetTradingStatisticsRequest.product	covered	ProfitAndLossParams.Product
+pnl.v1.GetTradingStatisticsRequest.subaccount_id	covered	ProfitAndLossParams.Account, SubAccountID
+pnl.v1.GetTradingStatisticsRequest.symbol_id	covered	ProfitAndLossParams.Symbol, SymbolID
+pnl.v1.GetTradingStatisticsRequest.window	covered	ProfitAndLossParams.Window
+pnl.v1.GetTradingStatisticsResponse.as_of	covered	models.TradingStatistics.AsOf
+pnl.v1.GetTradingStatisticsResponse.fees_usd	covered	models.TradingStatistics.FeesUSD
+pnl.v1.GetTradingStatisticsResponse.max_drawdown_pct	covered	models.TradingStatistics.MaxDrawdownPct
+pnl.v1.GetTradingStatisticsResponse.notices	covered	models.TradingStatistics.Notices
+pnl.v1.GetTradingStatisticsResponse.realized_pnl_usd	covered	models.TradingStatistics.RealizedPnLUSD
+pnl.v1.GetTradingStatisticsResponse.return_days	covered	models.TradingStatistics.ReturnDays
+pnl.v1.GetTradingStatisticsResponse.return_pct	covered	models.TradingStatistics.ReturnPct
+pnl.v1.GetTradingStatisticsResponse.sharpe	covered	models.TradingStatistics.Sharpe
+pnl.v1.GetTradingStatisticsResponse.trade_count	covered	models.TradingStatistics.TradeCount
+pnl.v1.GetTradingStatisticsResponse.volume_usd	covered	models.TradingStatistics.VolumeUSD
+pnl.v1.GetTradingStatisticsResponse.window_start	covered	models.TradingStatistics.WindowStart
+pnl.v1.HoldingProfitAndLoss.asset_id	covered	models.HoldingProfitAndLoss.AssetID
+pnl.v1.HoldingProfitAndLoss.cost_usd	covered	models.HoldingProfitAndLoss.CostUSD
+pnl.v1.HoldingProfitAndLoss.entry_price_usd	covered	models.HoldingProfitAndLoss.EntryPriceUSD
+pnl.v1.HoldingProfitAndLoss.mark_price_usd	covered	models.HoldingProfitAndLoss.MarkPriceUSD
+pnl.v1.HoldingProfitAndLoss.position_quantity	covered	models.HoldingProfitAndLoss.PositionQuantity
+pnl.v1.HoldingProfitAndLoss.unrealized_pnl_usd	covered	models.HoldingProfitAndLoss.UnrealizedPnLUSD
+pnl.v1.HoldingProfitAndLoss.untracked_quantity	covered	models.HoldingProfitAndLoss.UntrackedQuantity
+pnl.v1.ListDailyProfitAndLossRequest.end_time	covered	ListDailyProfitAndLossParams.EndTime
+pnl.v1.ListDailyProfitAndLossRequest.limit	covered	ListDailyProfitAndLossParams.Limit
+pnl.v1.ListDailyProfitAndLossRequest.page_token	covered	ListDailyProfitAndLossParams.PageToken
+pnl.v1.ListDailyProfitAndLossRequest.start_time	covered	ListDailyProfitAndLossParams.StartTime
+pnl.v1.ListDailyProfitAndLossRequest.subaccount_id	covered	ListDailyProfitAndLossParams.Account, SubAccountID
+pnl.v1.ListDailyProfitAndLossResponse.as_of	covered	models.DailyProfitAndLossList.AsOf
+pnl.v1.ListDailyProfitAndLossResponse.days	covered	models.DailyProfitAndLossList.Days
+pnl.v1.ListDailyProfitAndLossResponse.next_page_token	covered	models.DailyProfitAndLossList.NextPageToken
+pnl.v1.MarketProfitAndLoss.fees_usd	covered	models.MarketProfitAndLoss.FeesUSD
+pnl.v1.MarketProfitAndLoss.product	covered	models.MarketProfitAndLoss.Product
+pnl.v1.MarketProfitAndLoss.realized_pnl_usd	covered	models.MarketProfitAndLoss.RealizedPnLUSD
+pnl.v1.MarketProfitAndLoss.symbol_id	covered	models.MarketProfitAndLoss.SymbolID
+pnl.v1.MarketProfitAndLoss.trade_count	covered	models.MarketProfitAndLoss.TradeCount
+pnl.v1.MarketProfitAndLoss.volume_usd	covered	models.MarketProfitAndLoss.VolumeUSD
+pnl.v1.ProductProfitAndLoss.fees_usd	covered	models.ProductProfitAndLoss.FeesUSD
+pnl.v1.ProductProfitAndLoss.product	covered	models.ProductProfitAndLoss.Product
+pnl.v1.ProductProfitAndLoss.realized_pnl_usd	covered	models.ProductProfitAndLoss.RealizedPnLUSD
+pnl.v1.ProductProfitAndLoss.volume_usd	covered	models.ProductProfitAndLoss.VolumeUSD
+triggers.v1.CancelAllTriggersRequest.dry_run	covered	CancelAllTriggersParams.DryRun
+triggers.v1.CancelAllTriggersRequest.request_id	covered	CancelAllTriggersParams.RequestID
+triggers.v1.CancelAllTriggersRequest.side	covered	CancelAllTriggersParams.Side
+triggers.v1.CancelAllTriggersRequest.subaccount_id	covered	CancelAllTriggersParams.SubAccountID
+triggers.v1.CancelAllTriggersRequest.symbol_ids	covered	CancelAllTriggersParams.Symbol, Symbols, SymbolIDs
+triggers.v1.CancelAllTriggersRequest.trigger_types	covered	CancelAllTriggersParams.TriggerTypes
+triggers.v1.CancelAllTriggersResponse.matched_triggers	covered	models.CancelAllTriggersResult.MatchedTriggers
+triggers.v1.CancelAllTriggersResponse.status	covered	models.CancelAllTriggersResult.Status
+triggers.v1.CancelAllTriggersResponse.ts	covered	models.CancelAllTriggersResult.TsNs
+triggers.v1.CancelAllTriggersResponse.ts_ns	covered	models.CancelAllTriggersResult.TsNs

@@ -298,16 +298,22 @@ type QuickSwapBrokerServiceClient interface {
 	// - NOT_FOUND: BROKER_NOT_FOUND.
 	// - INVALID_ARGUMENT: vault_account_id is not a public sub-account ID.
 	GetFeeTotals(context.Context, *connect.Request[v1.GetFeeTotalsRequest]) (*connect.Response[v1.GetFeeTotalsResponse], error)
-	// GetBrokerStats reads the broker's QuickSwap activity in a window.
+	// GetBrokerStats reads the broker's QuickSwap activity in a window, in
+	// columns per UTC hour, day or month.
 	//
-	// Per UTC day or month: QuickSwaps created by status, deposits credited
-	// and payouts delivered per asset, and the service, broker, affiliate and
-	// referral fees charged per asset.
+	// QuickSwaps created by status, deposits credited, payouts delivered and
+	// fees charged, as exact amounts per asset and USD values, for the broker
+	// as a whole and, with a breakdown, for every route, vault, source asset
+	// or destination asset with activity in the window. Per-bucket columns go
+	// to the totals, the 10 groups with the most deposited USD, an optional
+	// drill-down group and the rest summed as others.
 	//
 	// Errors:
+	//   - INVALID_ARGUMENT: a malformed request, a window too long for its
+	//     period, a drill-down that is not a group of the breakdown, or a
+	//     vault_account_id that is not a public sub-account ID.
 	//   - NOT_FOUND: BROKER_NOT_FOUND.
-	//   - INTERNAL: STATS_INCOMPLETE, with the swap_id of a QuickSwap whose
-	//     records the stats cannot read.
+	//   - UNAVAILABLE: the statistics are temporarily unavailable; retry.
 	GetBrokerStats(context.Context, *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error)
 	// ListPayouts lists the payout runs of the broker's vaults.
 	//
@@ -960,16 +966,22 @@ type QuickSwapBrokerServiceHandler interface {
 	// - NOT_FOUND: BROKER_NOT_FOUND.
 	// - INVALID_ARGUMENT: vault_account_id is not a public sub-account ID.
 	GetFeeTotals(context.Context, *connect.Request[v1.GetFeeTotalsRequest]) (*connect.Response[v1.GetFeeTotalsResponse], error)
-	// GetBrokerStats reads the broker's QuickSwap activity in a window.
+	// GetBrokerStats reads the broker's QuickSwap activity in a window, in
+	// columns per UTC hour, day or month.
 	//
-	// Per UTC day or month: QuickSwaps created by status, deposits credited
-	// and payouts delivered per asset, and the service, broker, affiliate and
-	// referral fees charged per asset.
+	// QuickSwaps created by status, deposits credited, payouts delivered and
+	// fees charged, as exact amounts per asset and USD values, for the broker
+	// as a whole and, with a breakdown, for every route, vault, source asset
+	// or destination asset with activity in the window. Per-bucket columns go
+	// to the totals, the 10 groups with the most deposited USD, an optional
+	// drill-down group and the rest summed as others.
 	//
 	// Errors:
+	//   - INVALID_ARGUMENT: a malformed request, a window too long for its
+	//     period, a drill-down that is not a group of the breakdown, or a
+	//     vault_account_id that is not a public sub-account ID.
 	//   - NOT_FOUND: BROKER_NOT_FOUND.
-	//   - INTERNAL: STATS_INCOMPLETE, with the swap_id of a QuickSwap whose
-	//     records the stats cannot read.
+	//   - UNAVAILABLE: the statistics are temporarily unavailable; retry.
 	GetBrokerStats(context.Context, *connect.Request[v1.GetBrokerStatsRequest]) (*connect.Response[v1.GetBrokerStatsResponse], error)
 	// ListPayouts lists the payout runs of the broker's vaults.
 	//

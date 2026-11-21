@@ -57,6 +57,9 @@ const (
 	// TriggersServiceBatchCancelTriggersProcedure is the fully-qualified name of the TriggersService's
 	// BatchCancelTriggers RPC.
 	TriggersServiceBatchCancelTriggersProcedure = "/triggers.v1.TriggersService/BatchCancelTriggers"
+	// TriggersServiceCancelAllTriggersProcedure is the fully-qualified name of the TriggersService's
+	// CancelAllTriggers RPC.
+	TriggersServiceCancelAllTriggersProcedure = "/triggers.v1.TriggersService/CancelAllTriggers"
 	// TriggersServiceModifyTriggerProcedure is the fully-qualified name of the TriggersService's
 	// ModifyTrigger RPC.
 	TriggersServiceModifyTriggerProcedure = "/triggers.v1.TriggersService/ModifyTrigger"
@@ -77,28 +80,28 @@ type TriggersServiceClient interface {
 	CreateOco(context.Context, *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error)
 	// Cancel both legs of an OCO.
 	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
-	// Get a trigger by ID. Costs one unit of the root account's trading read
-	// limit.
+	// Get a trigger by ID. Costs one unit of the account's trading read limit.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
 	// List triggers for a sub-account with optional filters. Costs one unit of
-	// the root account's trading read limit per 100 rows the limit asks for,
+	// the account's trading read limit per 100 rows the limit asks for,
 	// rounded up.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history). A trigger the caller cannot
 	// read (no such trigger, another account's, or one outside the selected
 	// sub-account) answers NOT_FOUND, as GetTrigger does. A trigger the caller
 	// can read that has no event yet answers an empty list. Costs two units of
-	// the root account's trading read limit per 100 rows the limit asks for,
+	// the account's trading read limit per 100 rows the limit asks for,
 	// rounded up.
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
 	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
 	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder
 	// also cancels its open child orders.
-	// OrdersService.CancelAllOrders and the dead-man switch
-	// (OrdersService.CancelAllAfter) cancel open orders only, never triggers:
-	// after either, armed stops and running TWAPs can still place orders. To
-	// stop them, cancel each live trigger with this method; ListTriggers lists
-	// them.
+	// To cancel many triggers in one request, use CancelAllTriggers, which
+	// cancels every trigger matching symbols, side and trigger types and no
+	// order. OrdersService.CancelAllOrders and the dead-man switch
+	// (OrdersService.CancelAllAfter) cancel triggers only with
+	// `include_triggers`; without it, armed stops and running TWAPs can still
+	// place orders after either.
 	// A trigger that has ended (completed, canceled or failed) answers a
 	// cancel with ERROR_CODE_TRIGGER_STATUS_INVALID for at least 60 s after it
 	// ends, including a repeat of a cancel that succeeded and a cancel retried
@@ -124,6 +127,31 @@ type TriggersServiceClient interface {
 	// minutes: a retry with the same trigger_ids returns the original results,
 	// so retry a request that timed out unchanged.
 	BatchCancelTriggers(context.Context, *connect.Request[v1.BatchCancelTriggersRequest]) (*connect.Response[v1.BatchCancelTriggersResponse], error)
+	// Cancel all of the account's triggers that match the filters (symbols,
+	// side and trigger types) in one request, without canceling any order.
+	// Unless dry_run is set, what it cancels is fixed when its request_id is
+	// first accepted: every matching trigger created before that, and none
+	// created after it. Each ends canceled with reason
+	// TRIGGER_CANCEL_REASON_CANCEL_ALL and releases its reserved funds, and
+	// none places an order after the response. Its open orders are canceled
+	// with it, as CancelTrigger cancels them: a TWAP's working slice, a
+	// ladder's open levels, and the working exit of an attached take-profit,
+	// stop-loss or trailing leg. An order that a stop already placed when it
+	// fired is a plain order and stays open; so does the parent order of
+	// canceled attached legs, which then has no protection left. Use
+	// OrdersService.CancelAllOrders for orders; its `include_triggers` cancels
+	// orders and triggers in one request.
+	//
+	// Every request counts 10 against the account's cancel rate limit, as a
+	// CancelAllOrders does, however many triggers it cancels: a dry run and a
+	// retry with the same request_id count the same. A retry with the same
+	// request_id and criteria
+	// within two minutes returns the original outcome and cancels nothing
+	// again; the same request_id with other criteria is rejected with
+	// ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE. A rejected request, or one
+	// whose outcome is unknown, is no barrier: retry it with the same
+	// request_id, or list the triggers before relying on it.
+	CancelAllTriggers(context.Context, *connect.Request[v1.CancelAllTriggersRequest]) (*connect.Response[v1.CancelAllTriggersResponse], error)
 	// Modify a trigger (limited patch).
 	ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error)
 	// Pause a trigger (sets status=PAUSED).
@@ -191,6 +219,12 @@ func NewTriggersServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(triggersServiceMethods.ByName("BatchCancelTriggers")),
 			connect.WithClientOptions(opts...),
 		),
+		cancelAllTriggers: connect.NewClient[v1.CancelAllTriggersRequest, v1.CancelAllTriggersResponse](
+			httpClient,
+			baseURL+TriggersServiceCancelAllTriggersProcedure,
+			connect.WithSchema(triggersServiceMethods.ByName("CancelAllTriggers")),
+			connect.WithClientOptions(opts...),
+		),
 		modifyTrigger: connect.NewClient[v1.ModifyTriggerRequest, v1.ModifyTriggerResponse](
 			httpClient,
 			baseURL+TriggersServiceModifyTriggerProcedure,
@@ -222,6 +256,7 @@ type triggersServiceClient struct {
 	listTriggerEvents   *connect.Client[v1.ListTriggerEventsRequest, v1.ListTriggerEventsResponse]
 	cancelTrigger       *connect.Client[v1.CancelTriggerRequest, v1.CancelTriggerResponse]
 	batchCancelTriggers *connect.Client[v1.BatchCancelTriggersRequest, v1.BatchCancelTriggersResponse]
+	cancelAllTriggers   *connect.Client[v1.CancelAllTriggersRequest, v1.CancelAllTriggersResponse]
 	modifyTrigger       *connect.Client[v1.ModifyTriggerRequest, v1.ModifyTriggerResponse]
 	pauseTrigger        *connect.Client[v1.PauseTriggerRequest, v1.PauseTriggerResponse]
 	resumeTrigger       *connect.Client[v1.ResumeTriggerRequest, v1.ResumeTriggerResponse]
@@ -267,6 +302,11 @@ func (c *triggersServiceClient) BatchCancelTriggers(ctx context.Context, req *co
 	return c.batchCancelTriggers.CallUnary(ctx, req)
 }
 
+// CancelAllTriggers calls triggers.v1.TriggersService.CancelAllTriggers.
+func (c *triggersServiceClient) CancelAllTriggers(ctx context.Context, req *connect.Request[v1.CancelAllTriggersRequest]) (*connect.Response[v1.CancelAllTriggersResponse], error) {
+	return c.cancelAllTriggers.CallUnary(ctx, req)
+}
+
 // ModifyTrigger calls triggers.v1.TriggersService.ModifyTrigger.
 func (c *triggersServiceClient) ModifyTrigger(ctx context.Context, req *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error) {
 	return c.modifyTrigger.CallUnary(ctx, req)
@@ -291,28 +331,28 @@ type TriggersServiceHandler interface {
 	CreateOco(context.Context, *connect.Request[v1.CreateOcoRequest]) (*connect.Response[v1.CreateOcoResponse], error)
 	// Cancel both legs of an OCO.
 	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
-	// Get a trigger by ID. Costs one unit of the root account's trading read
-	// limit.
+	// Get a trigger by ID. Costs one unit of the account's trading read limit.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
 	// List triggers for a sub-account with optional filters. Costs one unit of
-	// the root account's trading read limit per 100 rows the limit asks for,
+	// the account's trading read limit per 100 rows the limit asks for,
 	// rounded up.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history). A trigger the caller cannot
 	// read (no such trigger, another account's, or one outside the selected
 	// sub-account) answers NOT_FOUND, as GetTrigger does. A trigger the caller
 	// can read that has no event yet answers an empty list. Costs two units of
-	// the root account's trading read limit per 100 rows the limit asks for,
+	// the account's trading read limit per 100 rows the limit asks for,
 	// rounded up.
 	ListTriggerEvents(context.Context, *connect.Request[v1.ListTriggerEventsRequest]) (*connect.Response[v1.ListTriggerEventsResponse], error)
 	// Cancel a trigger: a standalone stop-loss, take-profit, trailing stop,
 	// TWAP or ladder, or an order's attached leg. Canceling a TWAP or a ladder
 	// also cancels its open child orders.
-	// OrdersService.CancelAllOrders and the dead-man switch
-	// (OrdersService.CancelAllAfter) cancel open orders only, never triggers:
-	// after either, armed stops and running TWAPs can still place orders. To
-	// stop them, cancel each live trigger with this method; ListTriggers lists
-	// them.
+	// To cancel many triggers in one request, use CancelAllTriggers, which
+	// cancels every trigger matching symbols, side and trigger types and no
+	// order. OrdersService.CancelAllOrders and the dead-man switch
+	// (OrdersService.CancelAllAfter) cancel triggers only with
+	// `include_triggers`; without it, armed stops and running TWAPs can still
+	// place orders after either.
 	// A trigger that has ended (completed, canceled or failed) answers a
 	// cancel with ERROR_CODE_TRIGGER_STATUS_INVALID for at least 60 s after it
 	// ends, including a repeat of a cancel that succeeded and a cancel retried
@@ -338,6 +378,31 @@ type TriggersServiceHandler interface {
 	// minutes: a retry with the same trigger_ids returns the original results,
 	// so retry a request that timed out unchanged.
 	BatchCancelTriggers(context.Context, *connect.Request[v1.BatchCancelTriggersRequest]) (*connect.Response[v1.BatchCancelTriggersResponse], error)
+	// Cancel all of the account's triggers that match the filters (symbols,
+	// side and trigger types) in one request, without canceling any order.
+	// Unless dry_run is set, what it cancels is fixed when its request_id is
+	// first accepted: every matching trigger created before that, and none
+	// created after it. Each ends canceled with reason
+	// TRIGGER_CANCEL_REASON_CANCEL_ALL and releases its reserved funds, and
+	// none places an order after the response. Its open orders are canceled
+	// with it, as CancelTrigger cancels them: a TWAP's working slice, a
+	// ladder's open levels, and the working exit of an attached take-profit,
+	// stop-loss or trailing leg. An order that a stop already placed when it
+	// fired is a plain order and stays open; so does the parent order of
+	// canceled attached legs, which then has no protection left. Use
+	// OrdersService.CancelAllOrders for orders; its `include_triggers` cancels
+	// orders and triggers in one request.
+	//
+	// Every request counts 10 against the account's cancel rate limit, as a
+	// CancelAllOrders does, however many triggers it cancels: a dry run and a
+	// retry with the same request_id count the same. A retry with the same
+	// request_id and criteria
+	// within two minutes returns the original outcome and cancels nothing
+	// again; the same request_id with other criteria is rejected with
+	// ERROR_CODE_CONFLICT_IDEMPOTENCY_KEY_REUSE. A rejected request, or one
+	// whose outcome is unknown, is no barrier: retry it with the same
+	// request_id, or list the triggers before relying on it.
+	CancelAllTriggers(context.Context, *connect.Request[v1.CancelAllTriggersRequest]) (*connect.Response[v1.CancelAllTriggersResponse], error)
 	// Modify a trigger (limited patch).
 	ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error)
 	// Pause a trigger (sets status=PAUSED).
@@ -401,6 +466,12 @@ func NewTriggersServiceHandler(svc TriggersServiceHandler, opts ...connect.Handl
 		connect.WithSchema(triggersServiceMethods.ByName("BatchCancelTriggers")),
 		connect.WithHandlerOptions(opts...),
 	)
+	triggersServiceCancelAllTriggersHandler := connect.NewUnaryHandler(
+		TriggersServiceCancelAllTriggersProcedure,
+		svc.CancelAllTriggers,
+		connect.WithSchema(triggersServiceMethods.ByName("CancelAllTriggers")),
+		connect.WithHandlerOptions(opts...),
+	)
 	triggersServiceModifyTriggerHandler := connect.NewUnaryHandler(
 		TriggersServiceModifyTriggerProcedure,
 		svc.ModifyTrigger,
@@ -437,6 +508,8 @@ func NewTriggersServiceHandler(svc TriggersServiceHandler, opts ...connect.Handl
 			triggersServiceCancelTriggerHandler.ServeHTTP(w, r)
 		case TriggersServiceBatchCancelTriggersProcedure:
 			triggersServiceBatchCancelTriggersHandler.ServeHTTP(w, r)
+		case TriggersServiceCancelAllTriggersProcedure:
+			triggersServiceCancelAllTriggersHandler.ServeHTTP(w, r)
 		case TriggersServiceModifyTriggerProcedure:
 			triggersServiceModifyTriggerHandler.ServeHTTP(w, r)
 		case TriggersServicePauseTriggerProcedure:
@@ -482,6 +555,10 @@ func (UnimplementedTriggersServiceHandler) CancelTrigger(context.Context, *conne
 
 func (UnimplementedTriggersServiceHandler) BatchCancelTriggers(context.Context, *connect.Request[v1.BatchCancelTriggersRequest]) (*connect.Response[v1.BatchCancelTriggersResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.BatchCancelTriggers is not implemented"))
+}
+
+func (UnimplementedTriggersServiceHandler) CancelAllTriggers(context.Context, *connect.Request[v1.CancelAllTriggersRequest]) (*connect.Response[v1.CancelAllTriggersResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("triggers.v1.TriggersService.CancelAllTriggers is not implemented"))
 }
 
 func (UnimplementedTriggersServiceHandler) ModifyTrigger(context.Context, *connect.Request[v1.ModifyTriggerRequest]) (*connect.Response[v1.ModifyTriggerResponse], error) {

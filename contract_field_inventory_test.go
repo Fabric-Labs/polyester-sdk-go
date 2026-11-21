@@ -17,14 +17,17 @@ import (
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/pnl/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 )
 
 // contractFieldMessages are the request and reply messages public contracts
 // 1945423c, 5c2119f and 0.93.5 added or changed, and the messages nested in their new
-// replies, and the lifecycle flow views every flow read and update decodes.
+// replies, the lifecycle flow views every flow read and update decodes, and the
+// balance read, profit and loss and trigger cancel-all messages.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
 	"chain.lifecycle.v1.FlowSummaryView", "chain.lifecycle.v1.FlowTxMatchView", "chain.lifecycle.v1.AssetIds",
@@ -49,6 +52,12 @@ var contractFieldMessages = []protoreflect.FullName{
 	"transfer.v1.GetDustConversionRequest", "transfer.v1.GetDustConversionResponse",
 	"transfer.v1.ListDustConversionsRequest", "transfer.v1.ListDustConversionsResponse",
 	"transfer.v1.DustBalance", "transfer.v1.DustAssetPrice", "transfer.v1.DustSource", "transfer.v1.DustConversion",
+	"ledger.read.v1.GetBalancesResponse", "ledger.read.v1.AssetBalance", "ledger.read.v1.TransferRow",
+	"pnl.v1.GetProfitAndLossRequest", "pnl.v1.GetProfitAndLossResponse",
+	"pnl.v1.ProductProfitAndLoss", "pnl.v1.MarketProfitAndLoss", "pnl.v1.HoldingProfitAndLoss",
+	"pnl.v1.ListDailyProfitAndLossRequest", "pnl.v1.ListDailyProfitAndLossResponse", "pnl.v1.DailyProfitAndLoss",
+	"pnl.v1.GetTradingStatisticsRequest", "pnl.v1.GetTradingStatisticsResponse",
+	"triggers.v1.CancelAllTriggersRequest", "triggers.v1.CancelAllTriggersResponse",
 }
 
 // contractFieldTypes resolves the SDK types an inventory line names, so a
@@ -89,6 +98,20 @@ var contractFieldTypes = map[string]reflect.Type{
 	"CreateStatementExportOptions":          reflect.TypeFor[services.CreateStatementExportOptions](),
 	"ListStatementExportsOptions":           reflect.TypeFor[services.ListStatementExportsOptions](),
 	"ListDustConversionsOptions":            reflect.TypeFor[services.ListDustConversionsOptions](),
+	"models.BalancesList":                   reflect.TypeFor[models.BalancesList](),
+	"models.AssetBalance":                   reflect.TypeFor[models.AssetBalance](),
+	"models.LedgerTransfer":                 reflect.TypeFor[models.LedgerTransfer](),
+	"models.ProfitAndLoss":                  reflect.TypeFor[models.ProfitAndLoss](),
+	"models.ProductProfitAndLoss":           reflect.TypeFor[models.ProductProfitAndLoss](),
+	"models.MarketProfitAndLoss":            reflect.TypeFor[models.MarketProfitAndLoss](),
+	"models.HoldingProfitAndLoss":           reflect.TypeFor[models.HoldingProfitAndLoss](),
+	"models.DailyProfitAndLoss":             reflect.TypeFor[models.DailyProfitAndLoss](),
+	"models.DailyProfitAndLossList":         reflect.TypeFor[models.DailyProfitAndLossList](),
+	"models.TradingStatistics":              reflect.TypeFor[models.TradingStatistics](),
+	"models.CancelAllTriggersResult":        reflect.TypeFor[models.CancelAllTriggersResult](),
+	"ProfitAndLossParams":                   reflect.TypeFor[services.ProfitAndLossParams](),
+	"ListDailyProfitAndLossParams":          reflect.TypeFor[services.ListDailyProfitAndLossParams](),
+	"CancelAllTriggersParams":               reflect.TypeFor[services.CancelAllTriggersParams](),
 }
 
 // Every field of the contract's new request and reply messages is listed in

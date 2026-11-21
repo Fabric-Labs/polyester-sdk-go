@@ -1,5 +1,7 @@
 package models
 
+import "time"
+
 // Candle is one OHLCV candle.
 type Candle struct {
 	TsSec       int64  `json:"ts_sec,omitempty"`
@@ -101,6 +103,63 @@ type MarketOverviewEntry struct {
 	// ListedTsNs is the time the market was listed, in epoch nanoseconds;
 	// empty when unknown.
 	ListedTsNs string `json:"listed_ts_ns,omitempty"`
+	// PriceBand is the pair's live price band, a convenience copy of what
+	// GetPriceBand returns. Nil means no fresh band is known, not that the
+	// pair has no band; a band past its ValidUntilTsNs is unknown too (see
+	// LivePriceBand.FreshAt). The overview stream sends a row again when its
+	// band changes, appears or lapses, not on each confirmation. To check an
+	// order price, read GetPriceBand or the price band stream.
+	PriceBand *LivePriceBand `json:"price_band,omitempty"`
+}
+
+// LivePriceBand is a pair's live price band. Prices are Q9 price ticks.
+type LivePriceBand struct {
+	SymbolID uint32 `json:"symbol_id"`
+	// State is "active" (at least one price lies inside the band), "off"
+	// (the pair applies no band), "empty" (the band is on and no price lies
+	// inside it: every order that adds exposure is refused) or "unknown" (no
+	// band was confirmed current within the last 5 seconds).
+	State string `json:"state"`
+	// ReferencePrice is set when State is "active" or "empty".
+	ReferencePrice *PriceTicks `json:"reference_price,omitempty"`
+	// ReferenceSource is "last_trade", "listing_reference" or "index_price";
+	// empty when State is "off" or "unknown".
+	ReferenceSource string `json:"reference_source,omitempty"`
+	// MaxBuyPrice and MinSellPrice are the inclusive limits for buys and
+	// sells, set only when State is "active".
+	MaxBuyPrice  *PriceTicks `json:"max_buy_price,omitempty"`
+	MinSellPrice *PriceTicks `json:"min_sell_price,omitempty"`
+	// MinBuyPrice and MaxSellPrice are set only when the band limits passive
+	// prices too.
+	MinBuyPrice  *PriceTicks `json:"min_buy_price,omitempty"`
+	MaxSellPrice *PriceTicks `json:"max_sell_price,omitempty"`
+	// UpdatedTsNs is when the band last changed, in epoch nanoseconds.
+	UpdatedTsNs uint64 `json:"updated_ts_ns,omitempty"`
+	// ReanchorEligibleTsNs is from when the next order operation may move the
+	// reference price; nil when State is not "active" or "empty".
+	ReanchorEligibleTsNs *uint64 `json:"reanchor_eligible_ts_ns,omitempty"`
+	ReanchorPending      bool    `json:"reanchor_pending,omitempty"`
+	// Parameters are the band's settings, as SpotPair.PriceBand; nil when
+	// State is "off" or they cannot be expressed exactly.
+	Parameters *PriceBand `json:"parameters,omitempty"`
+	// Epoch never decreases; UpdateID orders bands within one epoch.
+	Epoch    uint64 `json:"epoch,omitempty"`
+	UpdateID uint64 `json:"update_id,omitempty"`
+	// AsOfTsNs is when the band was last confirmed current, and
+	// ValidUntilTsNs 5 seconds later, in epoch nanoseconds.
+	AsOfTsNs       uint64 `json:"as_of_ts_ns,omitempty"`
+	ValidUntilTsNs uint64 `json:"valid_until_ts_ns,omitempty"`
+}
+
+// FreshAt reports whether b is a band known to be current at now: present,
+// not "unknown", and not past its ValidUntilTsNs. A band that is not fresh
+// means no band is known, never that the pair has none.
+func (b *LivePriceBand) FreshAt(now time.Time) bool {
+	if b == nil || b.State == "unknown" || b.State == "" {
+		return false
+	}
+	nanos := now.UnixNano()
+	return nanos >= 0 && uint64(nanos) <= b.ValidUntilTsNs
 }
 
 // MarketOverviewSparkline is a market's recent closing prices over Interval,
