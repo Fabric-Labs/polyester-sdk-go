@@ -21,8 +21,9 @@ var stopAllLiveTriggerStatuses = []string{"created", "armed", "running", "paused
 // Symbol narrow both the triggers and the orders; nil means every sub-account
 // the account scope reaches and every market. RequestID is the cancel-all
 // request ID (its idempotency key). A blank Symbol, or a RequestID that is
-// empty or padded, is refused before anything is canceled, as
-// OrdersService.CancelAllWith refuses it.
+// not 1 to 64 characters of [A-Za-z0-9._:/-] exactly as given, is refused
+// before anything is listed or canceled, as OrdersService.CancelAllWith
+// refuses it.
 type StopAllTradingScope struct {
 	SubAccountID *string
 	Symbol       *string

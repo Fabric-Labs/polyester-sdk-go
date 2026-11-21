@@ -483,8 +483,9 @@ func (s *OrdersService) CancelAll(ctx context.Context, account AccountScope, sub
 // CancelAllWith cancels matching orders for one or more pairs.
 //
 // Refused before sending, and before waiting for the catalogs: a blank
-// Symbol or Symbols entry (leave them unset to match every pair) and a
-// RequestID that is not sent exactly as given.
+// Symbol or Symbols entry (leave them unset to match every pair), more than
+// one of Symbol, Symbols and SymbolIDs, and a RequestID that is not 1 to 64
+// characters of [A-Za-z0-9._:/-] exactly as given.
 func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope, params CancelAllParams) (models.CancelAllOrdersResult, error) {
 	if err := checkCancelAllOrders(params); err != nil {
 		return models.CancelAllOrdersResult{}, err
@@ -510,10 +511,11 @@ func (s *OrdersService) CancelAllWith(ctx context.Context, account AccountScope,
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllOrders, protoReq, decode.CancelAllFromProto)
 }
 
-// checkCancelAllOrders refuses a cancel-all whose symbol filter or request ID
-// would not be sent as given. A blank symbol would resolve to no pair and so
-// match every pair, and a trimmed or generated request ID would turn a retry
-// into a new cancel.
+// checkCancelAllOrders refuses, before any catalog wait or request, a
+// cancel-all whose pair selection or request ID would not be sent as given. A
+// blank symbol would resolve to no pair and so match every pair, more than one
+// selector is ambiguous, and a trimmed or generated request ID would turn a
+// retry into a new cancel.
 func checkCancelAllOrders(params CancelAllParams) error {
 	if params.Symbol != nil && strings.TrimSpace(*params.Symbol) == "" {
 		return &sdkerrors.ValidationError{Msg: "orders.cancel_all symbol must not be blank; leave it nil to match every pair"}
@@ -523,10 +525,22 @@ func checkCancelAllOrders(params CancelAllParams) error {
 			return &sdkerrors.ValidationError{Msg: fmt.Sprintf("orders.cancel_all symbols[%d] must not be blank; leave symbols empty to match every pair", i)}
 		}
 	}
+	selected := 0
+	if params.Symbol != nil {
+		selected++
+	}
+	if len(params.Symbols) > 0 {
+		selected++
+	}
+	if len(params.SymbolIDs) > 0 {
+		selected++
+	}
+	if selected > 1 {
+		return &sdkerrors.ValidationError{Msg: "orders.cancel_all accepts only one of symbol, symbols, or symbol_ids"}
+	}
 	if params.RequestID != nil {
-		id := *params.RequestID
-		if id == "" || strings.TrimSpace(id) != id {
-			return &sdkerrors.ValidationError{Msg: "orders.cancel_all request_id must be sent as given: it must not be empty or padded; leave it nil to generate one"}
+		if _, err := codecs.ExactRequestID(*params.RequestID); err != nil {
+			return err
 		}
 	}
 	return nil
