@@ -21,7 +21,7 @@ func TestBatchCreateOrdersToProto(t *testing.T) {
 		{Symbol: strPtr("ETH-USD"), SymbolID: &ethID, Side: "sell", OrderType: "market", Qty: models.QtyFromDecimal("1"), ClientOrderID: strPtr("cid-2")},
 	}
 	reqID := "req-create-1"
-	proto, err := BatchCreateOrdersToProto(items, strPtr(FormatID(123)), &reqID, true, 8, 6)
+	proto, err := BatchCreateOrdersToProto(items, strPtr(FormatID(123)), &reqID, 8, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,7 +54,7 @@ func TestBatchCreateGeneratesRequestIDAndAllowsOmittedItemClientOrderID(t *testi
 	items := []models.CreateOrderRequest{
 		{Symbol: &symbol, SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif, Qty: models.QtyFromDecimal("0.1"), Price: &price},
 	}
-	proto, err := BatchCreateOrdersToProto(items, nil, nil, false, 8, 6)
+	proto, err := BatchCreateOrdersToProto(items, nil, nil, 8, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -81,7 +81,7 @@ func TestBatchCreateRejectsDuplicateNonEmptyClientOrderIDs(t *testing.T) {
 	duplicate := "duplicate-id"
 	_, err := BatchCreateOrdersToProto(
 		[]models.CreateOrderRequest{order(&duplicate), order(&duplicate)},
-		nil, nil, false, 8, 6,
+		nil, nil, 8, 6,
 	)
 	var validationErr *sdkerrors.ValidationError
 	if !errors.As(err, &validationErr) {
@@ -96,7 +96,7 @@ func TestBatchCreateRejectsDuplicateNonEmptyClientOrderIDs(t *testing.T) {
 		"distinct": {order(&first), order(&second)},
 	} {
 		t.Run(name, func(t *testing.T) {
-			if _, err := BatchCreateOrdersToProto(items, nil, nil, false, 8, 6); err != nil {
+			if _, err := BatchCreateOrdersToProto(items, nil, nil, 8, 6); err != nil {
 				t.Fatalf("allowed client_order_id combination rejected: %v", err)
 			}
 		})
@@ -104,7 +104,7 @@ func TestBatchCreateRejectsDuplicateNonEmptyClientOrderIDs(t *testing.T) {
 }
 
 func TestBatchCreateOrdersRequiresItems(t *testing.T) {
-	_, err := BatchCreateOrdersToProto(nil, nil, nil, false, 8, 6)
+	_, err := BatchCreateOrdersToProto(nil, nil, nil, 8, 6)
 	if err == nil {
 		t.Fatal("expected validation error")
 	}
@@ -122,7 +122,7 @@ func TestBatchSizeGuardFollowsEachOperationLimit(t *testing.T) {
 			Qty: models.QtyFromDecimal("0.1"), Price: &price,
 		}
 	}
-	if _, err := BatchCreateOrdersToProto(items, nil, nil, false, 8, 6); err == nil {
+	if _, err := BatchCreateOrdersToProto(items, nil, nil, 8, 6); err == nil {
 		t.Fatal("expected batch_create max-20 rejection")
 	}
 	cancelItems := make([]models.BatchCancelItem, 51)

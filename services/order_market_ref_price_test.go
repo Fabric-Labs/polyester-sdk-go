@@ -48,7 +48,7 @@ func TestLimitOrderRefusesMarketClientRefPriceBeforeSending(t *testing.T) {
 					case "Preview":
 						_, err = orders.Preview(context.Background(), req, nil)
 					case "BatchCreate":
-						_, err = orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+						_, err = orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil)
 					}
 					requireRefusedBeforeTransport(t, err, captures)
 					if !strings.Contains(err.Error(), "market_client_ref_price is only valid for market orders") {

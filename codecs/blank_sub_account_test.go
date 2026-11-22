@@ -18,7 +18,7 @@ func TestBatchesAndTriggerModifyRefuseABlankSubAccount(t *testing.T) {
 	trailing := int64(5)
 	calls := map[string]func(sub *string) error{
 		"BatchCreateOrdersToProto": func(sub *string) error {
-			_, err := BatchCreateOrdersToProto(create, sub, ptr("b-1"), false, 8, 2)
+			_, err := BatchCreateOrdersToProto(create, sub, ptr("b-1"), 8, 2)
 			return err
 		},
 		"BatchCancelOrdersToProto": func(sub *string) error {

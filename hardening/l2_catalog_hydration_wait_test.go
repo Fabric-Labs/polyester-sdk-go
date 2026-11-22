@@ -358,7 +358,7 @@ func hydrationProbes() []hydrationProbe {
 			return err
 		}},
 		{name: "Orders.BatchCreate", call: func(ctx context.Context, c *polyester.Client, s string) error {
-			_, err := c.Orders.BatchCreate(ctx, nil, []models.CreateOrderRequest{limitOrder(s)}, nil, nil, nil, false)
+			_, err := c.Orders.BatchCreate(ctx, nil, []models.CreateOrderRequest{limitOrder(s)}, nil, nil, nil)
 			return err
 		}},
 		{name: "Orders.BatchReplace", call: func(ctx context.Context, c *polyester.Client, s string) error {

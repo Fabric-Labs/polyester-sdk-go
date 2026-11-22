@@ -40,7 +40,7 @@ func TestOrderIntentEncodesSelfTradePreventionMode(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{req}, nil, ptr("b-1"), false, 8, 6)
+		batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{req}, nil, ptr("b-1"), 8, 6)
 		if err != nil {
 			t.Fatal(err)
 		}

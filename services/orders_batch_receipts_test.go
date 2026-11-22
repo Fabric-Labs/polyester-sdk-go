@@ -135,7 +135,7 @@ func TestBatchCreateKeepsEachRejectionsFieldViolations(t *testing.T) {
 			for i := range items {
 				items[i] = models.CreateOrderRequest{SymbolID: &symbolID, Side: "buy", OrderType: "limit", Price: &price, Qty: models.QtyFromDecimal("0.001")}
 			}
-			result, err := service.BatchCreate(context.Background(), nil, items, nil, nil, nil, true)
+			result, err := service.BatchCreate(context.Background(), nil, items, nil, nil, nil)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -151,6 +151,51 @@ func TestBatchCreateKeepsEachRejectionsFieldViolations(t *testing.T) {
 			for i, item := range result.Results {
 				if got := publicFields(t, item); !reflect.DeepEqual(got, want[i]) {
 					t.Errorf("item %d:\n got %v\nwant %v", i, got, want[i])
+				}
+			}
+		})
+	}
+}
+
+// A batch is never all-or-nothing: a rejected item between two accepted ones
+// leaves both accepted orders in the result, and the call returns no error.
+func TestBatchCreateAdmitsEachItemOnItsOwn(t *testing.T) {
+	for _, wire := range []string{"binary", "json"} {
+		t.Run(wire, func(t *testing.T) {
+			h := &batchReceiptHandler{create: &orderv1.BatchCreateOrdersResponse{
+				Results: []*orderv1.BatchCreateResultItem{
+					{ClientOrderId: "low", Outcome: &orderv1.BatchCreateResultItem_Accepted{Accepted: &orderv1.BatchCreateAccepted{OrderId: 41}}},
+					{ClientOrderId: "small", Outcome: &orderv1.BatchCreateResultItem_Rejected{Rejected: &orderv1.BatchCreateRejected{Error: &orderv1.ErrorDetail{
+						Code: orderv1.ErrorCode_ERROR_CODE_MIN_NOTIONAL,
+					}}}},
+					{ClientOrderId: "high", Outcome: &orderv1.BatchCreateResultItem_Accepted{Accepted: &orderv1.BatchCreateAccepted{OrderId: 43}}},
+				},
+				AcceptedCount: 2,
+				RejectedCount: 1,
+			}}
+			service := newBatchReceiptService(t, h, wire)
+			symbolID := uint32(1)
+			price := models.PriceFromDecimal("100")
+			items := make([]models.CreateOrderRequest, 3)
+			for i, id := range []string{"low", "small", "high"} {
+				clientOrderID := id
+				items[i] = models.CreateOrderRequest{SymbolID: &symbolID, Side: "buy", OrderType: "limit", Price: &price, Qty: models.QtyFromDecimal("0.001"), ClientOrderID: &clientOrderID}
+			}
+			result, err := service.BatchCreate(context.Background(), nil, items, nil, nil, nil)
+			if err != nil {
+				t.Fatalf("a batch with a rejected item returned an error: %v", err)
+			}
+			if h.calls != 1 || result.AcceptedCount != 2 || result.RejectedCount != 1 || len(result.Results) != 3 {
+				t.Fatalf("calls=%d result=%+v", h.calls, result)
+			}
+			want := []struct{ status, orderID, code string }{
+				{"accepted", codecs.FormatID(41), ""},
+				{"rejected", "", "ERROR_CODE_MIN_NOTIONAL"},
+				{"accepted", codecs.FormatID(43), ""},
+			}
+			for i, item := range result.Results {
+				if item.Status != want[i].status || item.OrderID != want[i].orderID || item.Code != want[i].code {
+					t.Errorf("item %d = %+v, want %+v", i, item, want[i])
 				}
 			}
 		})

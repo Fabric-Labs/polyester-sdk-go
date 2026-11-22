@@ -189,7 +189,7 @@ func TestOrderWritesValidateScaleAgainstTheResolvedMarket(t *testing.T) {
 					return err
 				},
 				"batch": func(o *OrdersService) error {
-					_, err := o.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{order("BTC-USDT", oneBTC(3)), order(symbol, oneBTC(scale))}, nil, nil, nil, false)
+					_, err := o.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{order("BTC-USDT", oneBTC(3)), order(symbol, oneBTC(scale))}, nil, nil, nil)
 					return err
 				},
 				"modify": func(o *OrdersService) error {
@@ -210,14 +210,14 @@ func TestOrderWritesValidateScaleAgainstTheResolvedMarket(t *testing.T) {
 		t.Run(fmt.Sprintf("batch/plain/scale=%d", scale), func(t *testing.T) {
 			factory, captures := scopeCaptureFactory(t)
 			orders := NewOrdersService(factory, auditCatalog(t), nil, nil, nil, nil, nil)
-			_, err := orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{order("BTC-USDT", oneBTC(3)), order("BTC-USDT", oneBTC(scale))}, nil, nil, nil, false)
+			_, err := orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{order("BTC-USDT", oneBTC(3)), order("BTC-USDT", oneBTC(scale))}, nil, nil, nil)
 			requireRefusedBeforeTransport(t, err, captures)
 		})
 	}
 	t.Run("batch/plain/scale=3", func(t *testing.T) {
 		factory, captures := scopeCaptureFactory(t)
 		orders := NewOrdersService(factory, auditCatalog(t), nil, nil, nil, nil, nil)
-		_, _ = orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{order("BTC-USDT", oneBTC(3))}, nil, nil, nil, false)
+		_, _ = orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{order("BTC-USDT", oneBTC(3))}, nil, nil, nil)
 		if len(captures) != 1 {
 			t.Fatal("matching scale never reached transport")
 		}

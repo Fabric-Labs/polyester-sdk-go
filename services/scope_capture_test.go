@@ -127,7 +127,7 @@ func TestExplicitEmptyScopePublicRequests(t *testing.T) {
 					"orders.Create":    func() { _, callErr = orders.Create(ctx, intent, a) },
 					"orders.Preview":   func() { _, callErr = orders.Preview(ctx, intent, a) },
 					"orders.BatchCreate": func() {
-						_, callErr = orders.BatchCreate(ctx, a, []models.CreateOrderRequest{scopeOrder(nil)}, s, nil, nil, false)
+						_, callErr = orders.BatchCreate(ctx, a, []models.CreateOrderRequest{scopeOrder(nil)}, s, nil, nil)
 					},
 					"orders.BatchCancel": func() { _, callErr = orders.BatchCancel(ctx, a, []models.BatchCancelItem{{Key: key}}, s, nil) },
 					"orders.BatchReplace": func() {
@@ -330,7 +330,7 @@ func TestBatchCreateRefusesItemScope(t *testing.T) {
 				factory, captures := scopeCaptureFactory(t)
 				defaultSub := codecs.FormatID(42)
 				orders := NewOrdersService(factory, auditCatalog(t), &defaultSub, nil, nil, nil, nil)
-				_, err := orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{scopeOrder(nil), scopeOrder(&override)}, top, nil, nil, false)
+				_, err := orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{scopeOrder(nil), scopeOrder(&override)}, top, nil, nil)
 				var validation *sdkerrors.ValidationError
 				if !stderrors.As(err, &validation) {
 					t.Errorf("got %v, want item scope validation", err)
