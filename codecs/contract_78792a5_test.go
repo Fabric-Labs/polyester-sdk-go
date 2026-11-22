@@ -237,7 +237,7 @@ func TestSelfTradePreventionDecrement(t *testing.T) {
 	if err != nil || intent.GetSelfTradePreventionMode() != orderv1.SelfTradePreventionMode_DECREMENT {
 		t.Fatalf("intent=%+v err=%v", intent, err)
 	}
-	batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{req}, nil, nil, false, 8, 6)
+	batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{req}, nil, nil, 8, 6)
 	if err != nil || batch.GetItems()[0].GetSelfTradePreventionMode() != orderv1.SelfTradePreventionMode_DECREMENT {
 		t.Fatalf("batch=%+v err=%v", batch, err)
 	}
@@ -257,7 +257,7 @@ func TestBatchCreateCarriesNewOrderInputs(t *testing.T) {
 	pegged.Peg = &models.OrderPeg{Reference: "best_bid", OffsetTicks: 1}
 	proceeds := contractOrder("sell", "market", "")
 	proceeds.QuoteProceedsScaled = models.QtyFromQuoteDecimal("100")
-	batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{iceberg, pegged, proceeds}, nil, nil, false, 0, 0,
+	batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{iceberg, pegged, proceeds}, nil, nil, 0, 0,
 		OrderScales{Base: 8, Quote: 6}, OrderScales{Base: 8, Quote: 6}, OrderScales{Base: 8, Quote: 6})
 	if err != nil {
 		t.Fatal(err)

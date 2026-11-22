@@ -604,8 +604,20 @@ func (s *OrdersService) CancelAllAfterWith(ctx context.Context, account AccountS
 	return UnaryAuthDecoded(ctx, s.transport, s.writeClient().CancelAllAfter, protoReq, decode.CancelAllAfterFromProto)
 }
 
-// BatchCreate places multiple orders in one request.
-func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, items []models.CreateOrderRequest, subAccountID *string, symbol *string, requestID *string, allowPartial bool) (models.BatchCreateOrdersResult, error) {
+// BatchCreate places up to codecs.MaxBatchCreateItems orders in one request,
+// each admitted or rejected on its own.
+//
+// A batch is never all-or-nothing: an item the server rejects does not stop
+// the others, so a batch with one bad item still places the valid ones as
+// live orders, and the call returns no error for it. Read each item's outcome
+// from Results, in the order of items: Status is "accepted" (with OrderID) or
+// "rejected" (with Code and any Violations), and AcceptedCount and
+// RejectedCount total them. There is no option to make a batch
+// all-or-nothing.
+//
+// requestID is the batch's idempotency key; the SDK generates a
+// batch-create-* one when it is nil.
+func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, items []models.CreateOrderRequest, subAccountID *string, symbol *string, requestID *string) (models.BatchCreateOrdersResult, error) {
 	if err := s.ensureCatalogs(ctx); err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}
@@ -631,7 +643,7 @@ func (s *OrdersService) BatchCreate(ctx context.Context, account AccountScope, i
 		}
 		itemScales[i] = codecs.OrderScales{Base: base, Quote: quote}
 	}
-	protoReq, err := codecs.BatchCreateOrdersToProto(resolvedItems, sub, requestID, allowPartial, 0, 0, itemScales...)
+	protoReq, err := codecs.BatchCreateOrdersToProto(resolvedItems, sub, requestID, 0, 0, itemScales...)
 	if err != nil {
 		return models.BatchCreateOrdersResult{}, err
 	}

@@ -33,7 +33,7 @@ func TestMarketOrderRefusesNonIOCTIFBeforeSending(t *testing.T) {
 					case "Preview":
 						_, err = orders.Preview(context.Background(), req, nil)
 					case "BatchCreate":
-						_, err = orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+						_, err = orders.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil)
 					}
 					requireRefusedBeforeTransport(t, err, captures)
 					want := "tif='" + strings.ToLower(tif) + "' is only valid for limit orders"

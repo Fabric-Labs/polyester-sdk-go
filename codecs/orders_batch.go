@@ -51,12 +51,9 @@ type OrderScales struct {
 	Quote int
 }
 
-// BatchCreateOrdersToProto encodes a batch create request.
-//
-// The allowPartial argument is retained for API compatibility but is ignored:
-// the wire contract removed the batch allow_partial field.
-func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *string, requestID *string, allowPartial bool, quantityScale, quoteQuantityScale int, itemScales ...OrderScales) (*orderv1.BatchCreateOrdersRequest, error) {
-	_ = allowPartial
+// BatchCreateOrdersToProto encodes a batch create request. The server admits
+// or rejects each item on its own; a batch is never all-or-nothing.
+func BatchCreateOrdersToProto(items []models.CreateOrderRequest, subAccountID *string, requestID *string, quantityScale, quoteQuantityScale int, itemScales ...OrderScales) (*orderv1.BatchCreateOrdersRequest, error) {
 	if err := validateBatchSize("batch_create", len(items), MaxBatchCreateItems); err != nil {
 		return nil, err
 	}

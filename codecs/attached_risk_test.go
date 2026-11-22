@@ -214,7 +214,7 @@ func TestCreateOrderSendsAttachedTrailingBuyBackLimit(t *testing.T) {
 	if got.GetLimitPriceTicks() != 2500123456789 || got.GetActivationPriceTicks() != 2300000000000 {
 		t.Fatalf("trailing=%v", got)
 	}
-	batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{sellWithAttachedTrailing(trailing)}, nil, ptr("batch-1"), false, 6, 6)
+	batch, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{sellWithAttachedTrailing(trailing)}, nil, ptr("batch-1"), 6, 6)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -313,7 +313,7 @@ func TestAttachedTrailingLimitChecksUseServerCodes(t *testing.T) {
 			for _, encode := range []func() error{
 				func() error { _, err := CreateOrderToProto(req, 6, 6); return err },
 				func() error {
-					_, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{req}, nil, ptr("batch-1"), false, 6, 6)
+					_, err := BatchCreateOrdersToProto([]models.CreateOrderRequest{req}, nil, ptr("batch-1"), 6, 6)
 					return err
 				},
 			} {

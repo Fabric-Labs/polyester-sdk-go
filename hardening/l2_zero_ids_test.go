@@ -138,7 +138,7 @@ func subAccountCalls() []subAccountCall {
 			return err
 		}),
 		call("Orders.BatchCreate", func(ctx context.Context, c *polyester.Client, a any, s *string) error {
-			_, err := c.Orders.BatchCreate(ctx, a, []models.CreateOrderRequest{order(nil)}, s, nil, nil, false)
+			_, err := c.Orders.BatchCreate(ctx, a, []models.CreateOrderRequest{order(nil)}, s, nil, nil)
 			return err
 		}),
 		call("Orders.BatchCancel", func(ctx context.Context, c *polyester.Client, a any, s *string) error {
@@ -307,7 +307,7 @@ func TestL2ZeroSubAccountIDRequestObjectIsRefused(t *testing.T) {
 	price := models.PriceFromDecimal("50000")
 	for _, zero := range zeroIDForms {
 		item := models.CreateOrderRequest{Symbol: zeroIDStr("BTC-USDT"), Side: "buy", OrderType: "limit", Qty: models.QtyFromDecimal("0.1"), Price: &price, SubAccountID: zeroIDStr(zero)}
-		_, err := client.Orders.BatchCreate(ctx, nil, []models.CreateOrderRequest{item}, nil, nil, nil, false)
+		_, err := client.Orders.BatchCreate(ctx, nil, []models.CreateOrderRequest{item}, nil, nil, nil)
 		requireZeroIDRefused(t, "Orders.BatchCreate item "+zero, "sub_account_id", err, api)
 	}
 }
@@ -338,7 +338,7 @@ func TestL2ZeroSubAccountIDPublicCodecsAreRefused(t *testing.T) {
 				return err
 			},
 			"BatchCreateOrdersToProto": func() error {
-				_, err := codecs.BatchCreateOrdersToProto([]models.CreateOrderRequest{order(nil)}, sub, nil, false, 8, 6)
+				_, err := codecs.BatchCreateOrdersToProto([]models.CreateOrderRequest{order(nil)}, sub, nil, 8, 6)
 				return err
 			},
 			"BatchCancelOrdersToProto": func() error {

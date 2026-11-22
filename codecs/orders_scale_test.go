@@ -119,7 +119,7 @@ func TestBatchCreateDecimalQtyNilSymbolValidationError(t *testing.T) {
 		SymbolID: &sid, Side: "buy", OrderType: "limit", TIF: &tif,
 		Qty: models.QtyFromDecimal("1.5"), Price: &price,
 	}}
-	_, err = BatchCreateOrdersToProto(items, nil, nil, false, scale, 0)
+	_, err = BatchCreateOrdersToProto(items, nil, nil, scale, 0)
 	if err == nil {
 		t.Fatal("expected ValidationError for decimal qty without catalog+symbol scale")
 	}

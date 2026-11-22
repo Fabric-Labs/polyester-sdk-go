@@ -88,7 +88,7 @@ func TestBatchCreateQuantityCatalogScalePerItem(t *testing.T) {
 		}
 		// A batch default must not override an item's explicit destination.
 		symbol := "BTC-USDT"
-		if _, err := service.BatchCreate(context.Background(), nil, items, nil, &symbol, nil, false); err != nil {
+		if _, err := service.BatchCreate(context.Background(), nil, items, nil, &symbol, nil); err != nil {
 			t.Fatal(err)
 		}
 		req := h.calls[0].(*orders.BatchCreateOrdersRequest)
@@ -111,7 +111,7 @@ func TestBatchCreateRejectsMismatchedOrUnknownScale(t *testing.T) {
 		_, err := service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{{
 			SymbolID: &id, Side: "buy", OrderType: "limit", Price: &price,
 			Qty: models.QtyFromScaled(models.MustQtyScaled(16000).WithScale(6)),
-		}}, nil, nil, nil, false)
+		}}, nil, nil, nil)
 		if err == nil {
 			t.Fatal("expected catalog scale validation")
 		}
@@ -136,7 +136,7 @@ func TestBatchCreateQuoteCatalogScalePerItem(t *testing.T) {
 		id := uint32(i + 1)
 		items[i] = models.CreateOrderRequest{SymbolID: &id, Side: "buy", OrderType: "market", MaxQuoteDebitScaled: models.QtyFromQuoteScaled(16000, scale)}
 	}
-	if _, err := service.BatchCreate(context.Background(), nil, items, nil, nil, nil, false); err != nil {
+	if _, err := service.BatchCreate(context.Background(), nil, items, nil, nil, nil); err != nil {
 		t.Fatal(err)
 	}
 	req := h.calls[0].(*orders.BatchCreateOrdersRequest)
@@ -183,7 +183,7 @@ func TestOrderWritesValidatePairIdentity(t *testing.T) {
 					req.Symbol = &symbol
 					_, err = service.Create(context.Background(), req, nil)
 				case "batch_create":
-					_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+					_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil)
 				case "modify":
 					_, err = service.ModifyWith(context.Background(), nil, ModifyParams{Symbol: symbol, Key: models.OrderKeyByID("j"), NewQty: &input})
 				case "batch_replace":
@@ -219,7 +219,7 @@ func TestCreateRefusesConflictingPairSelectors(t *testing.T) {
 		req := models.CreateOrderRequest{SymbolID: &id, Symbol: &symbol, Side: "buy", OrderType: "limit", Qty: models.QtyFromDecimal("0.00016"), Price: &price}
 		var err error
 		if batch {
-			_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+			_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil)
 		} else {
 			_, err = service.Create(context.Background(), req, nil)
 		}
@@ -283,7 +283,7 @@ func TestQuoteBudgetIdentity(t *testing.T) {
 			req := models.CreateOrderRequest{SymbolID: &id, Side: "buy", OrderType: "market", MaxQuoteDebitScaled: models.QtyFromScaled(budget)}
 			var err error
 			if batch {
-				_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil, false)
+				_, err = service.BatchCreate(context.Background(), nil, []models.CreateOrderRequest{req}, nil, nil, nil)
 			} else {
 				_, err = service.Create(context.Background(), req, nil)
 			}

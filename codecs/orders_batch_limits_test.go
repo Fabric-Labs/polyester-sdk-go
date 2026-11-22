@@ -90,10 +90,10 @@ func TestBatchCancelAndReplaceRefuseFiftyOne(t *testing.T) {
 }
 
 func TestBatchCreateKeepsItsTwentyItemLimit(t *testing.T) {
-	if req, err := BatchCreateOrdersToProto(batchCreateItems(20), nil, nil, false, 8, 6); err != nil || len(req.GetItems()) != 20 {
+	if req, err := BatchCreateOrdersToProto(batchCreateItems(20), nil, nil, 8, 6); err != nil || len(req.GetItems()) != 20 {
 		t.Fatalf("batch_create 20 items: err=%v", err)
 	}
-	_, err := BatchCreateOrdersToProto(batchCreateItems(21), nil, nil, false, 8, 6)
+	_, err := BatchCreateOrdersToProto(batchCreateItems(21), nil, nil, 8, 6)
 	if err == nil || !strings.Contains(err.Error(), "batch_create accepts at most 20 items") {
 		t.Fatalf("batch_create 21 items: err=%v", err)
 	}

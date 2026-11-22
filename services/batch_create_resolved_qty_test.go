@@ -40,7 +40,7 @@ func TestBatchCreateItemsCarryResolvedBaseQtyAndResponseTime(t *testing.T) {
 			for i := range items {
 				items[i] = models.CreateOrderRequest{SymbolID: &symbolID, Side: "buy", OrderType: "limit", Price: &price, Qty: models.QtyFromDecimal("0.01")}
 			}
-			result, err := service.BatchCreate(context.Background(), nil, items, nil, nil, nil, true)
+			result, err := service.BatchCreate(context.Background(), nil, items, nil, nil, nil)
 			if err != nil {
 				t.Fatal(err)
 			}

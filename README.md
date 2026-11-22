@@ -740,6 +740,13 @@ boundary, so per-item `ClientOrderID` may be omitted. Duplicate non-empty
 per-item client order ids in one batch are rejected locally. Treat a cancel response as an admission acknowledgement and
 reconcile with `ListOpen` before releasing local state.
 
+`BatchCreate` admits or rejects each item on its own: a batch is never
+all-or-nothing, so one rejected item does not stop the others from being
+placed, and the call returns no error for it. Read each item's outcome in
+`Results`, in the order of the items (`Status` `"accepted"` with `OrderID`, or
+`"rejected"` with `Code` and any `Violations`); `AcceptedCount` and
+`RejectedCount` total them.
+
 `Orders.CancelAll` returns `CancelledOrders` (order ID and client order ID),
 the orders whose cancellation was requested, oldest first and at most 200,
 with `TotalCancelled` and `Truncated` when more were canceled. Each moves to
