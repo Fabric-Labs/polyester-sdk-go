@@ -5,6 +5,7 @@ import (
 	"sync/atomic"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/callbackmark"
 )
 
 // Subscription delivers decoded realtime publications.
@@ -21,7 +22,9 @@ import (
 // resume arrives as a new OrderSnapshot.
 //
 // Close cancels the subscription context and waits until the run loop has
-// fully stopped (websocket teardown included).
+// fully stopped (websocket teardown included). Close called from the
+// SetOnError callback only signals shutdown and returns, as the managed
+// streams' Close does.
 type Subscription[T any] struct {
 	ch           chan T
 	done         chan struct{}
@@ -68,6 +71,11 @@ func (s *Subscription[T]) Err() error {
 }
 
 // Close cancels the subscription and waits for the run loop to exit.
+//
+// Called from the SetOnError callback, it only signals shutdown and returns:
+// the callback may be running on the run loop itself, or on a goroutine the
+// run loop waits for, so waiting could never end. The run loop exits once the
+// callback returns. Every other Close waits for it.
 func (s *Subscription[T]) Close() {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
@@ -82,6 +90,9 @@ func (s *Subscription[T]) Close() {
 			untrack()
 		}
 	})
+	if callbackmark.Active(s) {
+		return
+	}
 	<-s.done
 }
 
@@ -131,7 +142,7 @@ func (s *Subscription[T]) fail(err error) {
 	s.failLocked(err)
 	callback := s.onError
 	s.mu.Unlock()
-	callErrorCallback(callback, err)
+	s.callError(callback, err)
 }
 
 // SetOnError installs a callback for background transport and terminal stream
@@ -142,7 +153,7 @@ func (s *Subscription[T]) SetOnError(callback func(error)) {
 	err := s.err
 	s.mu.Unlock()
 	if callback != nil && err != nil {
-		callErrorCallback(callback, err)
+		s.callError(callback, err)
 	}
 }
 
@@ -150,7 +161,17 @@ func (s *Subscription[T]) notifyError(err error) {
 	s.mu.Lock()
 	callback := s.onError
 	s.mu.Unlock()
-	callErrorCallback(callback, err)
+	s.callError(callback, err)
+}
+
+// callError runs an error callback on the calling goroutine as a callback of
+// this subscription (internal/callbackmark): a Close called from inside it
+// signals shutdown and returns without waiting.
+func (s *Subscription[T]) callError(callback func(error), err error) {
+	if callback == nil || err == nil {
+		return
+	}
+	callbackmark.Run(s, func() { callErrorCallback(callback, err) })
 }
 
 func callErrorCallback(callback func(error), err error) {
@@ -182,7 +203,7 @@ func (s *Subscription[T]) enqueue(item T) bool {
 		cancel := s.cancel
 		callback := s.onError
 		s.mu.Unlock()
-		callErrorCallback(callback, err)
+		s.callError(callback, err)
 		if cancel != nil {
 			cancel()
 		}
