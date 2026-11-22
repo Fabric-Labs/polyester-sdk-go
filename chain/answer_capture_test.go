@@ -7,7 +7,7 @@ import (
 	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 )
 
 func countingRPC(t *testing.T, answer http.HandlerFunc) (string, *atomic.Int32) {

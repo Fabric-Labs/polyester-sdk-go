@@ -13,7 +13,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
 	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 

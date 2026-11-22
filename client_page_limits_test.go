@@ -17,7 +17,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/services"
 )

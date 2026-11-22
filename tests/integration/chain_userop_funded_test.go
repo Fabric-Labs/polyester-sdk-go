@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/chain"
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
@@ -82,7 +83,7 @@ func TestFundingToTradingUserOp(t *testing.T) {
 		t.Fatal(err)
 	}
 	call, err := chain.EncodeTradingGatewayDeposit(
-		chain.PolyesterDevnetEnvironment.Contracts.TradingGatewayAddress,
+		environment.PolyesterDevnetEnvironment.Contracts.TradingGatewayAddress,
 		asset.UAssetID,
 		qty,
 	)
@@ -181,7 +182,7 @@ func TestFundingWithdrawToChainUserOp(t *testing.T) {
 	fee, err := chain.QuoteZipperFee(
 		chainID,
 		variant.ZToken.Address,
-		chain.PolyesterDevnetEnvironment.Contracts.ZipperEndpointAddress,
+		environment.PolyesterDevnetEnvironment.Contracts.ZipperEndpointAddress,
 		nil,
 		nil,
 	)
@@ -198,7 +199,7 @@ func TestFundingWithdrawToChainUserOp(t *testing.T) {
 		t.Fatal(err)
 	}
 	call, err := chain.EncodeFundingWithdrawToChain(
-		chain.PolyesterDevnetEnvironment.Contracts.FundingAccountAddress,
+		environment.PolyesterDevnetEnvironment.Contracts.FundingAccountAddress,
 		chainID,
 		variant.ZToken.Address,
 		chain.EncodeWithdrawDestination(dest, caseSensitive),

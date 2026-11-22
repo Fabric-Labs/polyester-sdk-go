@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/useragent"
 )
 

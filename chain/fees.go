@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -23,7 +24,7 @@ type ZipperFeeQuote struct {
 // QuoteZipperFee quotes Zipper network fee via feeFactory.getFee(uint16,address).
 //
 // Use the returned Fee (or a small buffer above it) as maxFee for
-// EncodeFundingWithdrawToChain. When env or rpc is nil, PolyesterDevnetEnvironment
+// EncodeFundingWithdrawToChain. When env or rpc is nil, environment.PolyesterDevnetEnvironment
 // and its RPC URL are used.
 //
 // Each eth_call result must be 0x and exactly one 32-byte ABI word: an address
@@ -33,7 +34,7 @@ type ZipperFeeQuote struct {
 func QuoteZipperFee(
 	chainID uint16,
 	zToken, zipperEndpoint string,
-	env *PolyesterChainEnvironment,
+	env *environment.PolyesterEnvironment,
 	rpc *JSONRPCClient,
 ) (ZipperFeeQuote, error) {
 	if chainID == 0 {
@@ -49,7 +50,7 @@ func QuoteZipperFee(
 	}
 
 	if env == nil {
-		env = &PolyesterDevnetEnvironment
+		env = &environment.PolyesterDevnetEnvironment
 	}
 	client := rpc
 	if client == nil {

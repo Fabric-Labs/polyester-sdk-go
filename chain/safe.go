@@ -6,6 +6,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -51,8 +52,8 @@ type PredictSafeAddressOptions struct {
 	Owners      []string
 	SaltNonce   *big.Int
 	Threshold   *big.Int
-	Safe        *SafeDeploymentConfig
-	Environment *PolyesterChainEnvironment
+	Safe        *environment.SafeDeploymentConfig
+	Environment *environment.PolyesterEnvironment
 }
 
 // PredictSafeAddressWithData returns the deterministic CREATE2 Safe address and
@@ -79,7 +80,7 @@ func PredictSafeAddressWithData(opts PredictSafeAddressOptions) (*PredictedSafe,
 }
 
 func predictSafe(owners []common.Address, opts PredictSafeAddressOptions) (*PredictedSafe, error) {
-	env := PolyesterDevnetEnvironment
+	env := environment.PolyesterDevnetEnvironment
 	if opts.Environment != nil {
 		env = *opts.Environment
 	}
@@ -125,14 +126,14 @@ func predictSafe(owners []common.Address, opts PredictSafeAddressOptions) (*Pred
 // ownerAddress must be a 20-byte hex address, with or without 0x, and not the
 // zero address; any other value is an *errors.ValidationError naming
 // owner_address.
-func PredictSafeAddress(ownerAddress string, saltNonce *big.Int, environment *PolyesterChainEnvironment) (string, error) {
+func PredictSafeAddress(ownerAddress string, saltNonce *big.Int, env *environment.PolyesterEnvironment) (string, error) {
 	owner, err := parseSafeOwner(ownerAddress, "owner_address")
 	if err != nil {
 		return "", err
 	}
 	predicted, err := predictSafe([]common.Address{owner}, PredictSafeAddressOptions{
 		SaltNonce:   saltNonce,
-		Environment: environment,
+		Environment: env,
 	})
 	if err != nil {
 		return "", err
@@ -141,8 +142,8 @@ func PredictSafeAddress(ownerAddress string, saltNonce *big.Int, environment *Po
 }
 
 // PredictPolyesterSmartAccountAddress is an alias matching the TypeScript name.
-func PredictPolyesterSmartAccountAddress(ownerAddress string, saltNonce *big.Int, environment *PolyesterChainEnvironment) (string, error) {
-	return PredictSafeAddress(ownerAddress, saltNonce, environment)
+func PredictPolyesterSmartAccountAddress(ownerAddress string, saltNonce *big.Int, env *environment.PolyesterEnvironment) (string, error) {
+	return PredictSafeAddress(ownerAddress, saltNonce, env)
 }
 
 // parseSafeOwner reads a Safe owner: 40 hex digits after an optional 0x or 0X,
@@ -169,7 +170,7 @@ func parseSafeOwner(value, field string) (common.Address, error) {
 	return owner, nil
 }
 
-func getInitializer(owners []common.Address, threshold *big.Int, safe SafeDeploymentConfig) ([]byte, error) {
+func getInitializer(owners []common.Address, threshold *big.Int, safe environment.SafeDeploymentConfig) ([]byte, error) {
 	enableModules, err := abi.Arguments{{Type: typeAddressArr}}.Pack([]common.Address{common.HexToAddress(safe.Safe4337ModuleAddress)})
 	if err != nil {
 		return nil, fmt.Errorf("encode enableModules: %w", err)

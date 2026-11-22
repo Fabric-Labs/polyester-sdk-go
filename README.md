@@ -347,10 +347,16 @@ together. `DevnetEnvironment` is the `New` default. `TestnetEnvironment` targets
 public testnet (`api.testnet.polyester.com`, chain `888169`). Custom / VPC
 endpoints use `CreateEnvironment` or `Environment.WithURLs`. `APIURL` / `WSURL`
 remain as transport overrides. A remote `http://` or `ws://` URL is refused
-unless `CreateEnvironmentParams.AllowInsecure` is set, for a private endpoint
-whose TLS terminates elsewhere; the environment keeps that opt-in
+unless `environment.CreateEnvironmentParams.AllowInsecure` is set, for a private
+endpoint whose TLS terminates elsewhere; the environment keeps that opt-in
 (`Environment.AllowInsecure`, which `WithURLs` copies), so `New` accepts it.
 Loopback hosts never need it.
+
+The environment types and presets are in package
+`github.com/Fabric-Labs/polyester-sdk-go/environment`; `polyester.Environment`
+is `environment.PolyesterEnvironment`. That package links no Ethereum library,
+and neither does the client: only the on-chain helpers in `chain` link
+go-ethereum, so a program that does not import `chain` does not carry it.
 
 **Scripts and local tests only:** `polyester.FromEnv()` loads
 `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, optionally
@@ -1753,7 +1759,7 @@ selection and the configured default subaccount for wallet/JWT withdrawals.
 ```go
 account, err := chain.NewSmartAccount(ownerPrivateKeyHex, nil, nil)
 call, err := chain.EncodeTradingGatewayDeposit(
-    chain.PolyesterDevnetEnvironment.Contracts.TradingGatewayAddress,
+    polyester.DevnetEnvironment.Contracts.TradingGatewayAddress,
     uAssetID, quantityScaled,
 )
 receipt, err := account.SendCalls([]chain.ChainCall{call}, true, 60*time.Second)
@@ -2757,6 +2763,8 @@ account.
 | Path | Purpose |
 |------|---------|
 | `client.go` | Root `Client`, `New`, `FromEnv`, service tree |
+| `environment/` | Network environments: API, realtime, RPC, account-abstraction and contract pins |
+| `chain/` | On-chain helpers (smart account UserOps, calldata, fee quotes); the only package that links go-ethereum |
 | `services/` | Typed unary RPC + subscribe helpers |
 | `realtime/` | Centrifugo client, private order stream, snapshot-then-stream |
 | `orderbook/` | Local book merge + managed subscription |
