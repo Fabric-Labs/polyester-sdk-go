@@ -3,7 +3,6 @@ package services
 import (
 	"context"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -18,19 +17,45 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
+// timeframeAliases maps each documented candle timeframe label to its
+// Timeframe enum name.
 var timeframeAliases = map[string]string{"1s": "SEC_1", "1m": "MIN_1", "5m": "MIN_5", "15m": "MIN_15", "30m": "MIN_30", "1h": "HOUR_1", "4h": "HOUR_4", "12h": "HOUR_12", "1d": "DAY_1", "1w": "WEEK_1", "1mo": "MONTH_1", "3m": "MIN_3", "2h": "HOUR_2", "6h": "HOUR_6", "8h": "HOUR_8", "3d": "DAY_3"}
 
-// Live Centrifugo channels use human labels (`1m`), not REST enum names (`MIN_1`).
-var channelTimeframeAliases = func() map[string]string {
-	out := make(map[string]string, len(timeframeAliases)*4)
+// candleTimeframes maps each accepted candle timeframe, exactly as written, to
+// its Timeframe: a documented label ("1s", "1m", "3m", ... "1w", "1mo") or an
+// enum name ("SEC_1", "MIN_1", ... "MONTH_1"). No other case or spelling is
+// read, so "1M" is never taken for "1m" (one minute) nor for "1mo" (one month).
+var candleTimeframes = func() map[string]marketdatav1.Timeframe {
+	out := make(map[string]marketdatav1.Timeframe, len(timeframeAliases)*2)
 	for label, enumName := range timeframeAliases {
-		out[label] = label
-		out[enumName] = label
-		out[strings.ToLower(enumName)] = label
-		out[strings.ToLower(strings.ReplaceAll(enumName, "_", ""))] = label
+		value := marketdatav1.Timeframe(marketdatav1.Timeframe_value[enumName])
+		out[label] = value
+		out[enumName] = value
 	}
 	return out
 }()
+
+// candleChannelLabels names each timeframe as live Centrifugo channels do: by
+// its label (`1m`), not its enum name (`MIN_1`).
+var candleChannelLabels = func() map[marketdatav1.Timeframe]string {
+	out := make(map[marketdatav1.Timeframe]string, len(timeframeAliases))
+	for label, enumName := range timeframeAliases {
+		out[marketdatav1.Timeframe(marketdatav1.Timeframe_value[enumName])] = label
+	}
+	return out
+}()
+
+// resolveCandleTimeframe reads a candle timeframe, a label or an enum name
+// exactly as written (see candleTimeframes); anything else is a
+// ValidationError.
+func resolveCandleTimeframe(timeframe string) (marketdatav1.Timeframe, error) {
+	if value, ok := candleTimeframes[timeframe]; ok {
+		return value, nil
+	}
+	return marketdatav1.Timeframe_TIMEFRAME_UNSPECIFIED, &errors.ValidationError{Msg: fmt.Sprintf(
+		"Unknown candle timeframe %q; use a label such as '1m', '1h', '1d' or '1mo' (one month), or an enum name such as 'MIN_1'", timeframe,
+	)}
+}
 
 type MarketDataService struct {
 	transport *transport.Factory
@@ -224,6 +249,11 @@ func (s *MarketDataService) GetCandlesColumnsWithReference(ctx context.Context, 
 }
 
 func (s *MarketDataService) buildCandlesRequest(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (*marketdatav1.GetCandlesRequest, int, int, error) {
+	// An unknown timeframe is refused before the catalog wait or any request.
+	tf, err := resolveCandleTimeframe(timeframe)
+	if err != nil {
+		return nil, 0, 0, err
+	}
 	// Decoded with the pair's catalog scales.
 	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
 		return nil, 0, 0, err
@@ -232,47 +262,40 @@ func (s *MarketDataService) buildCandlesRequest(ctx context.Context, symbol *str
 	if err != nil {
 		return nil, 0, 0, err
 	}
-	name := timeframeAliases[timeframe]
-	if name == "" {
-		name = timeframe
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return nil, 0, 0, err
 	}
-	if v, ok := marketdatav1.Timeframe_value[name]; ok {
-		parsedLimit, err := PaginationLimit(limit, "limit")
-		if err != nil {
-			return nil, 0, 0, err
-		}
-		req := &marketdatav1.GetCandlesRequest{SymbolId: resolved, Timeframe: marketdatav1.Timeframe(v), Limit: parsedLimit, IncludeIncomplete: includeIncomplete, IncludeReference: includeReference}
-		if err := codecs.CheckPageLimit(req); err != nil {
-			return nil, 0, 0, err
-		}
-		if start != nil {
-			req.StartTime = timestamppb.New(*start)
-		}
-		if end != nil {
-			req.EndTime = timestamppb.New(*end)
-		}
-		if pageToken != nil {
-			req.PageToken = *pageToken
-		}
-		scale, err := s.requireMarketDataVolumeScale(resolved, "candle volume")
-		if err != nil {
-			return nil, 0, 0, err
-		}
-		refScale, refOK := 0, false
-		if s.catalogs != nil {
-			refScale, refOK = s.catalogs.ReferencePriceScaleForSymbolID(resolved)
-		}
-		if includeReference && !refOK {
-			return nil, 0, 0, &errors.ValidationError{
-				Msg: fmt.Sprintf("candle reference prices require reference_price_scale for symbol_id %d", resolved),
-			}
-		}
-		if !refOK {
-			refScale = -1
-		}
-		return req, scale, refScale, nil
+	req := &marketdatav1.GetCandlesRequest{SymbolId: resolved, Timeframe: tf, Limit: parsedLimit, IncludeIncomplete: includeIncomplete, IncludeReference: includeReference}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return nil, 0, 0, err
 	}
-	return nil, 0, 0, &errors.ValidationError{Msg: "Unknown candle timeframe; use aliases like '1m', '1h', '1d'"}
+	if start != nil {
+		req.StartTime = timestamppb.New(*start)
+	}
+	if end != nil {
+		req.EndTime = timestamppb.New(*end)
+	}
+	if pageToken != nil {
+		req.PageToken = *pageToken
+	}
+	scale, err := s.requireMarketDataVolumeScale(resolved, "candle volume")
+	if err != nil {
+		return nil, 0, 0, err
+	}
+	refScale, refOK := 0, false
+	if s.catalogs != nil {
+		refScale, refOK = s.catalogs.ReferencePriceScaleForSymbolID(resolved)
+	}
+	if includeReference && !refOK {
+		return nil, 0, 0, &errors.ValidationError{
+			Msg: fmt.Sprintf("candle reference prices require reference_price_scale for symbol_id %d", resolved),
+		}
+	}
+	if !refOK {
+		refScale = -1
+	}
+	return req, scale, refScale, nil
 }
 
 func (s *MarketDataService) SubscribeTrades(ctx context.Context, symbol *string, symbolID *uint32) (*realtime.Subscription[models.MarketTrade], error) {
@@ -293,15 +316,16 @@ func (s *MarketDataService) SubscribeTrades(ctx context.Context, symbol *string,
 }
 
 func (s *MarketDataService) SubscribeCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string) (*realtime.Subscription[models.Candle], error) {
+	// An unknown timeframe is refused before the catalog wait or subscribing.
+	channelTimeframe, err := resolveCandleChannelTimeframe(timeframe)
+	if err != nil {
+		return nil, err
+	}
 	// Decoded with the pair's catalog scales.
 	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
 		return nil, err
 	}
 	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "subscribe_candles")
-	if err != nil {
-		return nil, err
-	}
-	channelTimeframe, err := resolveCandleChannelTimeframe(timeframe)
 	if err != nil {
 		return nil, err
 	}
@@ -348,17 +372,13 @@ func (s *MarketDataService) requireQuantityScale(symbolID uint32, label string) 
 	}
 }
 
-// resolveCandleChannelTimeframe normalizes user timeframe aliases to the live channel label.
+// resolveCandleChannelTimeframe reads a candle timeframe as
+// resolveCandleTimeframe does and names it as its live channel does (MIN_1
+// reads as 1m).
 func resolveCandleChannelTimeframe(timeframe string) (string, error) {
-	if label, ok := channelTimeframeAliases[timeframe]; ok {
-		return label, nil
+	value, err := resolveCandleTimeframe(timeframe)
+	if err != nil {
+		return "", err
 	}
-	if label, ok := channelTimeframeAliases[strings.ToUpper(timeframe)]; ok {
-		return label, nil
-	}
-	compact := strings.ToLower(strings.ReplaceAll(timeframe, "_", ""))
-	if label, ok := channelTimeframeAliases[compact]; ok {
-		return label, nil
-	}
-	return "", &errors.ValidationError{Msg: "Unknown candle timeframe; use aliases like '1m', '1h', '1d'"}
+	return candleChannelLabels[value], nil
 }

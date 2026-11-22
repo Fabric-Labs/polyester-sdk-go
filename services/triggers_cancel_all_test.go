@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -163,5 +164,56 @@ func TestTriggersCancelAllOmittedSymbolsMatchEveryPair(t *testing.T) {
 	}
 	if len(handler.requests) != 2 || len(handler.requests[0].GetSymbolIds()) != 0 || len(handler.requests[1].GetSymbolIds()) != 0 {
 		t.Fatalf("requests = %v", handler.requests)
+	}
+}
+
+// A request ID the caller supplies is sent exactly as given or refused, as
+// Orders.CancelAll does: an empty or blank one is not replaced with a new
+// random key on every call, and a padded one is not trimmed. Nothing is sent,
+// and the check runs before the catalog wait.
+func TestTriggersCancelAllSendsSuppliedRequestIDAsGiven(t *testing.T) {
+	for _, id := range []string{"", "   ", " abc ", "abc ", "\tabc"} {
+		t.Run(strings.ReplaceAll(id, "\t", `\t`), func(t *testing.T) {
+			s := newPendingCatalogServices(t)
+			requestID := id
+			symbol := "BTC-USDT"
+			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			defer cancel()
+			_, err := s.triggers.CancelAll(ctx, nil, CancelAllTriggersParams{Symbol: &symbol, RequestID: &requestID})
+			var validation *sdkerrors.ValidationError
+			if !errors.As(err, &validation) || !strings.Contains(err.Error(), "request_id") {
+				t.Fatalf("err = %v, want a request_id ValidationError", err)
+			}
+			if n := s.sent.Load(); n != 0 {
+				t.Fatalf("sent %d requests", n)
+			}
+			if _, err := codecs.CancelAllTriggersToProto(nil, nil, nil, nil, true, &requestID); !errors.As(err, &validation) {
+				t.Fatalf("codec err = %v, want a ValidationError", err)
+			}
+		})
+	}
+
+	handler := &cancelAllTriggersHandler{}
+	service := newTriggerControlServiceWith(t, handler)
+	requestID := "abc"
+	for range 2 {
+		if _, err := service.CancelAll(context.Background(), nil, CancelAllTriggersParams{RequestID: &requestID}); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := service.CancelAll(context.Background(), nil, CancelAllTriggersParams{}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if len(handler.requests) != 4 {
+		t.Fatalf("sent %d requests, want 4", len(handler.requests))
+	}
+	for i, req := range handler.requests {
+		got := req.GetRequestId()
+		if i%2 == 0 && got != requestID {
+			t.Fatalf("request %d request_id = %q, want %q", i, got, requestID)
+		}
+		if i%2 == 1 && !strings.HasPrefix(got, "cancel-all-triggers-") {
+			t.Fatalf("request %d generated request_id = %q", i, got)
+		}
 	}
 }

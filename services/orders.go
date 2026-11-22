@@ -552,6 +552,8 @@ func checkCancelAllOrders(params CancelAllParams) error {
 // exit order it cancels ends (with its OCO siblings). To stop triggers too,
 // use CancelAllAfterWith with IncludeTriggers. timeoutSec is 10 to 120, or 0
 // to disarm the switch; any other value is a ValidationError before sending.
+// A nil symbol arms the switch for every market; a blank one is a
+// ValidationError before sending, never read as every market.
 func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope, timeoutSec int, subAccountID, symbol, side, requestID *string) (models.CancelAllAfterResult, error) {
 	return s.CancelAllAfterWith(ctx, account, CancelAllAfterParams{TimeoutSec: timeoutSec, SubAccountID: subAccountID, Symbol: symbol, Side: side, RequestID: requestID})
 }
@@ -561,9 +563,11 @@ func (s *OrdersService) CancelAllAfter(ctx context.Context, account AccountScope
 type CancelAllAfterParams struct {
 	TimeoutSec   int
 	SubAccountID *string
-	Symbol       *string
-	Side         *string
-	RequestID    *string
+	// Symbol limits the switch to one market; nil covers every market. A
+	// blank Symbol is refused, never read as every market.
+	Symbol    *string
+	Side      *string
+	RequestID *string
 	// IncludeTriggers makes the switch also stop the account's waiting
 	// triggers in scope when it fires, as CancelAllParams.IncludeTriggers
 	// does: those created before its expiry time, even when the expiry is

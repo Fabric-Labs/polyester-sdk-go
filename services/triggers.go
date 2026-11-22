@@ -324,10 +324,11 @@ type CancelAllTriggersParams struct {
 	// DryRun counts the matching triggers without canceling any.
 	DryRun bool
 	// RequestID is the idempotency key, 1 to 64 characters of
-	// [A-Za-z0-9._:/-]. Generate it once per user action and keep it: a
-	// retry needs the same key and criteria. When nil or empty a key is
-	// generated, but it is not returned, so such a request cannot be
-	// retried safely; supply your own whenever a retry may follow.
+	// [A-Za-z0-9._:/-], sent exactly as given: an empty, padded or otherwise
+	// malformed one is refused, never trimmed or replaced. Generate it once
+	// per user action and keep it: a retry needs the same key and criteria.
+	// When nil a key is generated, but it is not returned, so such a request
+	// cannot be retried safely; supply your own whenever a retry may follow.
 	RequestID *string
 }
 
@@ -357,6 +358,14 @@ func (s *TriggersService) CancelAll(ctx context.Context, account AccountScope, p
 	for i, symbol := range params.Symbols {
 		if strings.TrimSpace(symbol) == "" {
 			return models.CancelAllTriggersResult{}, &sdkerrors.ValidationError{Msg: fmt.Sprintf("triggers.cancel_all symbols[%d] must not be blank; leave symbols empty to match every pair", i)}
+		}
+	}
+	// A supplied request ID is sent as given or refused, before any catalog
+	// wait or request: a trimmed or generated one would turn a retry into a
+	// new cancel.
+	if params.RequestID != nil {
+		if _, err := codecs.ExactRequestID(*params.RequestID); err != nil {
+			return models.CancelAllTriggersResult{}, err
 		}
 	}
 	sub, err := s.scoped.ResolveSubAccountID(params.SubAccountID, account)
