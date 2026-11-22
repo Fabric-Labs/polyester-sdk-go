@@ -353,7 +353,7 @@ func mapConnectError(err error) error {
 					Msg: msg, Code: code, Metadata: sdkerrors.ViolationMetadata(violations), Violations: violations, LadderLevelCause: cause,
 				}
 			}
-			if isAuthLikeErrorCode(code) {
+			if isAuthLikeErrorCode(code, connectErr.Code()) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
 			apiErr := &sdkerrors.APIError{Msg: msg, Code: code, LadderLevelCause: cause}
@@ -383,7 +383,7 @@ func mapConnectError(err error) error {
 			if connectErr.Code() == connect.CodeUnavailable {
 				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
-			if isAuthLikeErrorCode(code) {
+			if isAuthLikeErrorCode(code, connectErr.Code()) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
 			apiErr := &sdkerrors.APIError{Msg: msg, Code: code, FieldPath: withdrawDetail.GetFieldPath()}
@@ -414,7 +414,7 @@ func mapConnectError(err error) error {
 			if connectErr.Code() == connect.CodeUnavailable {
 				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
-			if isAuthLikeErrorCode(code) {
+			if isAuthLikeErrorCode(code, connectErr.Code()) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
 			return &sdkerrors.APIError{Msg: msg, Code: code}
@@ -427,7 +427,7 @@ func mapConnectError(err error) error {
 			if connectErr.Code() == connect.CodeUnavailable {
 				return &sdkerrors.ServerError{Msg: msg, Code: code}
 			}
-			if isAuthLikeErrorCode(code) {
+			if isAuthLikeErrorCode(code, connectErr.Code()) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
 			return &sdkerrors.APIError{Msg: msg, Code: code}
@@ -568,12 +568,21 @@ func protovalidateFieldPath(path *validate.FieldPath) string {
 // timestamp outside the server's skew window.
 const TimestampSkewCode = "TIMESTAMP_SKEW"
 
-func isAuthLikeErrorCode(code string) bool {
-	return strings.Contains(code, "UNAUTHENTICATED") ||
+// isAuthLikeErrorCode reports whether a service error code refuses the
+// caller's credentials or their scope. A sub-account policy code is one only
+// when the status says so (permission_denied or unauthenticated, such as
+// POLICY_SPOT_TRADE_DENY): a policy cap such as POLICY_MAX_NOTIONAL or
+// POLICY_MAX_OPEN_ORDERS is invalid_argument, an order refusal like any
+// other, and keeps its code on the APIError.
+func isAuthLikeErrorCode(code string, status connect.Code) bool {
+	if strings.Contains(code, "UNAUTHENTICATED") ||
 		strings.Contains(code, "PERMISSION") ||
 		strings.Contains(code, "API_KEY") ||
-		strings.Contains(code, "WALLET_BINDING") ||
-		strings.Contains(code, "POLICY")
+		strings.Contains(code, "WALLET_BINDING") {
+		return true
+	}
+	return strings.Contains(code, "POLICY") &&
+		(status == connect.CodePermissionDenied || status == connect.CodeUnauthenticated)
 }
 
 // orderErrorCodeFromName normalizes known enum names and preserves future names.
