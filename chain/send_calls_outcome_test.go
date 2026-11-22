@@ -116,6 +116,13 @@ type mockBundler struct {
 	sendDelay  time.Duration
 	sendStatus int // (C) the send is stored, then answered with this HTTP status
 	sendError  map[string]any
+
+	storedSendError map[string]any // the send is stored, then answered with this JSON-RPC error
+	sendReplySet    bool           // the send is stored, then answered with sendReply
+	sendReply       any
+	receiptMissing  bool // receipt reads answer null
+	receiptDelay    time.Duration
+	statusDelay     time.Duration
 }
 
 func newMockBundler(t *testing.T) *mockBundler {
@@ -202,6 +209,12 @@ func (m *mockBundler) handle(method string, params []any) (int, map[string]any, 
 		if m.sendStatus != 0 {
 			return m.sendStatus, nil, 0
 		}
+		if m.storedSendError != nil {
+			return 200, map[string]any{"error": m.storedSendError}, 0
+		}
+		if m.sendReplySet {
+			return 200, map[string]any{"result": m.sendReply}, 0
+		}
 		return 200, map[string]any{"result": hash}, m.sendDelay
 	case "eth_getUserOperationReceipt":
 		if m.receipt503 > 0 {
@@ -209,17 +222,17 @@ func (m *mockBundler) handle(method string, params []any) (int, map[string]any, 
 			return 503, nil, 0
 		}
 		for _, hash := range m.operations {
-			if hash == params[0] {
+			if hash == params[0] && !m.receiptMissing {
 				return 200, map[string]any{"result": map[string]any{
 					"userOpHash": hash,
 					"success":    true,
 					"receipt":    map[string]any{"transactionHash": "0x" + strings.Repeat("ab", 32), "status": "0x1"},
-				}}, 0
+				}}, m.receiptDelay
 			}
 		}
-		return 200, map[string]any{"result": nil}, 0
+		return 200, map[string]any{"result": nil}, m.receiptDelay
 	case "pimlico_getUserOperationStatus":
-		return 200, map[string]any{"result": map[string]any{"status": "not_found"}}, 0
+		return 200, map[string]any{"result": map[string]any{"status": "not_found"}}, m.statusDelay
 	}
 	return 200, map[string]any{"error": map[string]any{"code": -32601, "message": "method " + method + " not found"}}, 0
 }
@@ -347,7 +360,7 @@ func TestSendCallsWithoutWaitReturnsTheHashTheBundlerHolds(t *testing.T) {
 }
 
 func TestSendCallsDefiniteRefusalIsNotOutcomeUnknown(t *testing.T) {
-	for _, code := range []int{-32602, -32500} {
+	for _, code := range []int{-32602, -32500, -32507, -32601} {
 		t.Run(fmt.Sprint(code), func(t *testing.T) {
 			m := newMockBundler(t)
 			m.set(func(m *mockBundler) { m.sendError = map[string]any{"code": code, "message": "invalid UserOperation"} })
@@ -426,4 +439,74 @@ func TestUserOperationHashMatchesEntryPointV07(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSendCallsUnrecognizedErrorCodeAfterStoringKeepsTheHash(t *testing.T) {
+	// An HTTP 200 JSON-RPC error whose code is not a defined refusal proves
+	// nothing: here the bundler stored the operation before answering it.
+	for _, code := range []int{504, 1, -32000, -32099, -32506, -32603} {
+		t.Run(fmt.Sprint(code), func(t *testing.T) {
+			m := newMockBundler(t)
+			m.set(func(m *mockBundler) { m.storedSendError = map[string]any{"code": code, "message": "gateway timeout"} })
+			account := m.account(t, 2*time.Second)
+			_, err := account.SendCalls([]ChainCall{sendCallsWithdraw}, true, 3*time.Second)
+			hash := assertUnknownWithHash(t, err, m)
+			var rpcErr *JSONRPCError
+			if !stderrors.As(err, &rpcErr) || rpcErr.Code == nil || *rpcErr.Code != code {
+				t.Fatalf("error %v does not keep the JSON-RPC error %d", err, code)
+			}
+			recoverByWaiting(t, account, m, hash)
+		})
+	}
+}
+
+func TestSendCallsAnswerNamingAnotherHashKeepsTheComputedHash(t *testing.T) {
+	for _, reply := range []any{"0x" + strings.Repeat("cd", 32), "", 7, nil} {
+		for _, wait := range []bool{true, false} {
+			t.Run(fmt.Sprintf("%v/wait=%v", reply, wait), func(t *testing.T) {
+				m := newMockBundler(t)
+				m.set(func(m *mockBundler) { m.sendReplySet, m.sendReply = true, reply })
+				account := m.account(t, 2*time.Second)
+				_, err := account.SendCalls([]ChainCall{sendCallsWithdraw}, wait, 3*time.Second)
+				hash := assertUnknownWithHash(t, err, m)
+				if reply == hash {
+					t.Fatal("the error names the answer's hash")
+				}
+				recoverByWaiting(t, account, m, hash)
+			})
+		}
+	}
+}
+
+func TestSendCallsReceiptAnsweredAfterTheDeadlineIsNotReturned(t *testing.T) {
+	m := newMockBundler(t)
+	m.set(func(m *mockBundler) { m.receiptDelay = 1500 * time.Millisecond })
+	account := m.account(t, 5*time.Second)
+	started := time.Now()
+	_, err := account.SendCalls([]ChainCall{sendCallsWithdraw}, true, 400*time.Millisecond)
+	if elapsed := time.Since(started); elapsed > 1200*time.Millisecond {
+		t.Fatalf("SendCalls took %v on a 400ms receipt budget", elapsed)
+	}
+	hash := assertUnknownWithHash(t, err, m)
+	m.set(func(m *mockBundler) { m.receiptDelay = 0 })
+	recoverByWaiting(t, account, m, hash)
+}
+
+func TestWaitForReceiptStalledStatusReadEndsWithTheWait(t *testing.T) {
+	m := newMockBundler(t)
+	sent, err := m.account(t, 2*time.Second).SendCalls([]ChainCall{sendCallsWithdraw}, false, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	m.set(func(m *mockBundler) { m.receiptMissing, m.statusDelay = true, 3*time.Second })
+	account := m.account(t, 5*time.Second)
+	started := time.Now()
+	if _, err := account.WaitForReceipt(sent.UserOperationHash, 400*time.Millisecond, 50*time.Millisecond); err == nil {
+		t.Fatal("WaitForReceipt returned a receipt")
+	}
+	if elapsed := time.Since(started); elapsed > 1200*time.Millisecond {
+		t.Fatalf("WaitForReceipt took %v on a 400ms budget", elapsed)
+	}
+	m.set(func(m *mockBundler) { m.receiptMissing, m.statusDelay = false, 0 })
+	recoverByWaiting(t, account, m, sent.UserOperationHash)
 }

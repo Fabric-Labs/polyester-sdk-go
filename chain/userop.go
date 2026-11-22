@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"context"
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
@@ -90,25 +91,25 @@ func (e *UserOperationOutcomeUnknownError) Unwrap() []error {
 	return []error{e.transport, e.Err}
 }
 
-// JSON-RPC error codes that do not prove the bundler refused an operation: an
-// internal error and the implementation-defined server error range.
-const (
-	jsonRPCInternalError  = -32603
-	jsonRPCServerErrorMin = -32099
-	jsonRPCServerErrorMax = -32000
-)
+// jsonRPCRefusalCodes are the JSON-RPC error codes that prove a call was
+// refused: the JSON-RPC 2.0 request errors (parse error, invalid request,
+// method not found, invalid params) and the ERC-7769 eth_sendUserOperation
+// rejections. Any other code, such as an internal error (-32603), a server
+// error (-32000 to -32099) or an application code, proves nothing about the
+// call's outcome.
+var jsonRPCRefusalCodes = map[int]bool{
+	-32700: true, -32600: true, -32601: true, -32602: true,
+	-32500: true, -32501: true, -32502: true, -32503: true,
+	-32504: true, -32505: true, -32507: true, -32508: true,
+}
 
-// isJSONRPCRefusal reports whether err is an answered JSON-RPC error object
-// that refuses the call. An HTTP error, a timeout, a malformed answer, an
-// internal error or a server error (-32000 to -32099) proves nothing about the
+// isJSONRPCRefusal reports whether err is a JSON-RPC error answer whose code
+// proves a refusal. An HTTP error, a timeout, a malformed answer, or an error
+// object whose code is missing or not a refusal code proves nothing about the
 // call's outcome.
 func isJSONRPCRefusal(err error) bool {
 	var rpcErr *JSONRPCError
-	if !stderrors.As(err, &rpcErr) || rpcErr.Code == nil {
-		return false
-	}
-	code := *rpcErr.Code
-	return code != jsonRPCInternalError && (code < jsonRPCServerErrorMin || code > jsonRPCServerErrorMax)
+	return stderrors.As(err, &rpcErr) && rpcErr.Code != nil && jsonRPCRefusalCodes[*rpcErr.Code]
 }
 
 // userOperationHash is EntryPoint v0.7 getUserOpHash of the UserOperation p
@@ -259,8 +260,11 @@ func (a *SmartAccount) GetNonce(key *big.Int) (*big.Int, error) {
 // Only a single call is supported for now. When wait is true, polls for a
 // receipt for up to receiptTimeout.
 //
-// A bundler's JSON-RPC refusal of the send returns its *JSONRPCError: nothing
-// was accepted. Any other failure from the send on returns a
+// The operation's hash is computed before sending, and is the hash returned
+// or waited on. A JSON-RPC refusal of the send whose code proves it (an
+// invalid request or parameters, or an ERC-7769 rejection) returns its
+// *JSONRPCError: nothing was accepted. Any other failure from the send on, an
+// answer that does not name that hash included, returns a
 // *UserOperationOutcomeUnknownError naming the operation's hash: the bundler
 // may hold the operation, so wait on that hash with WaitForReceipt instead of
 // sending again.
@@ -469,24 +473,30 @@ func (a *SmartAccount) SendCalls(calls []ChainCall, wait bool, receiptTimeout ti
 		}
 		return nil, newUserOperationOutcomeUnknown(computedHash, err)
 	}
-	if userOpHash == "" {
-		return nil, newUserOperationOutcomeUnknown(computedHash, stderrors.New("eth_sendUserOperation returned no hash"))
+	// The computed hash is the operation's identity: an answer that names
+	// another one (or none) does not say what the bundler holds.
+	if !strings.EqualFold(userOpHash, computedHash) {
+		return nil, newUserOperationOutcomeUnknown(computedHash, fmt.Errorf(
+			"eth_sendUserOperation answered %.80q, not the operation's hash %s", userOpHash, computedHash,
+		))
 	}
 	if !wait {
-		return &UserOperationReceipt{UserOperationHash: userOpHash}, nil
+		return &UserOperationReceipt{UserOperationHash: computedHash}, nil
 	}
-	receipt, err := a.WaitForReceipt(userOpHash, receiptTimeout, time.Second)
+	receipt, err := a.WaitForReceipt(computedHash, receiptTimeout, time.Second)
 	if err != nil {
-		return nil, newUserOperationOutcomeUnknown(userOpHash, err)
+		return nil, newUserOperationOutcomeUnknown(computedHash, err)
 	}
 	return receipt, nil
 }
 
 // WaitForReceipt polls eth_getUserOperationReceipt until mined or timeout.
+// timeout bounds the whole wait: every request and every pause ends by then.
 // A poll that fails without a JSON-RPC refusal (an HTTP error such as 503, a
 // timeout or a transport error) is retried until the deadline, and the
 // deadline's error wraps the last such failure. If
-// pimlico_getUserOperationStatus reports rejected, fails fast.
+// pimlico_getUserOperationStatus reports rejected, fails fast. An error means
+// no receipt was read in time, not that the operation will not execute.
 func (a *SmartAccount) WaitForReceipt(userOperationHash string, timeout, pollInterval time.Duration) (*UserOperationReceipt, error) {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -495,15 +505,25 @@ func (a *SmartAccount) WaitForReceipt(userOperationHash string, timeout, pollInt
 		pollInterval = time.Second
 	}
 	deadline := time.Now().Add(timeout)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+	pause := func() {
+		timer := time.NewTimer(min(pollInterval, max(0, time.Until(deadline))))
+		defer timer.Stop()
+		select {
+		case <-timer.C:
+		case <-ctx.Done():
+		}
+	}
 	var lastErr error
-	for time.Now().Before(deadline) {
-		raw, err := a.bundler.Request("eth_getUserOperationReceipt", []any{userOperationHash})
+	for ctx.Err() == nil {
+		raw, err := a.bundler.request(ctx, "eth_getUserOperationReceipt", []any{userOperationHash})
 		if err != nil {
 			if isJSONRPCRefusal(err) {
 				return nil, err
 			}
 			lastErr = err
-			time.Sleep(min(pollInterval, max(0, time.Until(deadline))))
+			pause()
 			continue
 		}
 		lastErr = nil
@@ -543,13 +563,15 @@ func (a *SmartAccount) WaitForReceipt(userOperationHash string, timeout, pollInt
 			}, nil
 		}
 
-		var status map[string]any
-		if err := a.bundler.RequestDecode("pimlico_getUserOperationStatus", []any{userOperationHash}, &status); err == nil {
-			if s, ok := status["status"].(string); ok && s == "rejected" {
-				return nil, fmt.Errorf("bundler rejected UserOperation %s: %v", userOperationHash, status)
+		if raw, err := a.bundler.request(ctx, "pimlico_getUserOperationStatus", []any{userOperationHash}); err == nil {
+			var status map[string]any
+			if json.Unmarshal(raw, &status) == nil {
+				if s, ok := status["status"].(string); ok && s == "rejected" {
+					return nil, fmt.Errorf("bundler rejected UserOperation %s: %v", userOperationHash, status)
+				}
 			}
 		}
-		time.Sleep(pollInterval)
+		pause()
 	}
 	if lastErr != nil {
 		return nil, fmt.Errorf("timed out waiting for UserOperation receipt %s: %w", userOperationHash, lastErr)

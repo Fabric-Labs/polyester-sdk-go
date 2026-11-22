@@ -1757,10 +1757,11 @@ receipt, err := account.SendCalls([]chain.ChainCall{call}, true, 60*time.Second)
 ```
 
 A UserOperation can execute even when `SendCalls` returns an error: the bundler
-may have accepted it before the error. Once the SDK has attempted the send, any
-failure (a timeout, an HTTP error such as 504, or no receipt by the receipt
-timeout) is a `*chain.UserOperationOutcomeUnknownError`, which carries the
-operation's hash and for which `errors.MutationOutcomeUnknown` reports true.
+may have accepted it before the error. The SDK computes the operation's hash
+before sending it. Once it has attempted the send, any failure (a timeout, an
+HTTP error such as 504, an answer that does not name that hash, or no receipt by
+the receipt timeout) is a `*chain.UserOperationOutcomeUnknownError`, which
+carries the hash and for which `errors.MutationOutcomeUnknown` reports true.
 Never call `SendCalls` again for the same calls: that signs a second operation,
 and both execute. Wait on the hash instead:
 
@@ -1769,15 +1770,21 @@ account, err := chain.NewSmartAccount(ownerPrivateKeyHex, nil, nil)
 var withdraw chain.ChainCall // from chain.EncodeFundingWithdrawToChain
 receipt, err := account.SendCalls([]chain.ChainCall{withdraw}, true, 60*time.Second)
 if unknown, ok := err.(*chain.UserOperationOutcomeUnknownError); ok && errors.MutationOutcomeUnknown(err) {
-    // Same operation, no second signature. An error here means it is still pending.
+    // Same operation, no second signature.
     receipt, err = account.WaitForReceipt(unknown.UserOperationHash, 2*time.Minute, time.Second)
 }
 ```
 
-A JSON-RPC refusal of the send (`*chain.JSONRPCError`, for example a validation
-error) means the bundler accepted nothing, and the calls can be sent again.
-Receipt polls that fail with an HTTP error such as 503 or a timeout are retried
-until the wait's deadline.
+If that wait fails too, no receipt was read in time: the operation may still be
+pending and may still execute. Wait on the same hash again later; do not send
+the calls again.
+
+Only a JSON-RPC refusal of the send (`*chain.JSONRPCError`) whose code proves
+the bundler refused the operation means nothing was accepted, and the calls can
+be sent again: an invalid request or parameters (-32700, -32600, -32601, -32602)
+or an ERC-7769 rejection (-32500 to -32505, -32507, -32508). Any other code is
+an unknown outcome. Receipt polls that fail with an HTTP error such as 503 or a
+timeout are retried, and every request and pause ends by the wait's deadline.
 
 Realtime delivery: bounded queues fail with `QueueOverflowError` instead of
 silently dropping. Use `SetOnError` and check `Err()` after `Messages()` closes.

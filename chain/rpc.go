@@ -2,6 +2,7 @@ package chain
 
 import (
 	"bytes"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -67,6 +68,11 @@ type jsonRPCRequest struct {
 
 // Request posts a JSON-RPC method and returns the decoded result.
 func (c *JSONRPCClient) Request(method string, params any) (json.RawMessage, error) {
+	return c.request(context.Background(), method, params)
+}
+
+// request is Request ending by ctx's deadline as well as the client's timeout.
+func (c *JSONRPCClient) request(ctx context.Context, method string, params any) (json.RawMessage, error) {
 	if params == nil {
 		params = []any{}
 	}
@@ -80,7 +86,12 @@ func (c *JSONRPCClient) Request(method string, params any) (json.RawMessage, err
 	if err != nil {
 		return nil, fmt.Errorf("marshal json-rpc request: %w", err)
 	}
-	resp, err := c.client.Post(c.url, "application/json", bytes.NewReader(payload))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.url, bytes.NewReader(payload))
+	if err != nil {
+		return nil, fmt.Errorf("json-rpc post: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	resp, err := c.client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("json-rpc post: %w", err)
 	}
