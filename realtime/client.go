@@ -243,75 +243,81 @@ func subscribeProto[T any](
 		defer close(sub.ch)
 		defer sub.markFinished()
 		defer sendReady(&sdkerrors.RealtimeError{Msg: "realtime subscription ended before handshake"})
-		var backoff reconnectBackoff
-		var resume *resubscribeAttempt
-		for {
-			if runCtx.Err() != nil {
-				return
-			}
-			err := runSubscriptionOnce(runCtx, c, channel, decode, sub, func() {
-				backoff.reset()
-				n := handshakes.Add(1)
-				sub.noteHandshakeReady(n == 1)
-				if resume != nil {
-					resume.noteReady(time.Now())
+		// The run goroutine runs as a callback of sub (internal/callbackmark):
+		// the caller's decoder and the error callbacks it calls run on it, so a
+		// Close made from any of them signals shutdown and returns. The mark
+		// covers the whole loop, not each publication.
+		callbackmark.Run(sub, func() {
+			var backoff reconnectBackoff
+			var resume *resubscribeAttempt
+			for {
+				if runCtx.Err() != nil {
+					return
 				}
-				sendReady(nil)
-			})
-			if err == nil || runCtx.Err() != nil {
-				return
-			}
-			// Overflow and other terminal subscription faults must not reconnect.
-			if sub.Err() != nil {
-				return
-			}
-			var terminal *terminalRealtimeError
-			var redirected *sdkerrors.RedirectRefusedError
-			if errors.As(err, &terminal) || errors.As(err, &redirected) {
-				// Before the first handshake the caller gets this refusal
-				// itself, with its answer.
-				sendReady(err)
-				sub.fail(err)
-				return
-			}
-			var ended *serverUnsubscribedError
-			if errors.As(err, &ended) && !ended.temporary() {
+				err := runSubscriptionOnce(runCtx, c, channel, decode, sub, func() {
+					backoff.reset()
+					n := handshakes.Add(1)
+					sub.noteHandshakeReady(n == 1)
+					if resume != nil {
+						resume.noteReady(time.Now())
+					}
+					sendReady(nil)
+				})
+				if err == nil || runCtx.Err() != nil {
+					return
+				}
+				// Overflow and other terminal subscription faults must not reconnect.
+				if sub.Err() != nil {
+					return
+				}
+				var terminal *terminalRealtimeError
+				var redirected *sdkerrors.RedirectRefusedError
+				if errors.As(err, &terminal) || errors.As(err, &redirected) {
+					// Before the first handshake the caller gets this refusal
+					// itself, with its answer.
+					sendReady(err)
+					sub.fail(err)
+					return
+				}
+				var ended *serverUnsubscribedError
+				if errors.As(err, &ended) && !ended.temporary() {
+					if !reconnect {
+						sub.fail(ended.stop(channel, sdkerrors.SubscriptionEndNotResubscribable, nil))
+						return
+					}
+					resume = c.access.attemptAfter(resume, ended, time.Now())
+				}
+				if resume != nil && !resume.ready {
+					// The server ended this subscription: resume, or say why not.
+					resume.note(err)
+					var refused *sdkerrors.AuthError
+					if errors.As(err, &refused) {
+						sub.fail(resume.ended.stop(channel, sdkerrors.SubscriptionEndTokenRefused, err))
+						return
+					}
+					if stop := c.access.awaitResume(runCtx, channel, resume); stop != nil {
+						sub.fail(stop)
+						return
+					}
+					continue
+				}
+				// Match Rust: first handshake failure is terminal (no silent reconnect).
+				if !readySent.Load() {
+					sendReady(err)
+					return
+				}
 				if !reconnect {
-					sub.fail(ended.stop(channel, sdkerrors.SubscriptionEndNotResubscribable, nil))
+					sub.fail(err)
 					return
 				}
-				resume = c.access.attemptAfter(resume, ended, time.Now())
-			}
-			if resume != nil && !resume.ready {
-				// The server ended this subscription: resume, or say why not.
-				resume.note(err)
-				var refused *sdkerrors.AuthError
-				if errors.As(err, &refused) {
-					sub.fail(resume.ended.stop(channel, sdkerrors.SubscriptionEndTokenRefused, err))
+				sub.notifyError(err)
+				select {
+				case <-runCtx.Done():
 					return
+				case <-time.After(backoff.next()):
 				}
-				if stop := c.access.awaitResume(runCtx, channel, resume); stop != nil {
-					sub.fail(stop)
-					return
-				}
-				continue
 			}
-			// Match Rust: first handshake failure is terminal (no silent reconnect).
-			if !readySent.Load() {
-				sendReady(err)
-				return
-			}
-			if !reconnect {
-				sub.fail(err)
-				return
-			}
-			sub.notifyError(err)
-			select {
-			case <-runCtx.Done():
-				return
-			case <-time.After(backoff.next()):
-			}
-		}
+		})
 	}()
 
 	select {
