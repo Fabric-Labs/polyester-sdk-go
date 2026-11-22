@@ -59,6 +59,11 @@ type PolyesterEnvironment struct {
 	ExplorerURL        string
 	AccountAbstraction AccountAbstractionEnvironment
 	Contracts          ContractsEnvironment
+	// AllowInsecure records the explicit opt-in to plaintext (http:// or
+	// ws://) URLs on remote hosts that the environment was created with, so
+	// the client constructor re-validates it with the same opt-in. Loopback
+	// hosts never need it.
+	AllowInsecure bool
 }
 
 // PolyesterChainEnvironment is the historical name for PolyesterEnvironment.
@@ -75,7 +80,10 @@ type CreateEnvironmentParams struct {
 	ExplorerURL        string
 	AccountAbstraction AccountAbstractionEnvironment
 	Contracts          ContractsEnvironment
-	AllowInsecure      bool
+	// AllowInsecure accepts plaintext (http:// or ws://) URLs on remote hosts,
+	// for a private endpoint whose TLS terminates elsewhere. The environment
+	// keeps the opt-in.
+	AllowInsecure bool
 }
 
 var localHosts = map[string]struct{}{
@@ -262,25 +270,19 @@ func CreatePolyesterEnvironment(params CreateEnvironmentParams) (PolyesterEnviro
 			GuardRegistryAddress:  guard,
 			ZipperEndpointAddress: zipper,
 		},
+		AllowInsecure: params.AllowInsecure,
 	}, nil
 }
 
-// ParsePolyesterEnvironment re-validates an environment supplied to a client.
+// ParsePolyesterEnvironment re-validates an environment supplied to a client,
+// with the plaintext opt-in it was created with.
 func ParsePolyesterEnvironment(environment PolyesterEnvironment) (PolyesterEnvironment, error) {
-	return CreatePolyesterEnvironment(CreateEnvironmentParams{
-		Name:               environment.Name,
-		APIURL:             environment.APIURL,
-		WebsocketURL:       environment.WebsocketURL,
-		RPCURL:             environment.RPCURL,
-		ChainID:            environment.ChainID,
-		ChainName:          environment.ChainName,
-		ExplorerURL:        environment.ExplorerURL,
-		AccountAbstraction: environment.AccountAbstraction,
-		Contracts:          environment.Contracts,
-	})
+	return CreatePolyesterEnvironment(CreateEnvironmentParams(environment))
 }
 
-// WithURLs copies env with endpoint overrides (market-maker / VPC case).
+// WithURLs copies env with endpoint overrides (market-maker / VPC case). The
+// copy keeps env's plaintext opt-in; build an environment with
+// CreatePolyesterEnvironment and AllowInsecure to add one.
 func (env PolyesterEnvironment) WithURLs(apiURL, websocketURL, rpcURL string) (PolyesterEnvironment, error) {
 	if apiURL == "" {
 		apiURL = env.APIURL
@@ -301,6 +303,7 @@ func (env PolyesterEnvironment) WithURLs(apiURL, websocketURL, rpcURL string) (P
 		ExplorerURL:        env.ExplorerURL,
 		AccountAbstraction: env.AccountAbstraction,
 		Contracts:          env.Contracts,
+		AllowInsecure:      env.AllowInsecure,
 	})
 }
 

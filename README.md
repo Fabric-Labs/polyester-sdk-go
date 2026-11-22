@@ -346,7 +346,11 @@ Pass `Config.Environment` so API, websocket, RPC, and contract pins stay
 together. `DevnetEnvironment` is the `New` default. `TestnetEnvironment` targets
 public testnet (`api.testnet.polyester.com`, chain `888169`). Custom / VPC
 endpoints use `CreateEnvironment` or `Environment.WithURLs`. `APIURL` / `WSURL`
-remain as transport overrides.
+remain as transport overrides. A remote `http://` or `ws://` URL is refused
+unless `CreateEnvironmentParams.AllowInsecure` is set, for a private endpoint
+whose TLS terminates elsewhere; the environment keeps that opt-in
+(`Environment.AllowInsecure`, which `WithURLs` copies), so `New` accepts it.
+Loopback hosts never need it.
 
 **Scripts and local tests only:** `polyester.FromEnv()` loads
 `POLYESTER_API_KEY_ID`, `POLYESTER_API_PRIVATE_KEY`, optionally
@@ -450,13 +454,15 @@ and, on most calls, a legacy `subAccountID`. The account is:
 | --- | --- |
 | `nil` (unset) | `Config.DefaultSubAccountID`, or the main account when none is set |
 | `"active"` | the same as `nil` |
-| `"main"` or `""` | always the main account, whatever `DefaultSubAccountID` is |
+| `"main"` | always the main account, whatever `DefaultSubAccountID` is |
 | a sub-account ID, such as `"Bht3tfQZv8E"` | that sub-account |
 | `map[string]string{"subaccountId": id}` | that sub-account |
 
-A `subAccountID` of `""` also means the main account, and a non-empty one names
-a sub-account. Pass either `account` or `subAccountID`, not both. Any other
-`account` value is refused with `*errors.ValidationError` before sending.
+A non-nil `subAccountID` names a sub-account; leave it nil for the account
+`account` selects. Pass either `account` or `subAccountID`, not both. An empty
+or blank `account` or `subAccountID` is refused with `*errors.ValidationError`
+before sending, as is any other `account` value: for the main account pass
+`nil` (with no `DefaultSubAccountID`) or `"main"`, never `""`.
 
 ## Create and cancel orders
 
@@ -1775,6 +1781,10 @@ until the wait's deadline.
 
 Realtime delivery: bounded queues fail with `QueueOverflowError` instead of
 silently dropping. Use `SetOnError` and check `Err()` after `Messages()` closes.
+`Close()` called from the subscription's own goroutine, inside the
+`SetOnError` callback or the decoder, signals shutdown and returns; the
+subscription stops once the callback returns. Called from any other goroutine,
+it waits for the subscription to stop.
 Reconnects use capped exponential backoff with per-subscription jitter.
 Orderbook `CreateSubscriptionOptions` exposes `OnSequenceGap`, `OnReconnect`,
 `OnSnapshotRefresh`, and `OnError`. Managed create methods wait for both the

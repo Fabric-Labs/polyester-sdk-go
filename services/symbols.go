@@ -35,17 +35,33 @@ func ResolveSymbolID(catalogs *catalogs.Manager, symbol *string, symbolID *uint3
 }
 
 // ResolveOptionalSymbolID resolves an optional symbol filter.
-// Empty or omitted display symbol stays 0 (all symbols). A supplied display
-// symbol is resolved through the catalog and fails closed when unknown.
+// An omitted (nil) display symbol and symbol_id stay 0 (all symbols). A
+// supplied display symbol is resolved through the catalog and fails closed
+// when unknown; a blank one is refused (see checkOptionalSymbol), never read
+// as every market.
 func ResolveOptionalSymbolID(catalogs *catalogs.Manager, symbol *string, symbolID *uint32, label string) (uint32, error) {
+	if err := checkOptionalSymbol(symbol, label); err != nil {
+		return 0, err
+	}
 	if symbolID != nil {
 		return ResolveSymbolID(catalogs, symbol, symbolID, label)
 	}
-	if symbol == nil || strings.TrimSpace(*symbol) == "" {
+	if symbol == nil {
 		return 0, nil
 	}
 	trimmed := strings.TrimSpace(*symbol)
 	return ResolveSymbolID(catalogs, &trimmed, nil, label)
+}
+
+// checkOptionalSymbol refuses a supplied but blank (empty or whitespace-only)
+// market name for an optional market filter. A blank name would resolve to
+// no market and so match every market; leave it nil for every market. It
+// needs no catalogs, so a call checks it before waiting for them.
+func checkOptionalSymbol(symbol *string, label string) error {
+	if symbol != nil && strings.TrimSpace(*symbol) == "" {
+		return &errors.ValidationError{Msg: label + " symbol must not be blank; leave it nil to match every market"}
+	}
+	return nil
 }
 
 func checkSymbolMatchesID(catalogs *catalogs.Manager, symbol string, symbolID uint32, label string) error {

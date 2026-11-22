@@ -452,6 +452,10 @@ type CancelAllOrdersResult struct {
 	// MatchedTriggers counts the triggers a cancel-all with IncludeTriggers
 	// matched, each stopped unless it was a dry run; 0 without it.
 	MatchedTriggers int `json:"matched_triggers,omitempty"`
+	// TsNs is the server's response time in nanoseconds since the Unix epoch:
+	// the contract's ts_ns, or ts when only that is sent; 0 when neither is.
+	// A retry with the same request ID returns the original cancel-all's time.
+	TsNs uint64 `json:"ts_ns,omitempty"`
 }
 
 // CancelledOrder is one order a cancel-all requested to cancel.
@@ -647,6 +651,9 @@ type BatchCancelOrdersResult struct {
 	Results       []BatchCancelResultItem `json:"results"`
 	AcceptedCount int                     `json:"accepted_count,omitempty"`
 	RejectedCount int                     `json:"rejected_count,omitempty"`
+	// TsNs is the server's response time in nanoseconds since the Unix epoch:
+	// the contract's ts_ns, or ts when only that is sent; 0 when neither is.
+	TsNs uint64 `json:"ts_ns,omitempty"`
 }
 
 // CancelAllAfterResult is returned from cancel-all-after.
@@ -658,6 +665,10 @@ type CancelAllAfterResult struct {
 	EffectiveTimeoutSec int                 `json:"effective_timeout_sec,omitempty"`
 	ExpiresAtTsNs       string              `json:"expires_at_ts_ns,omitempty"`
 	EffectiveScope      *DeadManSwitchScope `json:"effective_scope,omitempty"`
+	// TsNs is the server's response time in nanoseconds since the Unix epoch:
+	// the contract's ts_ns, or ts when only that is sent; 0 when neither is.
+	// It is not the switch's expiry, which is ExpiresAtTsNs.
+	TsNs uint64 `json:"ts_ns,omitempty"`
 }
 
 // DeadManSwitchScope is the scope an armed dead-man switch cancels on

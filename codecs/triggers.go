@@ -775,10 +775,13 @@ var (
 // CancelAllTriggersToProto encodes a cancel-all of triggers. Empty symbolIDs
 // match every symbol, a nil side matches both sides and empty triggerTypes
 // (stop_loss, take_profit, trailing_stop, twap or ladder) match every type;
-// repeated symbol IDs and types are sent once. A request ID is generated when
-// requestID is nil or empty.
+// repeated symbol IDs and types are sent once. A supplied requestID is sent
+// exactly as given (see ExactRequestID): an empty, padded or otherwise
+// malformed one is refused. One is generated only when requestID is nil.
 func CancelAllTriggersToProto(subAccountID *string, symbolIDs []uint32, side *string, triggerTypes []string, dryRun bool, requestID *string) (*triggersv1.CancelAllTriggersRequest, error) {
-	resolvedRequestID, err := coalesceRequestID(requestID, "cancel-all-triggers")
+	// A supplied request ID is sent exactly as given or refused, never
+	// trimmed or replaced, so a retry replays the first cancel.
+	resolvedRequestID, err := exactOrGeneratedRequestID(requestID, "cancel-all-triggers")
 	if err != nil {
 		return nil, err
 	}

@@ -721,6 +721,7 @@ func CancelAllFromProto(msg *orderv1.CancelAllOrdersResponse) (models.CancelAllO
 		Truncated:        msg.GetTruncated(),
 		ListingStatus:    cancelAllListingStatusName(msg.GetListingStatus()),
 		MatchedTriggers:  int(msg.GetMatchedTriggers()),
+		TsNs:             pairedTsNs(msg.GetTsNs(), msg.GetTs()),
 	}, nil
 }
 
@@ -1043,6 +1044,7 @@ func BatchCancelFromProto(msg *orderv1.BatchCancelOrdersResponse) (models.BatchC
 		Results:       results,
 		AcceptedCount: accepted,
 		RejectedCount: rejected,
+		TsNs:          pairedTsNs(msg.GetTsNs(), msg.GetTs()),
 	}, nil
 }
 
@@ -1059,6 +1061,7 @@ func CancelAllAfterFromProto(msg *orderv1.CancelAllAfterResponse) (models.Cancel
 		EffectiveTimeoutSec: int(msg.GetEffectiveTimeoutSec()),
 		ExpiresAtTsNs:       strconv.FormatUint(msg.GetExpiresAtTsNs(), 10),
 		EffectiveScope:      deadManSwitchScopeFromProto(msg.GetEffectiveScope()),
+		TsNs:                pairedTsNs(msg.GetTsNs(), msg.GetTs()),
 	}, nil
 }
 

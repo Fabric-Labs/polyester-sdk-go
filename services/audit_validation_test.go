@@ -31,17 +31,23 @@ func auditCatalog(t *testing.T) *catalogs.Manager {
 	return manager
 }
 
-func TestOptionalSymbolFiltersFailClosedAndOmitEmpty(t *testing.T) {
+func TestOptionalSymbolFiltersFailClosedAndRefuseBlank(t *testing.T) {
 	manager := auditCatalog(t)
 	unknown := "NOPE-USDT"
 	if _, err := ResolveOptionalSymbolID(manager, &unknown, nil, "cancel_all"); err == nil {
 		t.Fatal("unknown display symbol must fail closed")
 	}
 
-	empty := "   "
-	got, err := ResolveOptionalSymbolID(manager, &empty, nil, "cancel_all")
+	// A blank symbol is refused, never read as every market; only an omitted
+	// (nil) one means every market.
+	for _, blank := range []string{"", "   "} {
+		if got, err := ResolveOptionalSymbolID(manager, &blank, nil, "cancel_all"); err == nil {
+			t.Fatalf("blank symbol %q must be refused, got=%d", blank, got)
+		}
+	}
+	got, err := ResolveOptionalSymbolID(manager, nil, nil, "cancel_all")
 	if err != nil || got != 0 {
-		t.Fatalf("empty/whitespace symbol should mean all symbols, got=%d err=%v", got, err)
+		t.Fatalf("omitted symbol should mean all symbols, got=%d err=%v", got, err)
 	}
 
 	known := "BTC-USDT"
