@@ -23,8 +23,9 @@ import (
 //
 // Close cancels the subscription context and waits until the run loop has
 // fully stopped (websocket teardown included). Close called from the
-// SetOnError callback only signals shutdown and returns, as the managed
-// streams' Close does.
+// subscription's run goroutine (the decoder or the SetOnError callback it
+// calls) or from the SetOnError callback a token renewal failure calls only
+// signals shutdown and returns, as the managed streams' Close does.
 type Subscription[T any] struct {
 	ch           chan T
 	done         chan struct{}
@@ -72,10 +73,12 @@ func (s *Subscription[T]) Err() error {
 
 // Close cancels the subscription and waits for the run loop to exit.
 //
-// Called from the SetOnError callback, it only signals shutdown and returns:
-// the callback may be running on the run loop itself, or on a goroutine the
-// run loop waits for, so waiting could never end. The run loop exits once the
-// callback returns. Every other Close waits for it.
+// Called from the run loop's goroutine (the decoder, or the SetOnError
+// callback the run loop calls) or from the SetOnError callback a token
+// renewal failure calls, on a goroutine the run loop waits for, it only
+// signals shutdown and returns: waiting could never end. The run loop exits
+// once the callback returns. Every other Close waits for it, a Close from
+// SetOnError's immediate call on the caller's goroutine included.
 func (s *Subscription[T]) Close() {
 	s.closeOnce.Do(func() {
 		s.mu.Lock()
@@ -153,7 +156,9 @@ func (s *Subscription[T]) SetOnError(callback func(error)) {
 	err := s.err
 	s.mu.Unlock()
 	if callback != nil && err != nil {
-		s.callError(callback, err)
+		// Runs on the caller's goroutine, unmarked: a Close from it waits
+		// unless the caller is itself running a callback of this subscription.
+		callErrorCallback(callback, err)
 	}
 }
 
@@ -164,9 +169,11 @@ func (s *Subscription[T]) notifyError(err error) {
 	s.callError(callback, err)
 }
 
-// callError runs an error callback on the calling goroutine as a callback of
-// this subscription (internal/callbackmark): a Close called from inside it
-// signals shutdown and returns without waiting.
+// callError runs an error callback the run loop or its token renewer calls as
+// a callback of this subscription (internal/callbackmark): a Close called from
+// inside it signals shutdown and returns without waiting. The run loop is
+// already marked; the token renewer's goroutine, which the run loop waits for
+// when it stops, is not.
 func (s *Subscription[T]) callError(callback func(error), err error) {
 	if callback == nil || err == nil {
 		return

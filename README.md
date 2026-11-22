@@ -1758,9 +1758,10 @@ receipt, err := account.SendCalls([]chain.ChainCall{call}, true, 60*time.Second)
 
 Realtime delivery: bounded queues fail with `QueueOverflowError` instead of
 silently dropping. Use `SetOnError` and check `Err()` after `Messages()` closes.
-`Close()` called from inside the `SetOnError` callback signals shutdown and
-returns; the subscription stops once the callback returns. Called from any
-other goroutine, it waits for the subscription to stop.
+`Close()` called from the subscription's own goroutine, inside the
+`SetOnError` callback or the decoder, signals shutdown and returns; the
+subscription stops once the callback returns. Called from any other goroutine,
+it waits for the subscription to stop.
 Reconnects use capped exponential backoff with per-subscription jitter.
 Orderbook `CreateSubscriptionOptions` exposes `OnSequenceGap`, `OnReconnect`,
 `OnSnapshotRefresh`, and `OnError`. Managed create methods wait for both the
