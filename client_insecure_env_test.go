@@ -4,14 +4,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/Fabric-Labs/polyester-sdk-go/chain"
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 )
 
 // plaintextVPCParams is devnet with plaintext API and websocket URLs on a
 // private, non-loopback host.
-func plaintextVPCParams(allowInsecure bool) chain.CreateEnvironmentParams {
+func plaintextVPCParams(allowInsecure bool) environment.CreateEnvironmentParams {
 	d := DevnetEnvironment
-	return chain.CreateEnvironmentParams{
+	return environment.CreateEnvironmentParams{
 		Name:               d.Name,
 		APIURL:             "http://10.0.0.5:8080",
 		WebsocketURL:       "ws://10.0.0.5:8080",
@@ -51,7 +51,7 @@ func TestNewAcceptsEnvironmentCreatedWithAllowInsecure(t *testing.T) {
 	if err != nil {
 		t.Fatalf("WithURLs on an opted-in environment: %v", err)
 	}
-	if _, err := chain.ParsePolyesterEnvironment(moved); err != nil {
+	if _, err := environment.ParsePolyesterEnvironment(moved); err != nil {
 		t.Fatalf("re-validating the WithURLs copy: %v", err)
 	}
 }

@@ -16,7 +16,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	alertsv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/alerts/v1/alertsv1connect"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 	"google.golang.org/protobuf/types/known/timestamppb"

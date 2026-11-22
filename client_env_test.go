@@ -4,7 +4,7 @@ import (
 	"testing"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
-	"github.com/Fabric-Labs/polyester-sdk-go/chain"
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 )
 
 // setPolyesterEnv sets every POLYESTER_* variable FromEnv reads.
@@ -13,7 +13,7 @@ func setPolyesterEnv(t *testing.T) {
 	t.Setenv(auth.AccountIDEnv, "AcctFromEnv")
 	t.Setenv(auth.APIKeyIDEnv, "ak_from_env")
 	t.Setenv(auth.APIPrivateKeyEnv, auth.GenerateEd25519Keypair().SecretKeyHex.Reveal())
-	t.Setenv(chain.EnvNameEnv, "testnet")
+	t.Setenv(environment.EnvNameEnv, "testnet")
 	t.Setenv("POLYESTER_API_URL", "https://env.invalid")
 	t.Setenv("POLYESTER_WS_URL", "wss://env.invalid/ws")
 }

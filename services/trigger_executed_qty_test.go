@@ -10,7 +10,7 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
 	triggers "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1/triggersv1connect"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
 )
 

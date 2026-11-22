@@ -12,7 +12,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 )
 
 // upgradingServer accepts the realtime WebSocket and waits, so a private

@@ -7,7 +7,7 @@ import (
 
 	polyester "github.com/Fabric-Labs/polyester-sdk-go"
 	"github.com/Fabric-Labs/polyester-sdk-go/chain"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 )
 
 // Public smoke: construct an unauthenticated client and exercise catalog wait

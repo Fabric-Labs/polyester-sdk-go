@@ -20,8 +20,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -126,7 +127,7 @@ type mockBundler struct {
 }
 
 func newMockBundler(t *testing.T) *mockBundler {
-	m := &mockBundler{t: t, chainID: PolyesterDevnetEnvironment.ChainID}
+	m := &mockBundler{t: t, chainID: environment.PolyesterDevnetEnvironment.ChainID}
 	srv := hardening.NewTestServer(http.HandlerFunc(m.serve))
 	t.Cleanup(srv.Close)
 	m.url = srv.URL
@@ -239,7 +240,7 @@ func (m *mockBundler) handle(method string, params []any) (int, map[string]any, 
 
 func (m *mockBundler) account(t *testing.T, timeout time.Duration) *SmartAccount {
 	t.Helper()
-	env := PolyesterDevnetEnvironment
+	env := environment.PolyesterDevnetEnvironment
 	env.RPCURL = m.url
 	env.AccountAbstraction.BundlerURL = m.url
 	env.AccountAbstraction.PaymasterURL = m.url
@@ -399,7 +400,7 @@ func TestSendCallsInternalErrorAnswerKeepsTheHash(t *testing.T) {
 
 func TestUserOperationHashMatchesEntryPointV07(t *testing.T) {
 	// Reference values: viem getUserOperationHash, entryPointVersion "0.7".
-	env := PolyesterDevnetEnvironment
+	env := environment.PolyesterDevnetEnvironment
 	env.ChainID = 31337
 	env.AccountAbstraction.EntryPoint.Address = "0x0000000071727De22E5E9d8BAf0edAc6f37da032"
 	nonce := new(big.Int).Or(new(big.Int).Lsh(big.NewInt(123456789), 64), big.NewInt(7))

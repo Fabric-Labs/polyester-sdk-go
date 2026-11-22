@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
-	"github.com/Fabric-Labs/polyester-sdk-go/chain"
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 )
 
 // syntheticPrivateKeyHex is an obviously fake Ed25519 seed (0xa0, 0xa1, ...).
@@ -23,7 +23,7 @@ const syntheticPrivateKeyHex = "a0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7
 const syntheticURLSecret = "url-userinfo-secret"
 
 func syntheticConfig() Config {
-	env := chain.PolyesterDevnetEnvironment
+	env := environment.PolyesterDevnetEnvironment
 	account := "acct_redaction"
 	return Config{
 		Environment:      &env,

@@ -9,8 +9,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 )
 
 // invalidSafeOwners are owners that are not an address someone controls: not
@@ -200,7 +201,7 @@ func strconvQuote(s string) string {
 func smartAccountWithRPC(rpc *JSONRPCClient) *SmartAccount {
 	return &SmartAccount{
 		Address:     testSalt0,
-		Environment: PolyesterDevnetEnvironment,
+		Environment: environment.PolyesterDevnetEnvironment,
 		rpc:         rpc,
 	}
 }

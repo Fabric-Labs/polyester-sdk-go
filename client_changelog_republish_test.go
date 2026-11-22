@@ -9,7 +9,7 @@ import (
 	"connectrpc.com/connect"
 	changelogv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1/changelogv1connect"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )

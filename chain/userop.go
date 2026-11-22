@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -152,7 +153,7 @@ func userOperationHash(p SignSafeUserOperationParams) (string, error) {
 type SmartAccount struct {
 	Address      string
 	OwnerAddress string
-	Environment  PolyesterChainEnvironment
+	Environment  environment.PolyesterEnvironment
 	SaltNonce    *big.Int
 	initializer  []byte
 	factoryData  []byte
@@ -163,9 +164,9 @@ type SmartAccount struct {
 }
 
 // NewSmartAccount creates a SmartAccount from an owner private key hex.
-// environment may be nil (defaults to PolyesterDevnetEnvironment).
+// env may be nil (defaults to environment.PolyesterDevnetEnvironment).
 // saltNonce may be nil (defaults to 0).
-func NewSmartAccount(ownerPrivateKey string, environment *PolyesterChainEnvironment, saltNonce *big.Int) (*SmartAccount, error) {
+func NewSmartAccount(ownerPrivateKey string, envOverride *environment.PolyesterEnvironment, saltNonce *big.Int) (*SmartAccount, error) {
 	keyHex := strings.TrimPrefix(strings.TrimSpace(ownerPrivateKey), "0x")
 	keyBytes, err := hex.DecodeString(keyHex)
 	if err != nil {
@@ -175,9 +176,9 @@ func NewSmartAccount(ownerPrivateKey string, environment *PolyesterChainEnvironm
 	if err != nil {
 		return nil, fmt.Errorf("invalid owner private key: %w", err)
 	}
-	env := PolyesterDevnetEnvironment
-	if environment != nil {
-		env = *environment
+	env := environment.PolyesterDevnetEnvironment
+	if envOverride != nil {
+		env = *envOverride
 	}
 	if saltNonce == nil {
 		saltNonce = big.NewInt(0)
@@ -650,7 +651,7 @@ func StubSignature() []byte {
 // SignSafeUserOperationParams are inputs for EIP-712 SafeOp v0.7 signing.
 type SignSafeUserOperationParams struct {
 	OwnerKey             *ecdsa.PrivateKey
-	Environment          PolyesterChainEnvironment
+	Environment          environment.PolyesterEnvironment
 	Sender               string
 	Nonce                *big.Int
 	InitCode             []byte
@@ -743,7 +744,7 @@ func validateSignSafeUserOperationParams(p SignSafeUserOperationParams) error {
 		return &errors.ValidationError{Msg: "SignSafeUserOperationParams.OwnerKey is required: a secp256k1 private key"}
 	}
 	if p.Environment.ChainID <= 0 {
-		return &errors.ValidationError{Msg: "SignSafeUserOperationParams.Environment.ChainID must be > 0; pass a Polyester environment such as PolyesterDevnetEnvironment"}
+		return &errors.ValidationError{Msg: "SignSafeUserOperationParams.Environment.ChainID must be > 0; pass a Polyester environment such as environment.PolyesterDevnetEnvironment"}
 	}
 	for _, address := range []struct{ value, field string }{
 		{p.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress, "SignSafeUserOperationParams.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress"},

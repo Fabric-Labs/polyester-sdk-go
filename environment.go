@@ -1,23 +1,23 @@
 package polyester
 
-import "github.com/Fabric-Labs/polyester-sdk-go/chain"
+import "github.com/Fabric-Labs/polyester-sdk-go/environment"
 
 // Environment is the first-class network configuration passed to New.
-type Environment = chain.PolyesterEnvironment
+type Environment = environment.PolyesterEnvironment
 
 var (
 	// DevnetEnvironment is the default client / chain-helper network.
-	DevnetEnvironment = chain.PolyesterDevnetEnvironment
+	DevnetEnvironment = environment.PolyesterDevnetEnvironment
 	// TestnetEnvironment is public testnet (api.testnet.polyester.com, chain 888169).
-	TestnetEnvironment = chain.PolyesterTestnetEnvironment
+	TestnetEnvironment = environment.PolyesterTestnetEnvironment
 )
 
 // CreateEnvironment validates a complete environment, including custom / VPC URLs.
-func CreateEnvironment(params chain.CreateEnvironmentParams) (Environment, error) {
-	return chain.CreatePolyesterEnvironment(params)
+func CreateEnvironment(params environment.CreateEnvironmentParams) (Environment, error) {
+	return environment.CreatePolyesterEnvironment(params)
 }
 
 // EnvironmentFromName resolves "devnet" / "testnet".
 func EnvironmentFromName(name string) (Environment, error) {
-	return chain.EnvironmentFromName(name)
+	return environment.EnvironmentFromName(name)
 }

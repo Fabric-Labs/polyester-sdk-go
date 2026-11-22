@@ -11,6 +11,7 @@ require (
 	github.com/google/gnostic v0.7.1
 	github.com/gorilla/websocket v1.5.3
 	github.com/mr-tron/base58 v1.3.0
+	golang.org/x/crypto v0.54.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260526163538-3dc84a4a5aaa
 	google.golang.org/protobuf v1.36.11
 )

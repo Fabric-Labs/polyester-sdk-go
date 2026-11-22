@@ -10,7 +10,7 @@ import (
 	"time"
 
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
-	"github.com/Fabric-Labs/polyester-sdk-go/hardening"
+	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 )
 
 // fakeURLPassword is an obviously fake password placed in URL userinfo.

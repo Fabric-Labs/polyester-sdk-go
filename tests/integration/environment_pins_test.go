@@ -9,19 +9,19 @@ import (
 	"time"
 
 	polyester "github.com/Fabric-Labs/polyester-sdk-go"
-	"github.com/Fabric-Labs/polyester-sdk-go/chain"
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/testutil"
 )
 
 func TestDevnetPinsMatchLiveZipperCatalog(t *testing.T) {
-	assertPinsMatchCatalog(t, chain.PolyesterDevnetEnvironment)
+	assertPinsMatchCatalog(t, environment.PolyesterDevnetEnvironment)
 }
 
 func TestTestnetPinsMatchLiveZipperCatalog(t *testing.T) {
-	assertPinsMatchCatalog(t, chain.PolyesterTestnetEnvironment)
+	assertPinsMatchCatalog(t, environment.PolyesterTestnetEnvironment)
 }
 
-func assertPinsMatchCatalog(t *testing.T, env chain.PolyesterEnvironment) {
+func assertPinsMatchCatalog(t *testing.T, env environment.PolyesterEnvironment) {
 	t.Helper()
 	client, err := polyester.New(polyester.Config{
 		Environment:          &env,

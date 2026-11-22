@@ -17,8 +17,8 @@ import (
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
-	"github.com/Fabric-Labs/polyester-sdk-go/chain"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs/decode"
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	zipperv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/chain/zipper/v1/chainzipperv1connect"
@@ -33,8 +33,8 @@ import (
 )
 
 var (
-	DefaultAPIURL = chain.PolyesterDevnetEnvironment.APIURL
-	DefaultWSURL  = chain.PolyesterDevnetEnvironment.WebsocketURL
+	DefaultAPIURL = environment.PolyesterDevnetEnvironment.APIURL
+	DefaultWSURL  = environment.PolyesterDevnetEnvironment.WebsocketURL
 )
 
 // Config configures a Polyester client.
@@ -45,7 +45,7 @@ var (
 // "[REDACTED]"; gob refuses to encode a Config. Decoding JSON still reads
 // APIPrivateKey.
 type Config struct {
-	Environment         *chain.PolyesterEnvironment
+	Environment         *environment.PolyesterEnvironment
 	APIKeyID            string
 	APIPrivateKey       auth.Secret
 	APIURL              string
@@ -114,7 +114,7 @@ func (c Config) Format(f fmt.State, verb rune) {
 // explicitly, so a field added to Config stays out of encoded output until it
 // is added here. HTTPClient is not a setting that can be encoded.
 type redactedConfig struct {
-	Environment          *chain.PolyesterEnvironment
+	Environment          *environment.PolyesterEnvironment
 	APIKeyID             string
 	APIPrivateKey        string
 	APIURL               string
@@ -180,7 +180,7 @@ func recvWindowMilliseconds(window time.Duration) (int, error) {
 
 // Client is the root Polyester SDK entrypoint.
 type Client struct {
-	Environment         chain.PolyesterEnvironment
+	Environment         environment.PolyesterEnvironment
 	APIURL              string
 	WSURL               string
 	DefaultSubAccountID *string
@@ -246,9 +246,9 @@ type Client struct {
 // variable, so a setting cfg leaves unset keeps its default. Use FromEnv to
 // read the POLYESTER_* variables.
 func New(cfg Config) (*Client, error) {
-	env := chain.PolyesterDevnetEnvironment
+	env := environment.PolyesterDevnetEnvironment
 	if cfg.Environment != nil {
-		parsed, err := chain.ParsePolyesterEnvironment(*cfg.Environment)
+		parsed, err := environment.ParsePolyesterEnvironment(*cfg.Environment)
 		if err != nil {
 			return nil, err
 		}
@@ -418,8 +418,8 @@ func FromEnv(overrides ...func(*Config)) (*Client, error) {
 	if accountID := auth.AccountIDFromEnv(); accountID != "" {
 		cfg.DefaultAccountID = &accountID
 	}
-	if envName := strings.TrimSpace(os.Getenv(chain.EnvNameEnv)); envName != "" {
-		env, err := chain.EnvironmentFromName(envName)
+	if envName := strings.TrimSpace(os.Getenv(environment.EnvNameEnv)); envName != "" {
+		env, err := environment.EnvironmentFromName(envName)
 		if err != nil {
 			return nil, err
 		}

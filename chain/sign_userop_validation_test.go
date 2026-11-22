@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/Fabric-Labs/polyester-sdk-go/environment"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	"github.com/ethereum/go-ethereum/crypto"
 )
@@ -20,7 +21,7 @@ func validSignSafeUserOperationParams(t *testing.T) SignSafeUserOperationParams 
 	}
 	return SignSafeUserOperationParams{
 		OwnerKey:             key,
-		Environment:          PolyesterDevnetEnvironment,
+		Environment:          environment.PolyesterDevnetEnvironment,
 		Sender:               "0x00000000000000000000000000000000000000a1",
 		Nonce:                big.NewInt(1),
 		CallGasLimit:         big.NewInt(100_000),
@@ -126,7 +127,7 @@ func TestSignSafeUserOperationRefusesInvalidInput(t *testing.T) {
 		{"OwnerKey", func(p *SignSafeUserOperationParams) {
 			p.OwnerKey = &ecdsa.PrivateKey{PublicKey: ecdsa.PublicKey{Curve: &elliptic.CurveParams{}}}
 		}},
-		{"Environment.ChainID", func(p *SignSafeUserOperationParams) { p.Environment = PolyesterEnvironment{} }},
+		{"Environment.ChainID", func(p *SignSafeUserOperationParams) { p.Environment = environment.PolyesterEnvironment{} }},
 		{"Environment.AccountAbstraction.Safe.Safe4337ModuleAddress", func(p *SignSafeUserOperationParams) {
 			p.Environment.AccountAbstraction.Safe.Safe4337ModuleAddress = ""
 		}},
