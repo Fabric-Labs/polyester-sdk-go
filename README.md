@@ -1750,6 +1750,29 @@ receipt, err := account.SendCalls([]chain.ChainCall{call}, true, 60*time.Second)
 // EncodeAddAllowedExternalDestinations, EncodeSetInternalAccountAllowlistRequired, …
 ```
 
+A UserOperation can execute even when `SendCalls` returns an error: the bundler
+may have accepted it before the error. Once the SDK has attempted the send, any
+failure (a timeout, an HTTP error such as 504, or no receipt by the receipt
+timeout) is a `*chain.UserOperationOutcomeUnknownError`, which carries the
+operation's hash and for which `errors.MutationOutcomeUnknown` reports true.
+Never call `SendCalls` again for the same calls: that signs a second operation,
+and both execute. Wait on the hash instead:
+
+```go
+account, err := chain.NewSmartAccount(ownerPrivateKeyHex, nil, nil)
+var withdraw chain.ChainCall // from chain.EncodeFundingWithdrawToChain
+receipt, err := account.SendCalls([]chain.ChainCall{withdraw}, true, 60*time.Second)
+if unknown, ok := err.(*chain.UserOperationOutcomeUnknownError); ok && errors.MutationOutcomeUnknown(err) {
+    // Same operation, no second signature. An error here means it is still pending.
+    receipt, err = account.WaitForReceipt(unknown.UserOperationHash, 2*time.Minute, time.Second)
+}
+```
+
+A JSON-RPC refusal of the send (`*chain.JSONRPCError`, for example a validation
+error) means the bundler accepted nothing, and the calls can be sent again.
+Receipt polls that fail with an HTTP error such as 503 or a timeout are retried
+until the wait's deadline.
+
 Realtime delivery: bounded queues fail with `QueueOverflowError` instead of
 silently dropping. Use `SetOnError` and check `Err()` after `Messages()` closes.
 Reconnects use capped exponential backoff with per-subscription jitter.

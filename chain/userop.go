@@ -4,6 +4,7 @@ import (
 	"crypto/ecdsa"
 	"encoding/hex"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	stdmath "math"
 	"math/big"
@@ -35,6 +36,7 @@ var (
 	)
 	typeUint8   = mustABIType("uint8")
 	typeUint192 = mustABIType("uint192")
+	typeBytes32 = mustABIType("bytes32")
 )
 
 // UserOperationReceipt is a mined UserOperation receipt from the bundler.
@@ -43,6 +45,106 @@ type UserOperationReceipt struct {
 	TransactionHash   string
 	Success           bool
 	Raw               map[string]any
+}
+
+// UserOperationOutcomeUnknownError is returned by SendCalls for any failure
+// once eth_sendUserOperation was attempted: a transport error, a timeout or an
+// HTTP error on the send, or a receipt wait that did not end with a receipt.
+// The bundler may hold the operation, and it may still execute.
+// errors.MutationOutcomeUnknown reports true and errors.IsRetryable false;
+// errors.AnswerStatus and errors.RetryAfter read the failed answer, if any.
+//
+// Recover with WaitForReceipt(UserOperationHash, ...). Never call SendCalls
+// again for the same calls: that signs a second operation, which executes too.
+// Err is the underlying failure; errors.As reaches it.
+type UserOperationOutcomeUnknownError struct {
+	UserOperationHash string
+	Err               error
+	transport         *errors.TransportError
+}
+
+func newUserOperationOutcomeUnknown(hash string, cause error) *UserOperationOutcomeUnknownError {
+	e := &UserOperationOutcomeUnknownError{UserOperationHash: hash, Err: cause}
+	e.transport = &errors.TransportError{
+		Msg:        e.Error(),
+		Status:     errors.AnswerStatus(cause),
+		RetryAfter: errors.RetryAfter(cause),
+	}
+	return e
+}
+
+func (e *UserOperationOutcomeUnknownError) Error() string {
+	return fmt.Sprintf("UserOperation %s outcome unknown: %v; wait for its receipt instead of sending it again", e.UserOperationHash, e.Err)
+}
+
+func (e *UserOperationOutcomeUnknownError) Is(target error) bool {
+	return target == errors.ErrPolyester
+}
+
+// Unwrap returns the *errors.TransportError that classifies the error as an
+// unknown outcome, and the underlying failure.
+func (e *UserOperationOutcomeUnknownError) Unwrap() []error {
+	if e.transport == nil {
+		return []error{e.Err}
+	}
+	return []error{e.transport, e.Err}
+}
+
+// JSON-RPC error codes that do not prove the bundler refused an operation: an
+// internal error and the implementation-defined server error range.
+const (
+	jsonRPCInternalError  = -32603
+	jsonRPCServerErrorMin = -32099
+	jsonRPCServerErrorMax = -32000
+)
+
+// isJSONRPCRefusal reports whether err is an answered JSON-RPC error object
+// that refuses the call. An HTTP error, a timeout, a malformed answer, an
+// internal error or a server error (-32000 to -32099) proves nothing about the
+// call's outcome.
+func isJSONRPCRefusal(err error) bool {
+	var rpcErr *JSONRPCError
+	if !stderrors.As(err, &rpcErr) || rpcErr.Code == nil {
+		return false
+	}
+	code := *rpcErr.Code
+	return code != jsonRPCInternalError && (code < jsonRPCServerErrorMin || code > jsonRPCServerErrorMax)
+}
+
+// userOperationHash is EntryPoint v0.7 getUserOpHash of the UserOperation p
+// signs, as a 0x hex string.
+func userOperationHash(p SignSafeUserOperationParams) (string, error) {
+	word := func(hi, lo *big.Int) [32]byte {
+		var w [32]byte
+		hi.FillBytes(w[:16])
+		lo.FillBytes(w[16:])
+		return w
+	}
+	packed, err := abi.Arguments{
+		{Type: typeAddress}, {Type: typeUint256}, {Type: typeBytes32}, {Type: typeBytes32},
+		{Type: typeBytes32}, {Type: typeUint256}, {Type: typeBytes32}, {Type: typeBytes32},
+	}.Pack(
+		common.HexToAddress(p.Sender),
+		p.Nonce,
+		[32]byte(crypto.Keccak256(p.InitCode)),
+		[32]byte(crypto.Keccak256(p.CallData)),
+		word(p.VerificationGasLimit, p.CallGasLimit),
+		p.PreVerificationGas,
+		word(p.MaxPriorityFeePerGas, p.MaxFeePerGas),
+		[32]byte(crypto.Keccak256(p.PaymasterAndData)),
+	)
+	if err != nil {
+		return "", fmt.Errorf("encode UserOperation hash: %w", err)
+	}
+	outer, err := abi.Arguments{{Type: typeBytes32}, {Type: typeAddress}, {Type: typeUint256}}.Pack(
+		[32]byte(crypto.Keccak256(packed)),
+		common.HexToAddress(p.Environment.AccountAbstraction.EntryPoint.Address),
+		big.NewInt(p.Environment.ChainID),
+	)
+	if err != nil {
+		return "", fmt.Errorf("encode UserOperation hash: %w", err)
+	}
+	return hexutil.Encode(crypto.Keccak256(outer)), nil
 }
 
 // SmartAccount is an owner-key smart account: derive Safe, build/sign/submit Funding UserOps.
@@ -154,7 +256,14 @@ func (a *SmartAccount) GetNonce(key *big.Int) (*big.Int, error) {
 }
 
 // SendCalls builds, sponsors, signs, and submits a UserOperation for calls.
-// Only a single call is supported for now. When wait is true, polls for a receipt.
+// Only a single call is supported for now. When wait is true, polls for a
+// receipt for up to receiptTimeout.
+//
+// A bundler's JSON-RPC refusal of the send returns its *JSONRPCError: nothing
+// was accepted. Any other failure from the send on returns a
+// *UserOperationOutcomeUnknownError naming the operation's hash: the bundler
+// may hold the operation, so wait on that hash with WaitForReceipt instead of
+// sending again.
 func (a *SmartAccount) SendCalls(calls []ChainCall, wait bool, receiptTimeout time.Duration) (*UserOperationReceipt, error) {
 	if len(calls) == 0 {
 		return nil, fmt.Errorf("at least one call is required")
@@ -303,7 +412,7 @@ func (a *SmartAccount) SendCalls(calls []ChainCall, wait bool, receiptTimeout ti
 	}
 
 	paymasterAndData := PackPaymasterAndData(paymaster, pmVer, pmPost, pmDataBytes)
-	signature, err := SignSafeUserOperation(SignSafeUserOperationParams{
+	signed := SignSafeUserOperationParams{
 		OwnerKey:             a.ownerKey,
 		Environment:          a.Environment,
 		Sender:               a.Address,
@@ -316,7 +425,14 @@ func (a *SmartAccount) SendCalls(calls []ChainCall, wait bool, receiptTimeout ti
 		MaxFeePerGas:         maxFee,
 		MaxPriorityFeePerGas: maxPrio,
 		PaymasterAndData:     paymasterAndData,
-	})
+	}
+	signature, err := SignSafeUserOperation(signed)
+	if err != nil {
+		return nil, err
+	}
+	// The hash is known before sending: once the send is attempted, every
+	// failure names it, so the caller waits on it instead of signing again.
+	computedHash, err := userOperationHash(signed)
 	if err != nil {
 		return nil, err
 	}
@@ -348,16 +464,29 @@ func (a *SmartAccount) SendCalls(calls []ChainCall, wait bool, receiptTimeout ti
 		finalOp,
 		a.Environment.AccountAbstraction.EntryPoint.Address,
 	}, &userOpHash); err != nil {
-		return nil, err
+		if isJSONRPCRefusal(err) {
+			return nil, err // The bundler refused it: nothing was accepted.
+		}
+		return nil, newUserOperationOutcomeUnknown(computedHash, err)
+	}
+	if userOpHash == "" {
+		return nil, newUserOperationOutcomeUnknown(computedHash, stderrors.New("eth_sendUserOperation returned no hash"))
 	}
 	if !wait {
 		return &UserOperationReceipt{UserOperationHash: userOpHash}, nil
 	}
-	return a.WaitForReceipt(userOpHash, receiptTimeout, time.Second)
+	receipt, err := a.WaitForReceipt(userOpHash, receiptTimeout, time.Second)
+	if err != nil {
+		return nil, newUserOperationOutcomeUnknown(userOpHash, err)
+	}
+	return receipt, nil
 }
 
 // WaitForReceipt polls eth_getUserOperationReceipt until mined or timeout.
-// If pimlico_getUserOperationStatus reports rejected, fails fast.
+// A poll that fails without a JSON-RPC refusal (an HTTP error such as 503, a
+// timeout or a transport error) is retried until the deadline, and the
+// deadline's error wraps the last such failure. If
+// pimlico_getUserOperationStatus reports rejected, fails fast.
 func (a *SmartAccount) WaitForReceipt(userOperationHash string, timeout, pollInterval time.Duration) (*UserOperationReceipt, error) {
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -366,11 +495,18 @@ func (a *SmartAccount) WaitForReceipt(userOperationHash string, timeout, pollInt
 		pollInterval = time.Second
 	}
 	deadline := time.Now().Add(timeout)
+	var lastErr error
 	for time.Now().Before(deadline) {
 		raw, err := a.bundler.Request("eth_getUserOperationReceipt", []any{userOperationHash})
 		if err != nil {
-			return nil, err
+			if isJSONRPCRefusal(err) {
+				return nil, err
+			}
+			lastErr = err
+			time.Sleep(min(pollInterval, max(0, time.Until(deadline))))
+			continue
 		}
+		lastErr = nil
 		if len(raw) > 0 && string(raw) != "null" {
 			var decoded map[string]any
 			if err := json.Unmarshal(raw, &decoded); err != nil {
@@ -414,6 +550,9 @@ func (a *SmartAccount) WaitForReceipt(userOperationHash string, timeout, pollInt
 			}
 		}
 		time.Sleep(pollInterval)
+	}
+	if lastErr != nil {
+		return nil, fmt.Errorf("timed out waiting for UserOperation receipt %s: %w", userOperationHash, lastErr)
 	}
 	return nil, fmt.Errorf("timed out waiting for UserOperation receipt %s", userOperationHash)
 }
