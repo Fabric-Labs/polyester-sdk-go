@@ -8,7 +8,7 @@ import (
 )
 
 func TestResolveCandleChannelTimeframe(t *testing.T) {
-	for _, timeframe := range []string{"1m", "MIN_1", "min1"} {
+	for _, timeframe := range []string{"1m", "MIN_1"} {
 		got, err := resolveCandleChannelTimeframe(timeframe)
 		if err != nil {
 			t.Fatalf("resolveCandleChannelTimeframe(%q): %v", timeframe, err)

@@ -45,6 +45,15 @@ func ExactRequestID(value string) (string, error) {
 	return validateCorrelationID(value, "request_id", requestIDMaxLen)
 }
 
+// exactOrGeneratedRequestID sends a request ID the caller supplied exactly as
+// given (see ExactRequestID) and generates one with prefix when it is nil.
+func exactOrGeneratedRequestID(requestID *string, prefix string) (string, error) {
+	if requestID == nil {
+		return coalesceRequestID(nil, prefix)
+	}
+	return ExactRequestID(*requestID)
+}
+
 func optionalClientID(value *string, field string) (*string, error) {
 	if value == nil || strings.TrimSpace(*value) == "" {
 		return nil, nil
