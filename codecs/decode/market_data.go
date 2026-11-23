@@ -367,6 +367,42 @@ func referenceCandlesFromColumns(msg *marketdatav1.GetCandlesColumnsResponse, vo
 	return out, nil
 }
 
+// IndexPriceCandlesFromProto decodes a GetIndexPriceCandles response, whose
+// columns are newest first, into rows in the same order. Prices use
+// priceScale, the pair's reference_price_scale. Columns of different lengths
+// are refused with a *errors.TransportError, like a misaligned
+// GetCandlesColumns response.
+func IndexPriceCandlesFromProto(msg *marketdatav1.GetIndexPriceCandlesResponse, priceScale int) (models.IndexPriceCandlesResult, error) {
+	rows := len(msg.GetTsSec())
+	if len(msg.GetOpen()) != rows || len(msg.GetHigh()) != rows || len(msg.GetLow()) != rows ||
+		len(msg.GetClose()) != rows || len(msg.GetSource()) != rows {
+		return models.IndexPriceCandlesResult{}, &sdkerrors.TransportError{Msg: fmt.Sprintf(
+			"invalid GetIndexPriceCandles response lengths: ts_sec=%d open=%d high=%d low=%d close=%d source=%d",
+			rows, len(msg.GetOpen()), len(msg.GetHigh()), len(msg.GetLow()), len(msg.GetClose()), len(msg.GetSource()),
+		)}
+	}
+	if rows > 0 {
+		if err := codecs.ValidateProtocolScale(priceScale); err != nil {
+			return models.IndexPriceCandlesResult{}, err
+		}
+	}
+	out := make([]models.IndexPriceCandle, 0, rows)
+	for i, ts := range msg.GetTsSec() {
+		out = append(out, models.IndexPriceCandle{
+			TsSec:  int64(ts),
+			Open:   formatQtyScaledOrEmpty(msg.GetOpen()[i], priceScale),
+			High:   formatQtyScaledOrEmpty(msg.GetHigh()[i], priceScale),
+			Low:    formatQtyScaledOrEmpty(msg.GetLow()[i], priceScale),
+			Close:  formatQtyScaledOrEmpty(msg.GetClose()[i], priceScale),
+			Source: enumLabel(msg.GetSource()[i], "INDEX_PRICE_CANDLE_SOURCE_"),
+		})
+	}
+	return models.IndexPriceCandlesResult{
+		SymbolID: msg.GetSymbolId(), Timeframe: timeframeLabels[msg.GetTimeframe()],
+		Candles: out, NextPageToken: msg.GetNextPageToken(),
+	}, nil
+}
+
 // CandlePointFromProto decodes one candle point publication.
 func CandlePointFromProto(point *marketdatav1.CandlePoint, symbolID uint32, timeframe string, volumeScale int) models.Candle {
 	if point == nil {

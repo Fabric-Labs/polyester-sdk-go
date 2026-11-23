@@ -2161,6 +2161,10 @@ credentials above.
 symbol := "BTC-USDT"
 candles, err := client.MarketData.GetCandles(ctx, &symbol, nil, "1m", 50, nil, nil, false)
 current, err := client.MarketData.GetCurrentCandle(ctx, &symbol, nil, "1m")
+// The pair's index price, as candles newest first; Source is "reference"
+// before the listing and "index" from it on.
+indexCandles, err := client.MarketData.GetIndexPriceCandles(ctx, &symbol, nil, "1h", 24, nil, nil)
+_ = indexCandles.NextPageToken
 trades, err := client.MarketData.GetTrades(ctx, &symbol, nil, 20, nil)
 // Gap-free backfill, ascending by match ID: start at "0", then pass each
 // page's NextAfterTradeID; when it does not move, retry later with backoff.
@@ -2217,6 +2221,16 @@ the only one that reads false. Reference rows are always closed buckets. From
 a server that predates the columnar flag, every row reads true except the
 newest primary row of a first page (no page token) read with incomplete
 candles, which reads false, meaning not known to be closed.
+
+`GetIndexPriceCandles` returns the pair's index price candles newest-first,
+with the same symbol, timeframe, limit, time range and page token arguments
+as `GetCandles`. Its prices are decimals at the pair's
+`reference_price_scale`, and each `IndexPriceCandle.Source` names its series:
+`reference`, a composite reference candle from before the pair's listing, or
+`index`, the open, high, low and close of the pair's index price within the
+bucket, from the listing's bucket on. Every timeframe except `1s` has index
+price candles. Pass `NextPageToken` to read older candles with the same
+arguments; the server refuses a page token from `GetCandles`.
 
 Merged market overview stream (snapshot + live updates). With `Symbols` set,
 only those markets are emitted, from the snapshot and from live updates:

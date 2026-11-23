@@ -236,8 +236,8 @@ func listChangesRequest(opts models.ListChangelogChangesOptions) (*changelogv1.L
 	if err != nil {
 		return nil, err
 	}
-	if len(opts.Surfaces) > maxChangelogSurfaces {
-		return nil, &sdkerrors.ValidationError{Msg: fmt.Sprintf("surfaces accepts at most %d values, got %d", maxChangelogSurfaces, len(opts.Surfaces))}
+	if err := codecs.CheckContractRepeated(&changelogv1.ListChangesRequest{}, "surfaces", len(opts.Surfaces), "surfaces"); err != nil {
+		return nil, err
 	}
 	surfaces, err := changelogEnums[changelogv1.Surface](opts.Surfaces, changelogv1.Surface_value, "surfaces")
 	if err != nil {
@@ -278,10 +278,6 @@ func listChangesRequest(opts models.ListChangelogChangesOptions) (*changelogv1.L
 	}
 	return req, nil
 }
-
-// maxChangelogSurfaces is how many surfaces ListChanges accepts, one per
-// surface (ASSISTANT made it 11).
-const maxChangelogSurfaces = 11
 
 // changelogEnums maps filter labels such as "breaking_change" to enum values.
 // A label this SDK does not know cannot be sent, so it is a ValidationError.

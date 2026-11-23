@@ -7,11 +7,16 @@ import (
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
 )
 
-// ListChanges filters on the assistant surface, and takes all 11 surfaces at
-// once, one per surface.
+// ListChanges filters on the assistant and trading bots surfaces, and takes
+// every surface the contract has at once, one per surface, as the contract's
+// max_items allows, but no more.
 func TestListChangesAcceptsEverySurfaceIncludingAssistant(t *testing.T) {
 	req, err := listChangesRequest(models.ListChangelogChangesOptions{Surfaces: []string{models.ChangelogSurfaceAssistant}})
 	if err != nil || len(req.GetSurfaces()) != 1 || req.GetSurfaces()[0] != changelogv1.Surface_ASSISTANT {
+		t.Fatalf("req=%+v err=%v", req, err)
+	}
+	req, err = listChangesRequest(models.ListChangelogChangesOptions{Surfaces: []string{models.ChangelogSurfaceTradingBots}})
+	if err != nil || len(req.GetSurfaces()) != 1 || req.GetSurfaces()[0] != changelogv1.Surface_TRADING_BOTS {
 		t.Fatalf("req=%+v err=%v", req, err)
 	}
 	all := make([]string, 0, len(changelogv1.Surface_name))
@@ -20,13 +25,10 @@ func TestListChangesAcceptsEverySurfaceIncludingAssistant(t *testing.T) {
 			all = append(all, name)
 		}
 	}
-	if len(all) != maxChangelogSurfaces {
-		t.Fatalf("contract has %d surfaces, SDK accepts %d", len(all), maxChangelogSurfaces)
-	}
 	if _, err := listChangesRequest(models.ListChangelogChangesOptions{Surfaces: all}); err != nil {
 		t.Fatalf("every surface: %v", err)
 	}
 	if _, err := listChangesRequest(models.ListChangelogChangesOptions{Surfaces: append(all, "api")}); err == nil {
-		t.Fatal("12 surfaces must be refused")
+		t.Fatalf("%d surfaces must be refused", len(all)+1)
 	}
 }

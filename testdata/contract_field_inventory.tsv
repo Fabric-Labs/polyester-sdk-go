@@ -1,7 +1,8 @@
 # Every field of the request and reply messages public contracts 1945423c
 # and 5c2119f added or changed, and of the messages nested in their new
 # replies, of the lifecycle flow views, and of the balance read, profit and
-# loss and trigger cancel-all messages. A guard test walks these messages and fails when a field is missing
+# loss, trigger cancel-all, activity actor and index price candle
+# messages. A guard test walks these messages and fails when a field is missing
 # here or listed but gone, so no field of them is dropped by accident.
 #
 # covered: the SDK parameter (request) or model field (reply) that carries it.
@@ -259,10 +260,17 @@ auth.v1.ActivityEvent.event_action	covered	models.SubAccountActivityEvent.EventT
 auth.v1.ActivityEvent.source	covered	models.SubAccountActivityEvent.Source
 auth.v1.ActivityEvent.ip	covered	models.SubAccountActivityEvent.IP
 auth.v1.ActivityEvent.user_agent	covered	models.SubAccountActivityEvent.UserAgent
-auth.v1.ActivityEvent.actor_account_id	covered	models.SubAccountActivityEvent.ActorAccountID
-auth.v1.ActivityEvent.payload_json	covered	models.SubAccountActivityEvent.PayloadJSON
 auth.v1.ActivityEvent.subaccount_id	covered	models.SubAccountActivityEvent.SubaccountID
-auth.v1.ActivityEvent.actor_api_key_id	covered	models.SubAccountActivityEvent.ActorAPIKeyID
+auth.v1.ActivityEvent.actor	covered	models.SubAccountActivityEvent.Actor
+auth.v1.ActivityEvent.item	omitted	the item the event affected, a oneof of ten ID kinds and a display name: not decoded yet; read it with the generated AccountActivityServiceClient
+auth.v1.ActivityEvent.details	omitted	what the event changed, a oneof of ten typed detail messages: not decoded yet; read it with the generated AccountActivityServiceClient
+auth.v1.ActivityActor.kind	covered	models.SubAccountActivityActor.Kind
+auth.v1.ActivityActor.account_id	covered	models.SubAccountActivityActor.AccountID
+auth.v1.ActivityActor.username	covered	models.SubAccountActivityActor.Username
+auth.v1.ActivityActor.api_key_id	covered	models.SubAccountActivityActor.APIKeyID
+auth.v1.ActivityActor.api_key_kind	covered	models.SubAccountActivityActor.APIKeyKind
+auth.v1.ActivityActor.api_key_label	covered	models.SubAccountActivityActor.APIKeyLabel
+auth.v1.ActivityActor.system_reason	covered	models.SubAccountActivityActor.SystemReason
 ledger.read.v1.AssetBalance.asset_id	covered	models.AssetBalance.AssetID
 ledger.read.v1.AssetBalance.available	covered	models.AssetBalance.Available
 ledger.read.v1.AssetBalance.funding	covered	models.AssetBalance.Funding
@@ -364,3 +372,18 @@ triggers.v1.CancelAllTriggersResponse.matched_triggers	covered	models.CancelAllT
 triggers.v1.CancelAllTriggersResponse.status	covered	models.CancelAllTriggersResult.Status
 triggers.v1.CancelAllTriggersResponse.ts	covered	models.CancelAllTriggersResult.TsNs
 triggers.v1.CancelAllTriggersResponse.ts_ns	covered	models.CancelAllTriggersResult.TsNs
+marketdata.v1.GetIndexPriceCandlesRequest.symbol_id	covered	MarketData.GetIndexPriceCandles symbol, symbolID
+marketdata.v1.GetIndexPriceCandlesRequest.timeframe	covered	MarketData.GetIndexPriceCandles timeframe
+marketdata.v1.GetIndexPriceCandlesRequest.limit	covered	MarketData.GetIndexPriceCandles limit
+marketdata.v1.GetIndexPriceCandlesRequest.start_time	covered	MarketData.GetIndexPriceCandles start
+marketdata.v1.GetIndexPriceCandlesRequest.end_time	covered	MarketData.GetIndexPriceCandles end
+marketdata.v1.GetIndexPriceCandlesRequest.page_token	covered	MarketData.GetIndexPriceCandles pageToken
+marketdata.v1.GetIndexPriceCandlesResponse.symbol_id	covered	models.IndexPriceCandlesResult.SymbolID
+marketdata.v1.GetIndexPriceCandlesResponse.timeframe	covered	models.IndexPriceCandlesResult.Timeframe
+marketdata.v1.GetIndexPriceCandlesResponse.ts_sec	covered	models.IndexPriceCandle.TsSec
+marketdata.v1.GetIndexPriceCandlesResponse.open	covered	models.IndexPriceCandle.Open
+marketdata.v1.GetIndexPriceCandlesResponse.high	covered	models.IndexPriceCandle.High
+marketdata.v1.GetIndexPriceCandlesResponse.low	covered	models.IndexPriceCandle.Low
+marketdata.v1.GetIndexPriceCandlesResponse.close	covered	models.IndexPriceCandle.Close
+marketdata.v1.GetIndexPriceCandlesResponse.source	covered	models.IndexPriceCandle.Source
+marketdata.v1.GetIndexPriceCandlesResponse.next_page_token	covered	models.IndexPriceCandlesResult.NextPageToken

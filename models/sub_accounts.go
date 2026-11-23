@@ -151,22 +151,42 @@ type SubAccountActivityEvent struct {
 	// UserAgent its user agent; each empty when not recorded.
 	IP        string `json:"ip,omitempty"`
 	UserAgent string `json:"user_agent,omitempty"`
-	// ActorAccountID is the public ID of the account that acted; empty when
-	// none is recorded.
-	ActorAccountID string `json:"actor_account_id,omitempty"`
-	// PayloadJSON is the event's details as the JSON object the server
-	// sent, kept raw; empty when it has none. A sign-in event names its
-	// "method" ("wallet"), the signing "wallet" address (absent when the
-	// sign-in answered no challenge) and, on a failed event, its "reason"
-	// (such as "invalid_signature" or "challenge_expired").
-	PayloadJSON string `json:"payload_json,omitempty"`
 	// SubaccountID is the public ID of the sub-account the event belongs
 	// to; empty for the main account's own events. Set by
 	// SubAccounts.ListAccountActivity.
 	SubaccountID string `json:"subaccount_id,omitempty"`
-	// ActorAPIKeyID is the public ID of the API key the actor used; empty
-	// for a session. Set by SubAccounts.ListAccountActivity.
-	ActorAPIKeyID string `json:"actor_api_key_id,omitempty"`
+	// Actor is who performed the event; nil only when the server sends
+	// none.
+	Actor *SubAccountActivityActor `json:"actor,omitempty"`
+}
+
+// SubAccountActivityActor is who performed an activity event: a user, an
+// API key, Polyester itself, or an unauthenticated request (such as a failed
+// sign-in).
+type SubAccountActivityActor struct {
+	// Kind is "user", "api_key", "system" or "unauthenticated"; "" when
+	// unspecified and "unknown(n)" for a kind this SDK does not know.
+	Kind string `json:"kind,omitempty"`
+	// AccountID is the public ID of the account that acted, for a user or
+	// an API key: a sub-account member is named by their own account, and a
+	// QuickSwap broker's key by the broker's account. Empty for the system
+	// and an unauthenticated request.
+	AccountID string `json:"account_id,omitempty"`
+	// Username is that account's username, when it has one.
+	Username string `json:"username,omitempty"`
+	// APIKeyID is the API key the actor signed with, as ApiKeySummary.KeyID
+	// names it ("ak_" and 32 hex digits); set for an API key actor only.
+	APIKeyID string `json:"api_key_id,omitempty"`
+	// APIKeyKind is that key's kind when the event was recorded: "standard",
+	// "assistant", "admin", "strategy_bot" or "broker"; "" when not an API
+	// key and "unknown(n)" for a kind this SDK does not know.
+	APIKeyKind string `json:"api_key_kind,omitempty"`
+	// APIKeyLabel is that key's label, when it has one.
+	APIKeyLabel string `json:"api_key_label,omitempty"`
+	// SystemReason is why Polyester acted, for the system actor only, such
+	// as "assistant_preset_updated"; "unknown(n)" for a reason this SDK does
+	// not know.
+	SystemReason string `json:"system_reason,omitempty"`
 }
 
 // ListAccountActivityOptions selects the events of
@@ -186,7 +206,8 @@ type ListAccountActivityOptions struct {
 	EntityKinds  []string
 	EventActions []string
 	Sources      []string
-	// APIKeyID keeps the events performed with this API key (public ID).
+	// APIKeyID keeps the events performed with this API key, as
+	// ApiKeySummary.KeyID names it ("ak_" and 32 lowercase hex digits).
 	APIKeyID *string
 	// StartTime (inclusive) and EndTime (exclusive) bound the event time;
 	// nil for no bound. When both are set, EndTime must be after StartTime.

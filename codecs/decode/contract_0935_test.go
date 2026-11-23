@@ -1,6 +1,7 @@
 package decode
 
 import (
+	"reflect"
 	"testing"
 	"time"
 
@@ -11,6 +12,7 @@ import (
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
+	"github.com/Fabric-Labs/polyester-sdk-go/models"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -124,31 +126,46 @@ func TestPreviewPriceBandRejectionCarriesTheLimit(t *testing.T) {
 	}
 }
 
-// The account activity feed names each event's sub-account and the API key
-// its actor used, in public-ID form, and leaves both empty when absent.
-func TestAccountActivityNamesTheSubAccountAndAPIKey(t *testing.T) {
+// The account activity feed names each event's sub-account in public-ID
+// form, empty when absent, and decodes its actor: the account as a public
+// ID, the API key as sent, and each kind and reason as a label.
+func TestAccountActivityNamesTheSubAccountAndActor(t *testing.T) {
 	list := AccountActivityListFromProto(&authv1.ListAccountActivityResponse{
 		Events: []*authv1.ActivityEvent{
-			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_FAILED, CreatedAt: timestamppb.New(time.UnixMilli(1_763_337_600_000))},
-			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_API_KEY, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED, SubaccountId: 9000000001, ActorApiKeyId: 42,
-				Source: 99, ActorAccountId: 9000000003, Ip: "203.0.113.7", UserAgent: "ua", PayloadJson: `{"k":1}`},
+			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_FAILED, CreatedAt: timestamppb.New(time.UnixMilli(1_763_337_600_000)),
+				Actor: &authv1.ActivityActor{Kind: authv1.ActivityActorKind_ACTIVITY_ACTOR_UNAUTHENTICATED}},
+			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_API_KEY, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED, SubaccountId: 9000000001,
+				Source: 99, Ip: "203.0.113.7", UserAgent: "ua",
+				Actor: &authv1.ActivityActor{Kind: authv1.ActivityActorKind_ACTIVITY_ACTOR_API_KEY, AccountId: 9000000003, Username: "alice",
+					ApiKeyId: "ak_0123456789abcdef0123456789abcdef", ApiKeyKind: 77, ApiKeyLabel: "bot"}},
+			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_API_KEY, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_UPDATED,
+				Actor: &authv1.ActivityActor{Kind: authv1.ActivityActorKind_ACTIVITY_ACTOR_SYSTEM, SystemReason: authv1.ActivitySystemReason_ACTIVITY_SYSTEM_ASSISTANT_PRESET_UPDATED}},
+			{EntityKind: authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION, EventAction: authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED},
 		},
 		NextPageToken: "p2",
 	})
-	if len(list.Events) != 2 || list.NextPageToken != "p2" {
+	if len(list.Events) != 4 || list.NextPageToken != "p2" {
 		t.Fatalf("list = %+v", list)
 	}
-	main, sub := list.Events[0], list.Events[1]
-	if main.EventType != "session:failed" || main.TsMs != 1_763_337_600_000 || main.SubaccountID != "" || main.ActorAPIKeyID != "" {
+	main, sub, system, noActor := list.Events[0], list.Events[1], list.Events[2], list.Events[3]
+	if main.EventType != "session:failed" || main.TsMs != 1_763_337_600_000 || main.SubaccountID != "" || main.CreatedAt == nil {
 		t.Fatalf("main account event = %+v", main)
 	}
-	if main.Source != "" || main.ActorAccountID != "" || main.IP != "" || main.PayloadJSON != "" || main.CreatedAt == nil {
-		t.Fatalf("main account event = %+v", main)
+	if main.Source != "" || main.IP != "" || !reflect.DeepEqual(main.Actor, &models.SubAccountActivityActor{Kind: "unauthenticated"}) {
+		t.Fatalf("main account event = %+v, actor %+v", main, main.Actor)
 	}
-	if sub.CreatedAt != nil || sub.Source != "unknown(99)" || sub.ActorAccountID != codecs.FormatID(9000000003) || sub.IP != "203.0.113.7" || sub.UserAgent != "ua" || sub.PayloadJSON != `{"k":1}` {
+	if sub.CreatedAt != nil || sub.Source != "unknown(99)" || sub.IP != "203.0.113.7" || sub.UserAgent != "ua" {
 		t.Fatalf("sub-account event = %+v", sub)
 	}
-	if sub.EventType != "api_key:created" || sub.SubaccountID != codecs.FormatID(9000000001) || sub.ActorAPIKeyID != codecs.FormatID(42) {
-		t.Fatalf("sub-account event = %+v", sub)
+	wantKey := &models.SubAccountActivityActor{Kind: "api_key", AccountID: codecs.FormatID(9000000003), Username: "alice",
+		APIKeyID: "ak_0123456789abcdef0123456789abcdef", APIKeyKind: "unknown(77)", APIKeyLabel: "bot"}
+	if sub.EventType != "api_key:created" || sub.SubaccountID != codecs.FormatID(9000000001) || !reflect.DeepEqual(sub.Actor, wantKey) {
+		t.Fatalf("sub-account event = %+v, actor %+v", sub, sub.Actor)
+	}
+	if !reflect.DeepEqual(system.Actor, &models.SubAccountActivityActor{Kind: "system", SystemReason: "assistant_preset_updated"}) {
+		t.Fatalf("system actor = %+v", system.Actor)
+	}
+	if noActor.Actor != nil {
+		t.Fatalf("actor of an event without one = %+v", noActor.Actor)
 	}
 }

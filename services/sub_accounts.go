@@ -138,8 +138,9 @@ func (s *SubAccountsService) ListActivity(ctx context.Context, account AccountSc
 // it; a key scoped to a sub-account reads only that sub-account's events and
 // is refused IncludeMainAccount. Filters the contract does not take (more
 // than 100 sub-accounts or a repeated one, an unknown or repeated label, too
-// many labels, an EndTime not after StartTime, a limit above 200) are
-// refused with an *errors.ValidationError before sending.
+// many labels, an APIKeyID that is not "ak_" and 32 lowercase hex digits,
+// an EndTime not after StartTime, a limit above 200) are refused with an
+// *errors.ValidationError before sending.
 func (s *SubAccountsService) ListAccountActivity(ctx context.Context, opts models.ListAccountActivityOptions) (models.SubAccountActivityList, error) {
 	req, err := accountActivityRequest(opts)
 	if err != nil {
@@ -198,9 +199,11 @@ func accountActivityRequest(opts models.ListAccountActivityOptions) (*authv1.Lis
 		return nil, err
 	}
 	if opts.APIKeyID != nil {
-		if req.ApiKeyId, err = codecs.ParseAccountID(*opts.APIKeyID, "api_key_id"); err != nil {
+		// Set, the key must be one: an empty one would match every actor.
+		if err := codecs.CheckContractString(req, "api_key_id", *opts.APIKeyID, "api_key_id"); err != nil {
 			return nil, err
 		}
+		req.ApiKeyId = *opts.APIKeyID
 	}
 	if opts.StartTime != nil {
 		req.StartTime = timestamppb.New(*opts.StartTime)
