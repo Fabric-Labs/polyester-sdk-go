@@ -63,20 +63,28 @@ func (f *fakeActivity) ListAccountActivity(_ context.Context, req *connect.Reque
 	return connect.NewResponse(resp), nil
 }
 
-// fullActivityEvent is a failed wallet sign-in of a sub-account with every
-// field the contract carries set.
+// activityKeyID is an API key ID as the contract spells it.
+const activityKeyID = "ak_0123456789abcdef0123456789abcdef"
+
+// fullActivityEvent is an API key created in a sub-account by another API
+// key, with every field the SDK decodes set.
 func fullActivityEvent() *authv1.ActivityEvent {
 	return &authv1.ActivityEvent{
-		CreatedAt:      timestamppb.New(activityAt),
-		EntityKind:     authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION,
-		EventAction:    authv1.ActivityEventAction_ACTIVITY_ACTION_FAILED,
-		Source:         authv1.ActivityEventSource_ACTIVITY_SOURCE_WEB,
-		Ip:             "203.0.113.7",
-		UserAgent:      "Mozilla/5.0 (X11; Linux x86_64)",
-		ActorAccountId: 9000000003,
-		PayloadJson:    `{"method":"wallet","wallet":"0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed","reason":"invalid_signature"}`,
-		SubaccountId:   9000000001,
-		ActorApiKeyId:  42,
+		CreatedAt:    timestamppb.New(activityAt),
+		EntityKind:   authv1.ActivityEntityKind_ACTIVITY_ENTITY_API_KEY,
+		EventAction:  authv1.ActivityEventAction_ACTIVITY_ACTION_CREATED,
+		Source:       authv1.ActivityEventSource_ACTIVITY_SOURCE_API,
+		Ip:           "203.0.113.7",
+		UserAgent:    "polyester-sdk-go",
+		SubaccountId: 9000000001,
+		Actor: &authv1.ActivityActor{
+			Kind:        authv1.ActivityActorKind_ACTIVITY_ACTOR_API_KEY,
+			AccountId:   9000000003,
+			Username:    "alice",
+			ApiKeyId:    activityKeyID,
+			ApiKeyKind:  authv1.ActivityApiKeyKind_ACTIVITY_KEY_STRATEGY_BOT,
+			ApiKeyLabel: "grid bot",
+		},
 	}
 }
 
@@ -86,16 +94,21 @@ var activityAt = time.Date(2026, 11, 17, 7, 1, 2, 345678901, time.UTC)
 func wantActivityEvent() models.SubAccountActivityEvent {
 	at := activityAt
 	return models.SubAccountActivityEvent{
-		EventType:      "session:failed",
-		TsMs:           activityAt.UnixMilli(),
-		CreatedAt:      &at,
-		Source:         "web",
-		IP:             "203.0.113.7",
-		UserAgent:      "Mozilla/5.0 (X11; Linux x86_64)",
-		ActorAccountID: codecs.FormatID(9000000003),
-		PayloadJSON:    `{"method":"wallet","wallet":"0x5aAeb6053F3E94C9b9A09f33669435E7Ef1BeAed","reason":"invalid_signature"}`,
-		SubaccountID:   codecs.FormatID(9000000001),
-		ActorAPIKeyID:  codecs.FormatID(42),
+		EventType:    "api_key:created",
+		TsMs:         activityAt.UnixMilli(),
+		CreatedAt:    &at,
+		Source:       "api",
+		IP:           "203.0.113.7",
+		UserAgent:    "polyester-sdk-go",
+		SubaccountID: codecs.FormatID(9000000001),
+		Actor: &models.SubAccountActivityActor{
+			Kind:        "api_key",
+			AccountID:   codecs.FormatID(9000000003),
+			Username:    "alice",
+			APIKeyID:    activityKeyID,
+			APIKeyKind:  "strategy_bot",
+			APIKeyLabel: "grid bot",
+		},
 	}
 }
 
@@ -155,7 +168,7 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 	})
 	start := time.Date(2026, 11, 1, 0, 0, 0, 0, time.UTC)
 	end := start.AddDate(0, 0, 17)
-	key := codecs.FormatID(42)
+	key := activityKeyID
 	opts := models.ListAccountActivityOptions{
 		SubAccountIDs:      []string{codecs.FormatID(9000000001), codecs.FormatID(9000000002)},
 		IncludeMainAccount: true,
@@ -171,9 +184,9 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// Every field of the event is kept: the time exactly, the source, the
-	// client IP and user agent, the actor's account and API key and the
-	// sub-account as public IDs, and the payload JSON raw.
+	// Every decoded field of the event is kept: the time exactly, the
+	// source, the client IP and user agent, the sub-account as a public ID,
+	// and the actor with its account as a public ID and its API key as sent.
 	if len(list.Events) != 1 || !reflect.DeepEqual(list.Events[0], wantActivityEvent()) || list.NextPageToken != "p2" {
 		t.Fatalf("list = %+v, want the event %+v", list, wantActivityEvent())
 	}
@@ -182,7 +195,7 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 		EntityKinds:  []authv1.ActivityEntityKind{authv1.ActivityEntityKind_ACTIVITY_ENTITY_SESSION, authv1.ActivityEntityKind_ACTIVITY_ENTITY_API_KEY},
 		EventActions: []authv1.ActivityEventAction{authv1.ActivityEventAction_ACTIVITY_ACTION_FAILED},
 		Sources:      []authv1.ActivityEventSource{authv1.ActivityEventSource_ACTIVITY_SOURCE_WEB},
-		ApiKeyId:     42,
+		ApiKeyId:     activityKeyID,
 	}
 	sent := fake.requests[0]
 	if !sent.GetStartTime().AsTime().Equal(start) || !sent.GetEndTime().AsTime().Equal(end) {
@@ -214,6 +227,8 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 		tooMany[i] = codecs.FormatID(uint64(i + 1))
 	}
 	empty := ""
+	numeric := codecs.FormatID(42)
+	upper := "ak_0123456789ABCDEF0123456789ABCDEF"
 	for name, bad := range map[string]models.ListAccountActivityOptions{
 		"limit over 200":          {Limit: 201},
 		"101 sub-accounts":        {SubAccountIDs: tooMany},
@@ -223,6 +238,8 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 		"unspecified action":      {EventActions: []string{"unspecified"}},
 		"repeated source":         {Sources: []string{"web", "WEB"}},
 		"empty api key":           {APIKeyID: &empty},
+		"numeric api key":         {APIKeyID: &numeric},
+		"upper-case api key":      {APIKeyID: &upper},
 		"end not after the start": {StartTime: &start, EndTime: &start},
 	} {
 		var validation *sdkerrors.ValidationError

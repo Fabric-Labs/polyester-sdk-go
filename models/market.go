@@ -30,6 +30,35 @@ type CandlesResult struct {
 	NextPageToken    string   `json:"next_page_token,omitempty"`
 }
 
+// IndexPriceCandle is one candle of a pair's index price series, as
+// MarketData.GetIndexPriceCandles returns it. Prices are decimals at the
+// pair's reference_price_scale.
+type IndexPriceCandle struct {
+	// TsSec is the bucket start, in seconds since the Unix epoch (UTC).
+	TsSec int64  `json:"ts_sec,omitempty"`
+	Open  string `json:"open,omitempty"`
+	High  string `json:"high,omitempty"`
+	Low   string `json:"low,omitempty"`
+	Close string `json:"close,omitempty"`
+	// Source is the series the candle comes from: "reference", a composite
+	// reference candle (the median of external venues' candles) from a
+	// bucket before the one containing the pair's listing, or "index", the
+	// open, high, low and close of the pair's index price within the bucket,
+	// from the listing's bucket on. "" when unspecified and "unknown(n)" for
+	// a source this SDK does not know.
+	Source string `json:"source,omitempty"`
+}
+
+// IndexPriceCandlesResult holds a page of index price candles, newest first.
+type IndexPriceCandlesResult struct {
+	SymbolID  uint32             `json:"symbol_id,omitempty"`
+	Timeframe string             `json:"timeframe,omitempty"`
+	Candles   []IndexPriceCandle `json:"candles"`
+	// NextPageToken continues toward older candles; empty when no older
+	// candle exists in the requested range.
+	NextPageToken string `json:"next_page_token,omitempty"`
+}
+
 // MarketTrade is a public market trade.
 type MarketTrade struct {
 	SymbolID uint32     `json:"symbol_id,omitempty"`

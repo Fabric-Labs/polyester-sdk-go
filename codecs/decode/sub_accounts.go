@@ -222,8 +222,8 @@ func SubaccountActivityListFromProto(msg *authv1.ListSubaccountEventsResponse) m
 }
 
 // AccountActivityListFromProto decodes a ListAccountActivity page: each
-// event with the sub-account it belongs to and the API key its actor used,
-// both empty when absent.
+// event with the sub-account it belongs to (empty when absent) and its
+// actor.
 func AccountActivityListFromProto(msg *authv1.ListAccountActivityResponse) models.SubAccountActivityList {
 	return models.SubAccountActivityList{Events: activityEvents(msg.GetEvents()), NextPageToken: msg.GetNextPageToken()}
 }
@@ -238,23 +238,36 @@ func activityEvents(events []*authv1.ActivityEvent) []models.SubAccountActivityE
 		event := models.SubAccountActivityEvent{
 			EventType: strings.ToLower(strings.TrimPrefix(e.GetEntityKind().String(), "ACTIVITY_ENTITY_")) +
 				":" + strings.ToLower(strings.TrimPrefix(e.GetEventAction().String(), "ACTIVITY_ACTION_")),
-			TsMs:        tsMs,
-			CreatedAt:   timestampTime(e.GetCreatedAt()),
-			Source:      enumLabel(e.GetSource(), "ACTIVITY_SOURCE_"),
-			IP:          e.GetIp(),
-			UserAgent:   e.GetUserAgent(),
-			PayloadJSON: e.GetPayloadJson(),
-		}
-		if e.GetActorAccountId() != 0 {
-			event.ActorAccountID = codecs.FormatID(e.GetActorAccountId())
+			TsMs:      tsMs,
+			CreatedAt: timestampTime(e.GetCreatedAt()),
+			Source:    enumLabel(e.GetSource(), "ACTIVITY_SOURCE_"),
+			IP:        e.GetIp(),
+			UserAgent: e.GetUserAgent(),
+			Actor:     activityActor(e.GetActor()),
 		}
 		if e.GetSubaccountId() != 0 {
 			event.SubaccountID = codecs.FormatID(e.GetSubaccountId())
 		}
-		if e.GetActorApiKeyId() != 0 {
-			event.ActorAPIKeyID = codecs.FormatID(e.GetActorApiKeyId())
-		}
 		out = append(out, event)
 	}
 	return out
+}
+
+// activityActor decodes who performed an activity event; nil when absent.
+func activityActor(a *authv1.ActivityActor) *models.SubAccountActivityActor {
+	if a == nil {
+		return nil
+	}
+	actor := &models.SubAccountActivityActor{
+		Kind:         enumLabel(a.GetKind(), "ACTIVITY_ACTOR_"),
+		Username:     a.GetUsername(),
+		APIKeyID:     a.GetApiKeyId(),
+		APIKeyKind:   enumLabel(a.GetApiKeyKind(), "ACTIVITY_KEY_"),
+		APIKeyLabel:  a.GetApiKeyLabel(),
+		SystemReason: enumLabel(a.GetSystemReason(), "ACTIVITY_SYSTEM_"),
+	}
+	if a.GetAccountId() != 0 {
+		actor.AccountID = codecs.FormatID(a.GetAccountId())
+	}
+	return actor
 }
