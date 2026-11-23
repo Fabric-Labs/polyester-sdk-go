@@ -28,13 +28,23 @@ import (
 // contractFieldMessages are the request and reply messages public contracts
 // 1945423c, 5c2119f and 0.93.5 added or changed, and the messages nested in their new
 // replies, the lifecycle flow views every flow read and update decodes, and the
-// balance read, profit and loss, trigger cancel-all, activity actor and index
-// price candle messages.
+// balance read, profit and loss, trigger cancel-all, activity actor, item and
+// details, and index price candle messages.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
 	"chain.lifecycle.v1.FlowSummaryView", "chain.lifecycle.v1.FlowTxMatchView", "chain.lifecycle.v1.AssetIds",
 	"chain.lifecycle.v1.RequestFee", "chain.lifecycle.v1.FlowSummaryProgressView", "chain.lifecycle.v1.FlowTimelineItemView",
 	"auth.v1.ListAccountActivityRequest", "auth.v1.ListAccountActivityResponse", "auth.v1.ActivityEvent", "auth.v1.ActivityActor",
+	"auth.v1.ActivityItem", "auth.v1.ActivityDetails", "auth.v1.ActivityTextChange",
+	"auth.v1.ActivityBoolChange", "auth.v1.ActivityUintChange", "auth.v1.ActivityTimeChange",
+	"auth.v1.ActivityIdChange", "auth.v1.ActivityActionsChange", "auth.v1.ActivityListChange",
+	"auth.v1.ActivityIdListChange", "auth.v1.ActivityApiKeyStatusChange", "auth.v1.ActivityApiKeyPurposeChange",
+	"auth.v1.ActivitySubaccountStatusChange", "auth.v1.ActivitySubaccountRoleChange",
+	"auth.v1.ActivityBrokerRoleChange", "auth.v1.ActivityInviteStatusChange", "auth.v1.ActivityAccountDetails",
+	"auth.v1.ActivitySessionDetails", "auth.v1.ActivityApiKeyDetails", "auth.v1.ActivityPolicyDetails",
+	"auth.v1.ActivitySubaccountDetails", "auth.v1.ActivityMemberDetails", "auth.v1.ActivityInviteDetails",
+	"auth.v1.ActivityDestinationDetails", "auth.v1.ActivityBrokerAllowlistDetails",
+	"auth.v1.ActivitySecurityDetails",
 	"marketdata.v1.GetIndexPriceCandlesRequest", "marketdata.v1.GetIndexPriceCandlesResponse",
 	"chain.lifecycle.v1.GetAccountFlowRequest", "chain.lifecycle.v1.GetAccountFlowResponse",
 	"chain.lifecycle.v1.ListAccountFlowsRequest", "chain.lifecycle.v1.ListAccountFlowsResponse",
@@ -95,6 +105,20 @@ var contractFieldTypes = map[string]reflect.Type{
 	"models.OrderErrorDetail":               reflect.TypeFor[models.OrderErrorDetail](),
 	"models.SubAccountActivityEvent":        reflect.TypeFor[models.SubAccountActivityEvent](),
 	"models.SubAccountActivityActor":        reflect.TypeFor[models.SubAccountActivityActor](),
+	"models.ActivityItem":                   reflect.TypeFor[models.ActivityItem](),
+	"models.ActivityDetails":                reflect.TypeFor[models.ActivityDetails](),
+	"models.ActivityAccountDetails":         reflect.TypeFor[models.ActivityAccountDetails](),
+	"models.ActivitySessionDetails":         reflect.TypeFor[models.ActivitySessionDetails](),
+	"models.ActivityAPIKeyDetails":          reflect.TypeFor[models.ActivityAPIKeyDetails](),
+	"models.ActivityPolicyDetails":          reflect.TypeFor[models.ActivityPolicyDetails](),
+	"models.ActivitySubaccountDetails":      reflect.TypeFor[models.ActivitySubaccountDetails](),
+	"models.ActivityMemberDetails":          reflect.TypeFor[models.ActivityMemberDetails](),
+	"models.ActivityInviteDetails":          reflect.TypeFor[models.ActivityInviteDetails](),
+	"models.ActivityDestinationDetails":     reflect.TypeFor[models.ActivityDestinationDetails](),
+	"models.ActivityBrokerAllowlistDetails": reflect.TypeFor[models.ActivityBrokerAllowlistDetails](),
+	"models.ActivitySecurityDetails":        reflect.TypeFor[models.ActivitySecurityDetails](),
+	"models.ActivityChange":                 reflect.TypeFor[models.ActivityChange[string]](),
+	"models.ActivityListChange":             reflect.TypeFor[models.ActivityListChange[string]](),
 	"models.IndexPriceCandlesResult":        reflect.TypeFor[models.IndexPriceCandlesResult](),
 	"models.IndexPriceCandle":               reflect.TypeFor[models.IndexPriceCandle](),
 	"models.SubAccountActivityList":         reflect.TypeFor[models.SubAccountActivityList](),
