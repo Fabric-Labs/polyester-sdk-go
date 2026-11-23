@@ -158,6 +158,13 @@ type SubAccountActivityEvent struct {
 	// Actor is who performed the event; nil only when the server sends
 	// none.
 	Actor *SubAccountActivityActor `json:"actor,omitempty"`
+	// Item is the item the event affected; nil for an event recorded before
+	// items were.
+	Item *ActivityItem `json:"item,omitempty"`
+	// Details is what the event changed; nil when it records no change,
+	// such as a deletion, was recorded before details were, or is of a kind
+	// this SDK does not know.
+	Details *ActivityDetails `json:"details,omitempty"`
 }
 
 // SubAccountActivityActor is who performed an activity event: a user, an

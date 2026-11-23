@@ -67,7 +67,8 @@ func (f *fakeActivity) ListAccountActivity(_ context.Context, req *connect.Reque
 const activityKeyID = "ak_0123456789abcdef0123456789abcdef"
 
 // fullActivityEvent is an API key created in a sub-account by another API
-// key, with every field the SDK decodes set.
+// key, with every event field the SDK decodes set, and the created key as its
+// item and details.
 func fullActivityEvent() *authv1.ActivityEvent {
 	return &authv1.ActivityEvent{
 		CreatedAt:    timestamppb.New(activityAt),
@@ -85,14 +86,28 @@ func fullActivityEvent() *authv1.ActivityEvent {
 			ApiKeyKind:  authv1.ActivityApiKeyKind_ACTIVITY_KEY_STRATEGY_BOT,
 			ApiKeyLabel: "grid bot",
 		},
+		Item: &authv1.ActivityItem{Id: &authv1.ActivityItem_ApiKeyId{ApiKeyId: activityCreatedKeyID}, Name: "market maker"},
+		Details: &authv1.ActivityDetails{Kind: &authv1.ActivityDetails_ApiKey{ApiKey: &authv1.ActivityApiKeyDetails{
+			Label:       &authv1.ActivityTextChange{To: "market maker"},
+			Status:      &authv1.ActivityApiKeyStatusChange{To: authv1.ApiKeyStatus_ACTIVE},
+			IpAllowlist: &authv1.ActivityListChange{Added: []string{"203.0.113.0/24"}},
+			ExpiresAt:   &authv1.ActivityTimeChange{To: timestamppb.New(activityKeyExpiry)},
+			ApiPolicyId: &authv1.ActivityIdChange{ToId: 9000000004},
+		}}},
 	}
 }
+
+// activityCreatedKeyID is the API key the event created, and
+// activityKeyExpiry its expiry, not whole milliseconds.
+const activityCreatedKeyID = "ak_fedcba9876543210fedcba9876543210"
+
+var activityKeyExpiry = time.Date(2027, 2, 1, 0, 0, 0, 250_000_001, time.UTC)
 
 var activityAt = time.Date(2026, 11, 17, 7, 1, 2, 345678901, time.UTC)
 
 // wantActivityEvent is fullActivityEvent as the SDK returns it.
 func wantActivityEvent() models.SubAccountActivityEvent {
-	at := activityAt
+	at, expiry := activityAt, activityKeyExpiry
 	return models.SubAccountActivityEvent{
 		EventType:    "api_key:created",
 		TsMs:         activityAt.UnixMilli(),
@@ -109,6 +124,14 @@ func wantActivityEvent() models.SubAccountActivityEvent {
 			APIKeyKind:  "strategy_bot",
 			APIKeyLabel: "grid bot",
 		},
+		Item: &models.ActivityItem{Kind: models.ActivityItemAPIKey, ID: activityCreatedKeyID, Name: "market maker"},
+		Details: &models.ActivityDetails{APIKey: &models.ActivityAPIKeyDetails{
+			Label:       &models.ActivityChange[string]{To: "market maker"},
+			Status:      &models.ActivityChange[authv1.ApiKeyStatus]{To: authv1.ApiKeyStatus_ACTIVE},
+			IPAllowlist: &models.ActivityListChange[string]{Added: []string{"203.0.113.0/24"}},
+			ExpiresAt:   &models.ActivityChange[*time.Time]{To: &expiry},
+			APIPolicyID: &models.ActivityChange[string]{To: codecs.FormatID(9000000004)},
+		}},
 	}
 }
 
@@ -186,7 +209,8 @@ func TestListAccountActivitySendsItsFilters(t *testing.T) {
 	}
 	// Every decoded field of the event is kept: the time exactly, the
 	// source, the client IP and user agent, the sub-account as a public ID,
-	// and the actor with its account as a public ID and its API key as sent.
+	// the actor with its account as a public ID and its API key as sent, and
+	// the item and details, the expiry to the nanosecond.
 	if len(list.Events) != 1 || !reflect.DeepEqual(list.Events[0], wantActivityEvent()) || list.NextPageToken != "p2" {
 		t.Fatalf("list = %+v, want the event %+v", list, wantActivityEvent())
 	}

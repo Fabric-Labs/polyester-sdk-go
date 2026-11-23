@@ -222,8 +222,8 @@ func SubaccountActivityListFromProto(msg *authv1.ListSubaccountEventsResponse) m
 }
 
 // AccountActivityListFromProto decodes a ListAccountActivity page: each
-// event with the sub-account it belongs to (empty when absent) and its
-// actor.
+// event with the sub-account it belongs to (empty when absent), its actor,
+// and the item it affected and what it changed.
 func AccountActivityListFromProto(msg *authv1.ListAccountActivityResponse) models.SubAccountActivityList {
 	return models.SubAccountActivityList{Events: activityEvents(msg.GetEvents()), NextPageToken: msg.GetNextPageToken()}
 }
@@ -244,6 +244,8 @@ func activityEvents(events []*authv1.ActivityEvent) []models.SubAccountActivityE
 			IP:        e.GetIp(),
 			UserAgent: e.GetUserAgent(),
 			Actor:     activityActor(e.GetActor()),
+			Item:      activityItem(e.GetItem()),
+			Details:   activityDetails(e.GetDetails()),
 		}
 		if e.GetSubaccountId() != 0 {
 			event.SubaccountID = codecs.FormatID(e.GetSubaccountId())

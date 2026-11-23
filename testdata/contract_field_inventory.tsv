@@ -1,8 +1,8 @@
 # Every field of the request and reply messages public contracts 1945423c
 # and 5c2119f added or changed, and of the messages nested in their new
 # replies, of the lifecycle flow views, and of the balance read, profit and
-# loss, trigger cancel-all, activity actor and index price candle
-# messages. A guard test walks these messages and fails when a field is missing
+# loss, trigger cancel-all, activity actor, item and details, and index
+# price candle messages. A guard test walks these messages and fails when a field is missing
 # here or listed but gone, so no field of them is dropped by accident.
 #
 # covered: the SDK parameter (request) or model field (reply) that carries it.
@@ -262,8 +262,8 @@ auth.v1.ActivityEvent.ip	covered	models.SubAccountActivityEvent.IP
 auth.v1.ActivityEvent.user_agent	covered	models.SubAccountActivityEvent.UserAgent
 auth.v1.ActivityEvent.subaccount_id	covered	models.SubAccountActivityEvent.SubaccountID
 auth.v1.ActivityEvent.actor	covered	models.SubAccountActivityEvent.Actor
-auth.v1.ActivityEvent.item	omitted	the item the event affected, a oneof of ten ID kinds and a display name: not decoded yet; read it with the generated AccountActivityServiceClient
-auth.v1.ActivityEvent.details	omitted	what the event changed, a oneof of ten typed detail messages: not decoded yet; read it with the generated AccountActivityServiceClient
+auth.v1.ActivityEvent.item	covered	models.SubAccountActivityEvent.Item
+auth.v1.ActivityEvent.details	covered	models.SubAccountActivityEvent.Details
 auth.v1.ActivityActor.kind	covered	models.SubAccountActivityActor.Kind
 auth.v1.ActivityActor.account_id	covered	models.SubAccountActivityActor.AccountID
 auth.v1.ActivityActor.username	covered	models.SubAccountActivityActor.Username
@@ -271,6 +271,109 @@ auth.v1.ActivityActor.api_key_id	covered	models.SubAccountActivityActor.APIKeyID
 auth.v1.ActivityActor.api_key_kind	covered	models.SubAccountActivityActor.APIKeyKind
 auth.v1.ActivityActor.api_key_label	covered	models.SubAccountActivityActor.APIKeyLabel
 auth.v1.ActivityActor.system_reason	covered	models.SubAccountActivityActor.SystemReason
+auth.v1.ActivityItem.name	covered	models.ActivityItem.Name
+auth.v1.ActivityItem.account_id	covered	models.ActivityItem.Kind, ID (kind account_id)
+auth.v1.ActivityItem.subaccount_id	covered	models.ActivityItem.Kind, ID (kind subaccount_id)
+auth.v1.ActivityItem.invite_id	covered	models.ActivityItem.Kind, ID (kind invite_id)
+auth.v1.ActivityItem.subaccount_policy_id	covered	models.ActivityItem.Kind, ID (kind subaccount_policy_id)
+auth.v1.ActivityItem.api_policy_id	covered	models.ActivityItem.Kind, ID (kind api_policy_id)
+auth.v1.ActivityItem.api_key_id	covered	models.ActivityItem.Kind, ID (kind api_key_id)
+auth.v1.ActivityItem.mfa_factor_id	covered	models.ActivityItem.Kind, ID (kind mfa_factor_id)
+auth.v1.ActivityItem.address_book_entry_id	covered	models.ActivityItem.Kind, ID (kind address_book_entry_id)
+auth.v1.ActivityItem.broker_allowlist_change_id	covered	models.ActivityItem.Kind, ID (kind broker_allowlist_change_id)
+auth.v1.ActivityItem.connected_app_id	covered	models.ActivityItem.Kind, ID (kind connected_app_id)
+auth.v1.ActivityDetails.account	covered	models.ActivityDetails.Account
+auth.v1.ActivityDetails.session	covered	models.ActivityDetails.Session
+auth.v1.ActivityDetails.api_key	covered	models.ActivityDetails.APIKey
+auth.v1.ActivityDetails.policy	covered	models.ActivityDetails.Policy
+auth.v1.ActivityDetails.subaccount	covered	models.ActivityDetails.Subaccount
+auth.v1.ActivityDetails.member	covered	models.ActivityDetails.Member
+auth.v1.ActivityDetails.invite	covered	models.ActivityDetails.Invite
+auth.v1.ActivityDetails.destination	covered	models.ActivityDetails.Destination
+auth.v1.ActivityDetails.broker_allowlist	covered	models.ActivityDetails.BrokerAllowlist
+auth.v1.ActivityDetails.security	covered	models.ActivityDetails.Security
+auth.v1.ActivityTextChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityTextChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityBoolChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityBoolChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityUintChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityUintChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityTimeChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityTimeChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityIdChange.from_id	covered	models.ActivityChange.From
+auth.v1.ActivityIdChange.to_id	covered	models.ActivityChange.To
+auth.v1.ActivityActionsChange.added	covered	models.ActivityListChange.Added
+auth.v1.ActivityActionsChange.removed	covered	models.ActivityListChange.Removed
+auth.v1.ActivityListChange.added	covered	models.ActivityListChange.Added
+auth.v1.ActivityListChange.removed	covered	models.ActivityListChange.Removed
+auth.v1.ActivityIdListChange.added_ids	covered	models.ActivityListChange.Added
+auth.v1.ActivityIdListChange.removed_ids	covered	models.ActivityListChange.Removed
+auth.v1.ActivityApiKeyStatusChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityApiKeyStatusChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityApiKeyPurposeChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityApiKeyPurposeChange.to	covered	models.ActivityChange.To
+auth.v1.ActivitySubaccountStatusChange.from	covered	models.ActivityChange.From
+auth.v1.ActivitySubaccountStatusChange.to	covered	models.ActivityChange.To
+auth.v1.ActivitySubaccountRoleChange.from	covered	models.ActivityChange.From
+auth.v1.ActivitySubaccountRoleChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityBrokerRoleChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityBrokerRoleChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityInviteStatusChange.from	covered	models.ActivityChange.From
+auth.v1.ActivityInviteStatusChange.to	covered	models.ActivityChange.To
+auth.v1.ActivityAccountDetails.username	covered	models.ActivityAccountDetails.Username
+auth.v1.ActivityAccountDetails.generated_username	covered	models.ActivityAccountDetails.GeneratedUsername
+auth.v1.ActivitySessionDetails.method	covered	models.ActivitySessionDetails.Method
+auth.v1.ActivitySessionDetails.wallet_address	covered	models.ActivitySessionDetails.WalletAddress
+auth.v1.ActivitySessionDetails.failure	covered	models.ActivitySessionDetails.Failure
+auth.v1.ActivitySessionDetails.scopes	covered	models.ActivitySessionDetails.Scopes
+auth.v1.ActivitySessionDetails.elevated_action	covered	models.ActivitySessionDetails.ElevatedAction
+auth.v1.ActivityApiKeyDetails.label	covered	models.ActivityAPIKeyDetails.Label
+auth.v1.ActivityApiKeyDetails.status	covered	models.ActivityAPIKeyDetails.Status
+auth.v1.ActivityApiKeyDetails.purpose	covered	models.ActivityAPIKeyDetails.Purpose
+auth.v1.ActivityApiKeyDetails.icon	covered	models.ActivityAPIKeyDetails.Icon
+auth.v1.ActivityApiKeyDetails.color	covered	models.ActivityAPIKeyDetails.Color
+auth.v1.ActivityApiKeyDetails.ip_allowlist	covered	models.ActivityAPIKeyDetails.IPAllowlist
+auth.v1.ActivityApiKeyDetails.expires_at	covered	models.ActivityAPIKeyDetails.ExpiresAt
+auth.v1.ActivityApiKeyDetails.api_policy_id	covered	models.ActivityAPIKeyDetails.APIPolicyID
+auth.v1.ActivityApiKeyDetails.strategy_bot_id	covered	models.ActivityAPIKeyDetails.StrategyBotID
+auth.v1.ActivityPolicyDetails.name	covered	models.ActivityPolicyDetails.Name
+auth.v1.ActivityPolicyDetails.description	covered	models.ActivityPolicyDetails.Description
+auth.v1.ActivityPolicyDetails.actions	covered	models.ActivityPolicyDetails.Actions
+auth.v1.ActivityPolicyDetails.all_spot_markets	covered	models.ActivityPolicyDetails.AllSpotMarkets
+auth.v1.ActivityPolicyDetails.max_order_notional	covered	models.ActivityPolicyDetails.MaxOrderNotional
+auth.v1.ActivityPolicyDetails.max_open_orders	covered	models.ActivityPolicyDetails.MaxOpenOrders
+auth.v1.ActivityPolicyDetails.trading_halted	covered	models.ActivityPolicyDetails.TradingHalted
+auth.v1.ActivityPolicyDetails.locked	covered	models.ActivityPolicyDetails.Locked
+auth.v1.ActivityPolicyDetails.review_at	covered	models.ActivityPolicyDetails.ReviewAt
+auth.v1.ActivityPolicyDetails.expires_at	covered	models.ActivityPolicyDetails.ExpiresAt
+auth.v1.ActivityPolicyDetails.assistant_preset	covered	models.ActivityPolicyDetails.AssistantPreset
+auth.v1.ActivityPolicyDetails.source_template_id	covered	models.ActivityPolicyDetails.SourceTemplateID
+auth.v1.ActivityPolicyDetails.source_template_revision	covered	models.ActivityPolicyDetails.SourceTemplateRevision
+auth.v1.ActivityPolicyDetails.subaccount_policy_id	covered	models.ActivityPolicyDetails.SubaccountPolicyID
+auth.v1.ActivityPolicyDetails.strategy_bot_id	covered	models.ActivityPolicyDetails.StrategyBotID
+auth.v1.ActivitySubaccountDetails.label	covered	models.ActivitySubaccountDetails.Label
+auth.v1.ActivitySubaccountDetails.status	covered	models.ActivitySubaccountDetails.Status
+auth.v1.ActivitySubaccountDetails.icon	covered	models.ActivitySubaccountDetails.Icon
+auth.v1.ActivitySubaccountDetails.color	covered	models.ActivitySubaccountDetails.Color
+auth.v1.ActivitySubaccountDetails.require_member_mfa	covered	models.ActivitySubaccountDetails.RequireMemberMFA
+auth.v1.ActivityMemberDetails.role	covered	models.ActivityMemberDetails.Role
+auth.v1.ActivityMemberDetails.broker_role	covered	models.ActivityMemberDetails.BrokerRole
+auth.v1.ActivityMemberDetails.ownership_transfer	covered	models.ActivityMemberDetails.OwnershipTransfer
+auth.v1.ActivityInviteDetails.grantee_account_id	covered	models.ActivityInviteDetails.GranteeAccountID
+auth.v1.ActivityInviteDetails.role	covered	models.ActivityInviteDetails.Role
+auth.v1.ActivityInviteDetails.broker_role	covered	models.ActivityInviteDetails.BrokerRole
+auth.v1.ActivityInviteDetails.status	covered	models.ActivityInviteDetails.Status
+auth.v1.ActivityDestinationDetails.label	covered	models.ActivityDestinationDetails.Label
+auth.v1.ActivityDestinationDetails.note_changed	covered	models.ActivityDestinationDetails.NoteChanged
+auth.v1.ActivityDestinationDetails.tag_ids	covered	models.ActivityDestinationDetails.TagIDs
+auth.v1.ActivityBrokerAllowlistDetails.action	covered	models.ActivityBrokerAllowlistDetails.Action
+auth.v1.ActivityBrokerAllowlistDetails.destination	covered	models.ActivityBrokerAllowlistDetails.Destination
+auth.v1.ActivityBrokerAllowlistDetails.destination_chain_id	covered	models.ActivityBrokerAllowlistDetails.DestinationChainID
+auth.v1.ActivityBrokerAllowlistDetails.label	covered	models.ActivityBrokerAllowlistDetails.Label
+auth.v1.ActivitySecurityDetails.factor_type	covered	models.ActivitySecurityDetails.FactorType
+auth.v1.ActivitySecurityDetails.label	covered	models.ActivitySecurityDetails.Label
+auth.v1.ActivitySecurityDetails.challenge_purpose	covered	models.ActivitySecurityDetails.ChallengePurpose
+auth.v1.ActivitySecurityDetails.recovery_codes_rotated	covered	models.ActivitySecurityDetails.RecoveryCodesRotated
 ledger.read.v1.AssetBalance.asset_id	covered	models.AssetBalance.AssetID
 ledger.read.v1.AssetBalance.available	covered	models.AssetBalance.Available
 ledger.read.v1.AssetBalance.funding	covered	models.AssetBalance.Funding
