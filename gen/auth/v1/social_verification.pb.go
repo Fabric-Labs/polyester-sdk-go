@@ -265,13 +265,16 @@ type SocialVerification struct {
 	// is no recorded error.
 	LastError string `protobuf:"bytes,10,opt,name=last_error,json=lastError,proto3" json:"last_error,omitempty"`
 	// Stable machine-readable error code for the current failed verification.
-	// AUTH_UNSPECIFIED when no typed error applies.
+	// Unspecified when no typed error applies. REST JSON writes the value
+	// without the AUTH_ prefix, for example SOCIAL_ACCOUNT_COOLDOWN; ConnectRPC
+	// writes its full name, AUTH_SOCIAL_ACCOUNT_COOLDOWN.
 	ErrorCode AuthErrorCode `protobuf:"varint,16,opt,name=error_code,json=errorCode,proto3,enum=auth.v1.AuthErrorCode" json:"error_code,omitempty"`
 	// Time in UTC when this verification state last changed.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
 	// Time in UTC from which a new verification may succeed, when this one
-	// failed with error_code AUTH_SOCIAL_ACCOUNT_COOLDOWN or
-	// AUTH_SOCIAL_CHANGE_LIMIT_REACHED. Empty otherwise.
+	// failed with error_code SOCIAL_ACCOUNT_COOLDOWN or
+	// SOCIAL_CHANGE_LIMIT_REACHED (in ConnectRPC, AUTH_SOCIAL_ACCOUNT_COOLDOWN
+	// or AUTH_SOCIAL_CHANGE_LIMIT_REACHED). Empty otherwise.
 	RetryAfter *timestamppb.Timestamp `protobuf:"bytes,18,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	// Time in UTC from which the caller may change or unlink its X/Twitter or
 	// Discord account again. Each provider allows one change or unlink per 30

@@ -248,6 +248,65 @@ func (s *MarketDataService) GetCandlesColumnsWithReference(ctx context.Context, 
 	})
 }
 
+// GetIndexPriceCandles returns a pair's index price candles newest-first,
+// up to limit (0 for the server's default of 500, at most 10000), with the
+// same symbol, timeframe, time range and page token arguments as GetCandles.
+// Each candle names its Source: a composite reference candle before the
+// pair's listing, an index price candle from the listing's bucket on.
+// Prices are decoded at the pair's reference_price_scale, so a pair whose
+// catalog has none is refused with an *errors.ValidationError before
+// sending. Every timeframe except "1s" (SEC_1) has index price candles; the
+// server refuses "1s" with invalid_argument. A page token is bound to the
+// symbol, timeframe and time range it was read with; the server refuses one
+// read with other arguments or from GetCandles or GetCandlesColumns.
+func (s *MarketDataService) GetIndexPriceCandles(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, pageToken ...string) (models.IndexPriceCandlesResult, error) {
+	if len(pageToken) > 1 {
+		return models.IndexPriceCandlesResult{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
+	}
+	// An unknown timeframe is refused before the catalog wait or any request.
+	tf, err := resolveCandleTimeframe(timeframe)
+	if err != nil {
+		return models.IndexPriceCandlesResult{}, err
+	}
+	// Decoded with the pair's catalog scales.
+	if err := awaitCatalogs(ctx, s.catalogs, true); err != nil {
+		return models.IndexPriceCandlesResult{}, err
+	}
+	resolved, err := ResolveSymbolID(s.catalogs, symbol, symbolID, "get_index_price_candles")
+	if err != nil {
+		return models.IndexPriceCandlesResult{}, err
+	}
+	parsedLimit, err := PaginationLimit(limit, "limit")
+	if err != nil {
+		return models.IndexPriceCandlesResult{}, err
+	}
+	req := &marketdatav1.GetIndexPriceCandlesRequest{SymbolId: resolved, Timeframe: tf, Limit: parsedLimit}
+	if err := codecs.CheckPageLimit(req); err != nil {
+		return models.IndexPriceCandlesResult{}, err
+	}
+	if start != nil {
+		req.StartTime = timestamppb.New(*start)
+	}
+	if end != nil {
+		req.EndTime = timestamppb.New(*end)
+	}
+	if len(pageToken) == 1 {
+		req.PageToken = pageToken[0]
+	}
+	priceScale, ok := 0, false
+	if s.catalogs != nil {
+		priceScale, ok = s.catalogs.ReferencePriceScaleForSymbolID(resolved)
+	}
+	if !ok {
+		return models.IndexPriceCandlesResult{}, &errors.ValidationError{
+			Msg: fmt.Sprintf("index price candles require reference_price_scale for symbol_id %d", resolved),
+		}
+	}
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetIndexPriceCandles, req, func(msg *marketdatav1.GetIndexPriceCandlesResponse) (models.IndexPriceCandlesResult, error) {
+		return decode.IndexPriceCandlesFromProto(msg, priceScale)
+	})
+}
+
 func (s *MarketDataService) buildCandlesRequest(ctx context.Context, symbol *string, symbolID *uint32, timeframe string, limit int, start, end *time.Time, includeIncomplete bool, pageToken *string, includeReference bool) (*marketdatav1.GetCandlesRequest, int, int, error) {
 	// An unknown timeframe is refused before the catalog wait or any request.
 	tf, err := resolveCandleTimeframe(timeframe)

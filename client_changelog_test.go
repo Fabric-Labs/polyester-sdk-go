@@ -537,10 +537,12 @@ func TestChangelogSectionsNameTheirSurface(t *testing.T) {
 	}
 }
 
-func TestChangelogListChangesAcceptsAtMostElevenSurfaces(t *testing.T) {
+// ListChanges takes at most 12 surfaces, the contract's max_items; a 13th
+// is refused before sending.
+func TestChangelogListChangesAcceptsAtMostTwelveSurfaces(t *testing.T) {
 	fake := newFakeChangelog(1)
 	client := newPublicChangelogClient(t, fake)
-	surfaces := make([]string, 12)
+	surfaces := make([]string, 13)
 	for i := range surfaces {
 		surfaces[i] = models.ChangelogSurfaceTrading
 	}

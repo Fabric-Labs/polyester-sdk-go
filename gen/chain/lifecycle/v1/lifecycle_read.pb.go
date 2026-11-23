@@ -2832,10 +2832,10 @@ const file_chain_lifecycle_v1_lifecycle_read_proto_rawDesc = "" +
 	"\x1bTIMELINE_STATUS_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19TIMELINE_STATUS_COMPLETED\x10\x01\x12\x1b\n" +
 	"\x17TIMELINE_STATUS_CURRENT\x10\x02\x12\x1b\n" +
-	"\x17TIMELINE_STATUS_PLANNED\x10\x032\x9e\v\n" +
-	"\x14LifecycleReadService\x12\xf1\x01\n" +
-	"\vGetFlowById\x12&.chain.lifecycle.v1.GetFlowByIdRequest\x1a#.chain.lifecycle.v1.GetFlowResponse\"\x94\x01\xbaGl\n" +
-	"\tLifecycle\x12\x0eGet Flow By Id\x1aORetrieve one lifecycle flow that carries a chain transaction by public flow id.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/flows/{flow_id}\x12\x85\x02\n" +
+	"\x17TIMELINE_STATUS_PLANNED\x10\x032\xc2\v\n" +
+	"\x14LifecycleReadService\x12\x95\x02\n" +
+	"\vGetFlowById\x12&.chain.lifecycle.v1.GetFlowByIdRequest\x1a#.chain.lifecycle.v1.GetFlowResponse\"\xb8\x01\xbaG\x8f\x01\n" +
+	"\tLifecycle\x12\x0eGet Flow By Id\x1arRetrieve one lifecycle flow by public flow id: a flow that carries a chain transaction, or one the ledger settled.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/chain/flows/{flow_id}\x12\x85\x02\n" +
 	"\tListFlows\x12$.chain.lifecycle.v1.ListFlowsRequest\x1a%.chain.lifecycle.v1.ListFlowsResponse\"\xaa\x01\xbaG\x8b\x01\n" +
 	"\tLifecycle\x12\n" +
 	"List Flows\x1arList lifecycle flows that carry a chain transaction, with optional smart account, chain, asset, and state filters.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x11\x12\x0f/v1/chain/flows\x12\x91\x02\n" +

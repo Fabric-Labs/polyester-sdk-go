@@ -57,9 +57,9 @@ type ListAccountActivityRequest struct {
 	// Client channels to return. Empty matches every channel. At most 8 distinct
 	// values.
 	Sources []ActivityEventSource `protobuf:"varint,7,rep,packed,name=sources,proto3,enum=auth.v1.ActivityEventSource" json:"sources,omitempty"`
-	// API key (opaque ID) whose actions to return: only events performed with
-	// that key. Omit it to match every actor.
-	ApiKeyId uint64 `protobuf:"fixed64,8,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
+	// API key whose actions to return, as ApiKey.key_id names it: only events
+	// performed with that key. Omit it to match every actor.
+	ApiKeyId string `protobuf:"bytes,8,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
 	// Earliest event time to return, inclusive. Omit it for no lower bound.
 	StartTime *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=start_time,json=startTime,proto3" json:"start_time,omitempty"`
 	// Event time to return events before, exclusive. Omit it for no upper bound.
@@ -148,11 +148,11 @@ func (x *ListAccountActivityRequest) GetSources() []ActivityEventSource {
 	return nil
 }
 
-func (x *ListAccountActivityRequest) GetApiKeyId() uint64 {
+func (x *ListAccountActivityRequest) GetApiKeyId() string {
 	if x != nil {
 		return x.ApiKeyId
 	}
-	return 0
+	return ""
 }
 
 func (x *ListAccountActivityRequest) GetStartTime() *timestamppb.Timestamp {
@@ -229,7 +229,7 @@ var File_auth_v1_activity_proto protoreflect.FileDescriptor
 
 const file_auth_v1_activity_proto_rawDesc = "" +
 	"\n" +
-	"\x16auth/v1/activity.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x81\x06\n" +
+	"\x16auth/v1/activity.proto\x12\aauth.v1\x1a\x19auth/v1/subaccounts.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\x9e\x06\n" +
 	"\x1aListAccountActivityRequest\x12\x1e\n" +
 	"\x05limit\x18\x01 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
 	"\n" +
@@ -238,9 +238,9 @@ const file_auth_v1_activity_proto_rawDesc = "" +
 	"\x14include_main_account\x18\x04 \x01(\bR\x12includeMainAccount\x12S\n" +
 	"\fentity_kinds\x18\x05 \x03(\x0e2\x1b.auth.v1.ActivityEntityKindB\x13\xbaH\x10\x92\x01\r\x10\x10\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\ventityKinds\x12V\n" +
 	"\revent_actions\x18\x06 \x03(\x0e2\x1c.auth.v1.ActivityEventActionB\x13\xbaH\x10\x92\x01\r\x10 \x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\feventActions\x12K\n" +
-	"\asources\x18\a \x03(\x0e2\x1c.auth.v1.ActivityEventSourceB\x13\xbaH\x10\x92\x01\r\x10\b\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\asources\x12\x1c\n" +
+	"\asources\x18\a \x03(\x0e2\x1c.auth.v1.ActivityEventSourceB\x13\xbaH\x10\x92\x01\r\x10\b\x18\x01\"\a\x82\x01\x04\x10\x01 \x00R\asources\x129\n" +
 	"\n" +
-	"api_key_id\x18\b \x01(\x06R\bapiKeyId\x129\n" +
+	"api_key_id\x18\b \x01(\tB\x1b\xbaH\x18\xd8\x01\x01r\x132\x11^ak_[a-f0-9]{32}$R\bapiKeyId\x129\n" +
 	"\n" +
 	"start_time\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\tstartTime\x125\n" +
 	"\bend_time\x18\n" +

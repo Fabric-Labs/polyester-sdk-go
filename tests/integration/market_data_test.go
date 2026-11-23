@@ -131,6 +131,38 @@ func TestGetCandles(t *testing.T) {
 	}
 }
 
+func TestGetIndexPriceCandles(t *testing.T) {
+	client, ctx, cleanup := testutil.RequireLiveClient(t)
+	defer cleanup()
+
+	symbol := testutil.SmokeSymbol(t, client, ctx)
+	result := testutil.CallRequired(t, "market_data.get_index_price_candles", func() (models.IndexPriceCandlesResult, error) {
+		return client.MarketData.GetIndexPriceCandles(ctx, &symbol, nil, "1h", 5, nil, nil)
+	})
+	if result.Timeframe != "1h" || len(result.Candles) > 5 {
+		t.Fatalf("result timeframe=%q candles=%d", result.Timeframe, len(result.Candles))
+	}
+	for i, candle := range result.Candles {
+		if i > 0 && candle.TsSec >= result.Candles[i-1].TsSec {
+			t.Fatalf("candles not newest first: %d after %d", candle.TsSec, result.Candles[i-1].TsSec)
+		}
+		if candle.Source != "index" && candle.Source != "reference" {
+			t.Fatalf("candle %d source %q", candle.TsSec, candle.Source)
+		}
+		high, err := strconv.ParseFloat(candle.High, 64)
+		if err != nil {
+			t.Fatalf("parse high %q: %v", candle.High, err)
+		}
+		low, err := strconv.ParseFloat(candle.Low, 64)
+		if err != nil {
+			t.Fatalf("parse low %q: %v", candle.Low, err)
+		}
+		if high < low {
+			t.Fatalf("high=%v low=%v", high, low)
+		}
+	}
+}
+
 func TestGetCurrentCandleOptional(t *testing.T) {
 	client, ctx, cleanup := testutil.RequireLiveClient(t)
 	defer cleanup()

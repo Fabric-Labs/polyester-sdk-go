@@ -294,6 +294,11 @@ const (
 	// request, or an operation that already ended. HTTP 409,
 	// AUTH_STRATEGY_BOT_OPERATION_CONFLICT.
 	AuthErrorCode_AUTH_STRATEGY_BOT_OPERATION_CONFLICT AuthErrorCode = 76
+	// The CreateSubaccount idempotency_key was already used for a different
+	// request under this root account. Read ListSubaccounts to find the
+	// sub-account carrying it. HTTP 409,
+	// AUTH_SUBACCOUNT_IDEMPOTENCY_CONFLICT.
+	AuthErrorCode_AUTH_SUBACCOUNT_IDEMPOTENCY_CONFLICT AuthErrorCode = 77
 )
 
 // Enum value maps for AuthErrorCode.
@@ -374,6 +379,7 @@ var (
 		74: "AUTH_STRATEGY_BOT_MANAGED",
 		75: "AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE",
 		76: "AUTH_STRATEGY_BOT_OPERATION_CONFLICT",
+		77: "AUTH_SUBACCOUNT_IDEMPOTENCY_CONFLICT",
 	}
 	AuthErrorCode_value = map[string]int32{
 		"AUTH_UNSPECIFIED":                        0,
@@ -451,6 +457,7 @@ var (
 		"AUTH_STRATEGY_BOT_MANAGED":               74,
 		"AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE": 75,
 		"AUTH_STRATEGY_BOT_OPERATION_CONFLICT":    76,
+		"AUTH_SUBACCOUNT_IDEMPOTENCY_CONFLICT":    77,
 	}
 )
 
@@ -1226,7 +1233,7 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	"\x13AcceptTermsResponse*A\n" +
 	"\x16WalletChallengePurpose\x12\x1c\n" +
 	"\x18WALLET_PROOF_UNSPECIFIED\x10\x00\x12\t\n" +
-	"\x05LOGIN\x10\x01*\xa2\x13\n" +
+	"\x05LOGIN\x10\x01*\xcc\x13\n" +
 	"\rAuthErrorCode\x12\x14\n" +
 	"\x10AUTH_UNSPECIFIED\x10\x00\x12\x19\n" +
 	"\x15AUTH_USERNAME_INVALID\x10\x01\x12\x17\n" +
@@ -1303,7 +1310,8 @@ const file_auth_v1_auth_proto_rawDesc = "" +
 	" AUTH_CONNECTED_APP_LIMIT_REACHED\x10I\x12\x1d\n" +
 	"\x19AUTH_STRATEGY_BOT_MANAGED\x10J\x12+\n" +
 	"'AUTH_STRATEGY_BOT_SUBACCOUNT_INELIGIBLE\x10K\x12(\n" +
-	"$AUTH_STRATEGY_BOT_OPERATION_CONFLICT\x10L2\xa6\b\n" +
+	"$AUTH_STRATEGY_BOT_OPERATION_CONFLICT\x10L\x12(\n" +
+	"$AUTH_SUBACCOUNT_IDEMPOTENCY_CONFLICT\x10M2\xa6\b\n" +
 	"\vAuthService\x12\xf4\x01\n" +
 	"\x15CreateWalletChallenge\x12%.auth.v1.CreateWalletChallengeRequest\x1a&.auth.v1.CreateWalletChallengeResponse\"\x8b\x01\xbaG`\n" +
 	"\fAuth Service\x12\x17Create Wallet Challenge\x1a7Create a short-lived EIP-4361 message for wallet login.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1e:\x01*\"\x19/v1/auth/wallet-challenge\x12\x9e\x02\n" +

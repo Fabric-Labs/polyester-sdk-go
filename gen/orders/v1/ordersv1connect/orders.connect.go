@@ -157,7 +157,14 @@ type OrdersServiceClient interface {
 	// fires, and attached legs end or keep protecting the position exactly
 	// as after CancelAllOrders.
 	CancelAllAfter(context.Context, *connect.Request[v1.CancelAllAfterRequest]) (*connect.Response[v1.CancelAllAfterResponse], error)
-	// Places multiple orders in a single request (best-effort per item).
+	// Places multiple orders in a single request. A request can be refused as a
+	// whole before admission, admitting nothing: for example an invalid
+	// request_id or number of items, an item whose fields cannot be decoded over
+	// REST (a malformed decimal, or more than one execution or sizing field), or
+	// a failed authentication, permission or receive-window check. Once a request
+	// reaches admission, each item is admitted or rejected on its own, never
+	// all-or-nothing: a rejected item does not stop the other items from being
+	// admitted.
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
 	// A modify of an order that has already ended is refused with
@@ -170,13 +177,21 @@ type OrdersServiceClient interface {
 	// OrdersReadService.GetOrder to tell the two apart.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
 	// Amends or replaces same-symbol orders and returns after authoritative
-	// admission. An item naming an ended order is refused with
-	// ERROR_CODE_ORDER_ALREADY_TERMINAL or ERROR_CODE_ORDER_UNKNOWN as for
-	// ModifyOrder.
+	// admission. A request can be refused as a whole before admission, changing
+	// nothing: for example an invalid request_id or number of items, an item that
+	// names no order, supplies no patch field or breaks a field rule, or a failed
+	// authentication, permission or receive-window check. Once a request reaches
+	// admission, each item is admitted or rejected on its own. An item naming an
+	// ended order is refused with ERROR_CODE_ORDER_ALREADY_TERMINAL or
+	// ERROR_CODE_ORDER_UNKNOWN as for ModifyOrder.
 	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
-	// Cancels multiple orders by explicit ID in a single request.
-	// Per-item results are returned; partial success is the default. An item
-	// naming an ended order is rejected with ERROR_CODE_ORDER_ALREADY_TERMINAL
+	// Cancels multiple orders by explicit ID in a single request. A request can
+	// be refused as a whole before admission, canceling nothing: for example an
+	// invalid request_id or number of items, an item that sets both order_id and
+	// client_order_id or neither, or a failed authentication, permission or
+	// receive-window check. Once a request reaches admission, each item's
+	// cancellation is accepted or rejected on its own. An item naming an
+	// ended order is rejected with ERROR_CODE_ORDER_ALREADY_TERMINAL
 	// or ERROR_CODE_ORDER_UNKNOWN as for CancelOrder.
 	// Final state is confirmed via the order update stream or read path.
 	BatchCancelOrders(context.Context, *connect.Request[v1.BatchCancelOrdersRequest]) (*connect.Response[v1.BatchCancelOrdersResponse], error)
@@ -403,7 +418,14 @@ type OrdersServiceHandler interface {
 	// fires, and attached legs end or keep protecting the position exactly
 	// as after CancelAllOrders.
 	CancelAllAfter(context.Context, *connect.Request[v1.CancelAllAfterRequest]) (*connect.Response[v1.CancelAllAfterResponse], error)
-	// Places multiple orders in a single request (best-effort per item).
+	// Places multiple orders in a single request. A request can be refused as a
+	// whole before admission, admitting nothing: for example an invalid
+	// request_id or number of items, an item whose fields cannot be decoded over
+	// REST (a malformed decimal, or more than one execution or sizing field), or
+	// a failed authentication, permission or receive-window check. Once a request
+	// reaches admission, each item is admitted or rejected on its own, never
+	// all-or-nothing: a rejected item does not stop the other items from being
+	// admitted.
 	BatchCreateOrders(context.Context, *connect.Request[v1.BatchCreateOrdersRequest]) (*connect.Response[v1.BatchCreateOrdersResponse], error)
 	// Modifies an existing order using explicit behavior policy.
 	// A modify of an order that has already ended is refused with
@@ -416,13 +438,21 @@ type OrdersServiceHandler interface {
 	// OrdersReadService.GetOrder to tell the two apart.
 	ModifyOrder(context.Context, *connect.Request[v1.ModifyOrderRequest]) (*connect.Response[v1.ModifyOrderResponse], error)
 	// Amends or replaces same-symbol orders and returns after authoritative
-	// admission. An item naming an ended order is refused with
-	// ERROR_CODE_ORDER_ALREADY_TERMINAL or ERROR_CODE_ORDER_UNKNOWN as for
-	// ModifyOrder.
+	// admission. A request can be refused as a whole before admission, changing
+	// nothing: for example an invalid request_id or number of items, an item that
+	// names no order, supplies no patch field or breaks a field rule, or a failed
+	// authentication, permission or receive-window check. Once a request reaches
+	// admission, each item is admitted or rejected on its own. An item naming an
+	// ended order is refused with ERROR_CODE_ORDER_ALREADY_TERMINAL or
+	// ERROR_CODE_ORDER_UNKNOWN as for ModifyOrder.
 	BatchReplaceOrders(context.Context, *connect.Request[v1.BatchReplaceOrdersRequest]) (*connect.Response[v1.BatchReplaceOrdersResponse], error)
-	// Cancels multiple orders by explicit ID in a single request.
-	// Per-item results are returned; partial success is the default. An item
-	// naming an ended order is rejected with ERROR_CODE_ORDER_ALREADY_TERMINAL
+	// Cancels multiple orders by explicit ID in a single request. A request can
+	// be refused as a whole before admission, canceling nothing: for example an
+	// invalid request_id or number of items, an item that sets both order_id and
+	// client_order_id or neither, or a failed authentication, permission or
+	// receive-window check. Once a request reaches admission, each item's
+	// cancellation is accepted or rejected on its own. An item naming an
+	// ended order is rejected with ERROR_CODE_ORDER_ALREADY_TERMINAL
 	// or ERROR_CODE_ORDER_UNKNOWN as for CancelOrder.
 	// Final state is confirmed via the order update stream or read path.
 	BatchCancelOrders(context.Context, *connect.Request[v1.BatchCancelOrdersRequest]) (*connect.Response[v1.BatchCancelOrdersResponse], error)

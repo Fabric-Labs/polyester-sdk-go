@@ -709,6 +709,8 @@ const (
 	ActivityEventSource_ACTIVITY_SOURCE_MOBILE ActivityEventSource = 2
 	// Programmatic API client.
 	ActivityEventSource_ACTIVITY_SOURCE_API ActivityEventSource = 3
+	// Polyester itself, with no client request behind the event.
+	ActivityEventSource_ACTIVITY_SOURCE_SYSTEM ActivityEventSource = 4
 )
 
 // Enum value maps for ActivityEventSource.
@@ -718,12 +720,14 @@ var (
 		1: "ACTIVITY_SOURCE_WEB",
 		2: "ACTIVITY_SOURCE_MOBILE",
 		3: "ACTIVITY_SOURCE_API",
+		4: "ACTIVITY_SOURCE_SYSTEM",
 	}
 	ActivityEventSource_value = map[string]int32{
 		"ACTIVITY_SOURCE_UNSPECIFIED": 0,
 		"ACTIVITY_SOURCE_WEB":         1,
 		"ACTIVITY_SOURCE_MOBILE":      2,
 		"ACTIVITY_SOURCE_API":         3,
+		"ACTIVITY_SOURCE_SYSTEM":      4,
 	}
 )
 
@@ -752,6 +756,495 @@ func (x ActivityEventSource) Number() protoreflect.EnumNumber {
 // Deprecated: Use ActivityEventSource.Descriptor instead.
 func (ActivityEventSource) EnumDescriptor() ([]byte, []int) {
 	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{8}
+}
+
+// Who performed an activity event.
+type ActivityActorKind int32
+
+const (
+	// No actor kind was specified.
+	ActivityActorKind_ACTIVITY_ACTOR_UNSPECIFIED ActivityActorKind = 0
+	// A signed-in account: the main account's owner or a sub-account member.
+	ActivityActorKind_ACTIVITY_ACTOR_USER ActivityActorKind = 1
+	// A request signed with an API key.
+	ActivityActorKind_ACTIVITY_ACTOR_API_KEY ActivityActorKind = 2
+	// Polyester itself, with no request by a user. The system reason says why.
+	ActivityActorKind_ACTIVITY_ACTOR_SYSTEM ActivityActorKind = 3
+	// A request nobody authenticated, such as a refused sign-in. The event's IP
+	// address and user agent say where it came from.
+	ActivityActorKind_ACTIVITY_ACTOR_UNAUTHENTICATED ActivityActorKind = 4
+)
+
+// Enum value maps for ActivityActorKind.
+var (
+	ActivityActorKind_name = map[int32]string{
+		0: "ACTIVITY_ACTOR_UNSPECIFIED",
+		1: "ACTIVITY_ACTOR_USER",
+		2: "ACTIVITY_ACTOR_API_KEY",
+		3: "ACTIVITY_ACTOR_SYSTEM",
+		4: "ACTIVITY_ACTOR_UNAUTHENTICATED",
+	}
+	ActivityActorKind_value = map[string]int32{
+		"ACTIVITY_ACTOR_UNSPECIFIED":     0,
+		"ACTIVITY_ACTOR_USER":            1,
+		"ACTIVITY_ACTOR_API_KEY":         2,
+		"ACTIVITY_ACTOR_SYSTEM":          3,
+		"ACTIVITY_ACTOR_UNAUTHENTICATED": 4,
+	}
+)
+
+func (x ActivityActorKind) Enum() *ActivityActorKind {
+	p := new(ActivityActorKind)
+	*p = x
+	return p
+}
+
+func (x ActivityActorKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityActorKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[9].Descriptor()
+}
+
+func (ActivityActorKind) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[9]
+}
+
+func (x ActivityActorKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityActorKind.Descriptor instead.
+func (ActivityActorKind) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{9}
+}
+
+// Kind of API key an actor signed a request with.
+type ActivityApiKeyKind int32
+
+const (
+	// No key kind was specified.
+	ActivityApiKeyKind_ACTIVITY_KEY_UNSPECIFIED ActivityApiKeyKind = 0
+	// A key the account holder created for their own programs.
+	ActivityApiKeyKind_ACTIVITY_KEY_STANDARD ActivityApiKeyKind = 1
+	// A key of the Polyester AI assistant.
+	ActivityApiKeyKind_ACTIVITY_KEY_ASSISTANT ActivityApiKeyKind = 2
+	// An admin key of the main account.
+	ActivityApiKeyKind_ACTIVITY_KEY_ADMIN ActivityApiKeyKind = 3
+	// A strategy bot's trade key.
+	ActivityApiKeyKind_ACTIVITY_KEY_STRATEGY_BOT ActivityApiKeyKind = 4
+	// A QuickSwap broker's key.
+	ActivityApiKeyKind_ACTIVITY_KEY_BROKER ActivityApiKeyKind = 5
+)
+
+// Enum value maps for ActivityApiKeyKind.
+var (
+	ActivityApiKeyKind_name = map[int32]string{
+		0: "ACTIVITY_KEY_UNSPECIFIED",
+		1: "ACTIVITY_KEY_STANDARD",
+		2: "ACTIVITY_KEY_ASSISTANT",
+		3: "ACTIVITY_KEY_ADMIN",
+		4: "ACTIVITY_KEY_STRATEGY_BOT",
+		5: "ACTIVITY_KEY_BROKER",
+	}
+	ActivityApiKeyKind_value = map[string]int32{
+		"ACTIVITY_KEY_UNSPECIFIED":  0,
+		"ACTIVITY_KEY_STANDARD":     1,
+		"ACTIVITY_KEY_ASSISTANT":    2,
+		"ACTIVITY_KEY_ADMIN":        3,
+		"ACTIVITY_KEY_STRATEGY_BOT": 4,
+		"ACTIVITY_KEY_BROKER":       5,
+	}
+)
+
+func (x ActivityApiKeyKind) Enum() *ActivityApiKeyKind {
+	p := new(ActivityApiKeyKind)
+	*p = x
+	return p
+}
+
+func (x ActivityApiKeyKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityApiKeyKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[10].Descriptor()
+}
+
+func (ActivityApiKeyKind) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[10]
+}
+
+func (x ActivityApiKeyKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityApiKeyKind.Descriptor instead.
+func (ActivityApiKeyKind) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{10}
+}
+
+// A QuickSwap broker member role.
+type ActivityBrokerRole int32
+
+const (
+	// No broker role was specified.
+	ActivityBrokerRole_ACTIVITY_BROKER_ROLE_UNSPECIFIED ActivityBrokerRole = 0
+	// The broker's owner.
+	ActivityBrokerRole_ACTIVITY_BROKER_OWNER ActivityBrokerRole = 1
+	// A broker administrator.
+	ActivityBrokerRole_ACTIVITY_BROKER_ADMIN ActivityBrokerRole = 2
+	// A finance member.
+	ActivityBrokerRole_ACTIVITY_BROKER_FINANCE ActivityBrokerRole = 3
+	// An affiliate manager.
+	ActivityBrokerRole_ACTIVITY_BROKER_AFFILIATE_MANAGER ActivityBrokerRole = 4
+	// A read-only member.
+	ActivityBrokerRole_ACTIVITY_BROKER_VIEWER ActivityBrokerRole = 5
+)
+
+// Enum value maps for ActivityBrokerRole.
+var (
+	ActivityBrokerRole_name = map[int32]string{
+		0: "ACTIVITY_BROKER_ROLE_UNSPECIFIED",
+		1: "ACTIVITY_BROKER_OWNER",
+		2: "ACTIVITY_BROKER_ADMIN",
+		3: "ACTIVITY_BROKER_FINANCE",
+		4: "ACTIVITY_BROKER_AFFILIATE_MANAGER",
+		5: "ACTIVITY_BROKER_VIEWER",
+	}
+	ActivityBrokerRole_value = map[string]int32{
+		"ACTIVITY_BROKER_ROLE_UNSPECIFIED":  0,
+		"ACTIVITY_BROKER_OWNER":             1,
+		"ACTIVITY_BROKER_ADMIN":             2,
+		"ACTIVITY_BROKER_FINANCE":           3,
+		"ACTIVITY_BROKER_AFFILIATE_MANAGER": 4,
+		"ACTIVITY_BROKER_VIEWER":            5,
+	}
+)
+
+func (x ActivityBrokerRole) Enum() *ActivityBrokerRole {
+	p := new(ActivityBrokerRole)
+	*p = x
+	return p
+}
+
+func (x ActivityBrokerRole) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityBrokerRole) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[11].Descriptor()
+}
+
+func (ActivityBrokerRole) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[11]
+}
+
+func (x ActivityBrokerRole) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityBrokerRole.Descriptor instead.
+func (ActivityBrokerRole) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{11}
+}
+
+// Why Polyester changed an item by itself.
+type ActivitySystemReason int32
+
+const (
+	// No system reason was specified.
+	ActivitySystemReason_ACTIVITY_SYSTEM_REASON_UNSPECIFIED ActivitySystemReason = 0
+	// An AI assistant key preset's definition changed, and the preset's policy
+	// was updated to it.
+	ActivitySystemReason_ACTIVITY_SYSTEM_ASSISTANT_PRESET_UPDATED ActivitySystemReason = 1
+	// A requested QuickSwap broker allowlist change was applied on chain, or
+	// could not be.
+	ActivitySystemReason_ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_SETTLED ActivitySystemReason = 2
+	// A QuickSwap pool account or its shared policy was provisioned.
+	ActivitySystemReason_ACTIVITY_SYSTEM_QUICKSWAP_POOL_PROVISIONED ActivitySystemReason = 3
+	// A QuickSwap broker's main account was provisioned.
+	ActivitySystemReason_ACTIVITY_SYSTEM_QUICKSWAP_BROKER_PROVISIONED ActivitySystemReason = 4
+	// The chain's result of a requested QuickSwap broker allowlist change did
+	// not match what was submitted, and is being reconciled. A later event
+	// records how the change ended.
+	ActivitySystemReason_ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_RECONCILING ActivitySystemReason = 5
+)
+
+// Enum value maps for ActivitySystemReason.
+var (
+	ActivitySystemReason_name = map[int32]string{
+		0: "ACTIVITY_SYSTEM_REASON_UNSPECIFIED",
+		1: "ACTIVITY_SYSTEM_ASSISTANT_PRESET_UPDATED",
+		2: "ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_SETTLED",
+		3: "ACTIVITY_SYSTEM_QUICKSWAP_POOL_PROVISIONED",
+		4: "ACTIVITY_SYSTEM_QUICKSWAP_BROKER_PROVISIONED",
+		5: "ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_RECONCILING",
+	}
+	ActivitySystemReason_value = map[string]int32{
+		"ACTIVITY_SYSTEM_REASON_UNSPECIFIED":                  0,
+		"ACTIVITY_SYSTEM_ASSISTANT_PRESET_UPDATED":            1,
+		"ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_SETTLED":     2,
+		"ACTIVITY_SYSTEM_QUICKSWAP_POOL_PROVISIONED":          3,
+		"ACTIVITY_SYSTEM_QUICKSWAP_BROKER_PROVISIONED":        4,
+		"ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_RECONCILING": 5,
+	}
+)
+
+func (x ActivitySystemReason) Enum() *ActivitySystemReason {
+	p := new(ActivitySystemReason)
+	*p = x
+	return p
+}
+
+func (x ActivitySystemReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivitySystemReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[12].Descriptor()
+}
+
+func (ActivitySystemReason) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[12]
+}
+
+func (x ActivitySystemReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivitySystemReason.Descriptor instead.
+func (ActivitySystemReason) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{12}
+}
+
+// How a sign-in was attempted.
+type ActivitySignInMethod int32
+
+const (
+	// No sign-in method was specified.
+	ActivitySignInMethod_ACTIVITY_SIGN_IN_UNSPECIFIED ActivitySignInMethod = 0
+	// A wallet signature.
+	ActivitySignInMethod_ACTIVITY_SIGN_IN_WALLET ActivitySignInMethod = 1
+	// A connected app the user approved.
+	ActivitySignInMethod_ACTIVITY_SIGN_IN_CONNECTED_APP ActivitySignInMethod = 2
+)
+
+// Enum value maps for ActivitySignInMethod.
+var (
+	ActivitySignInMethod_name = map[int32]string{
+		0: "ACTIVITY_SIGN_IN_UNSPECIFIED",
+		1: "ACTIVITY_SIGN_IN_WALLET",
+		2: "ACTIVITY_SIGN_IN_CONNECTED_APP",
+	}
+	ActivitySignInMethod_value = map[string]int32{
+		"ACTIVITY_SIGN_IN_UNSPECIFIED":   0,
+		"ACTIVITY_SIGN_IN_WALLET":        1,
+		"ACTIVITY_SIGN_IN_CONNECTED_APP": 2,
+	}
+)
+
+func (x ActivitySignInMethod) Enum() *ActivitySignInMethod {
+	p := new(ActivitySignInMethod)
+	*p = x
+	return p
+}
+
+func (x ActivitySignInMethod) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivitySignInMethod) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[13].Descriptor()
+}
+
+func (ActivitySignInMethod) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[13]
+}
+
+func (x ActivitySignInMethod) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivitySignInMethod.Descriptor instead.
+func (ActivitySignInMethod) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{13}
+}
+
+// Why a sign-in failed.
+type ActivitySignInFailure int32
+
+const (
+	// No sign-in failure was specified.
+	ActivitySignInFailure_ACTIVITY_SIGN_IN_FAILURE_UNSPECIFIED ActivitySignInFailure = 0
+	// The signed message is not a sign-in challenge.
+	ActivitySignInFailure_ACTIVITY_SIGN_IN_FAILURE_INVALID_CHALLENGE ActivitySignInFailure = 1
+	// The challenge expired before it was signed.
+	ActivitySignInFailure_ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_EXPIRED ActivitySignInFailure = 2
+	// The challenge was already used.
+	ActivitySignInFailure_ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_USED ActivitySignInFailure = 3
+	// The signature does not match the wallet.
+	ActivitySignInFailure_ACTIVITY_SIGN_IN_FAILURE_INVALID_SIGNATURE ActivitySignInFailure = 4
+	// No challenge was issued for the wallet.
+	ActivitySignInFailure_ACTIVITY_SIGN_IN_FAILURE_NO_CHALLENGE ActivitySignInFailure = 5
+)
+
+// Enum value maps for ActivitySignInFailure.
+var (
+	ActivitySignInFailure_name = map[int32]string{
+		0: "ACTIVITY_SIGN_IN_FAILURE_UNSPECIFIED",
+		1: "ACTIVITY_SIGN_IN_FAILURE_INVALID_CHALLENGE",
+		2: "ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_EXPIRED",
+		3: "ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_USED",
+		4: "ACTIVITY_SIGN_IN_FAILURE_INVALID_SIGNATURE",
+		5: "ACTIVITY_SIGN_IN_FAILURE_NO_CHALLENGE",
+	}
+	ActivitySignInFailure_value = map[string]int32{
+		"ACTIVITY_SIGN_IN_FAILURE_UNSPECIFIED":       0,
+		"ACTIVITY_SIGN_IN_FAILURE_INVALID_CHALLENGE": 1,
+		"ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_EXPIRED": 2,
+		"ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_USED":    3,
+		"ACTIVITY_SIGN_IN_FAILURE_INVALID_SIGNATURE": 4,
+		"ACTIVITY_SIGN_IN_FAILURE_NO_CHALLENGE":      5,
+	}
+)
+
+func (x ActivitySignInFailure) Enum() *ActivitySignInFailure {
+	p := new(ActivitySignInFailure)
+	*p = x
+	return p
+}
+
+func (x ActivitySignInFailure) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivitySignInFailure) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[14].Descriptor()
+}
+
+func (ActivitySignInFailure) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[14]
+}
+
+func (x ActivitySignInFailure) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivitySignInFailure.Descriptor instead.
+func (ActivitySignInFailure) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{14}
+}
+
+// An action that needs a recent MFA check in the session.
+type ActivityElevatedAction int32
+
+const (
+	// No elevated action was specified.
+	ActivityElevatedAction_ACTIVITY_ELEVATED_UNSPECIFIED ActivityElevatedAction = 0
+	// Setting up the AI assistant's API keys.
+	ActivityElevatedAction_ACTIVITY_ELEVATED_ASSISTANT_ACCESS ActivityElevatedAction = 1
+	// Giving a strategy bot its trade key.
+	ActivityElevatedAction_ACTIVITY_ELEVATED_STRATEGY_BOT_ACCESS ActivityElevatedAction = 2
+	// Linking a Telegram account.
+	ActivityElevatedAction_ACTIVITY_ELEVATED_TELEGRAM_LINK ActivityElevatedAction = 3
+)
+
+// Enum value maps for ActivityElevatedAction.
+var (
+	ActivityElevatedAction_name = map[int32]string{
+		0: "ACTIVITY_ELEVATED_UNSPECIFIED",
+		1: "ACTIVITY_ELEVATED_ASSISTANT_ACCESS",
+		2: "ACTIVITY_ELEVATED_STRATEGY_BOT_ACCESS",
+		3: "ACTIVITY_ELEVATED_TELEGRAM_LINK",
+	}
+	ActivityElevatedAction_value = map[string]int32{
+		"ACTIVITY_ELEVATED_UNSPECIFIED":         0,
+		"ACTIVITY_ELEVATED_ASSISTANT_ACCESS":    1,
+		"ACTIVITY_ELEVATED_STRATEGY_BOT_ACCESS": 2,
+		"ACTIVITY_ELEVATED_TELEGRAM_LINK":       3,
+	}
+)
+
+func (x ActivityElevatedAction) Enum() *ActivityElevatedAction {
+	p := new(ActivityElevatedAction)
+	*p = x
+	return p
+}
+
+func (x ActivityElevatedAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityElevatedAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[15].Descriptor()
+}
+
+func (ActivityElevatedAction) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[15]
+}
+
+func (x ActivityElevatedAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityElevatedAction.Descriptor instead.
+func (ActivityElevatedAction) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{15}
+}
+
+// Whether a QuickSwap broker allowlist change adds or removes a destination.
+type ActivityAllowlistAction int32
+
+const (
+	// No allowlist action was specified.
+	ActivityAllowlistAction_ACTIVITY_ALLOWLIST_UNSPECIFIED ActivityAllowlistAction = 0
+	// Add the destination.
+	ActivityAllowlistAction_ACTIVITY_ALLOWLIST_ADD ActivityAllowlistAction = 1
+	// Remove the destination.
+	ActivityAllowlistAction_ACTIVITY_ALLOWLIST_REMOVE ActivityAllowlistAction = 2
+)
+
+// Enum value maps for ActivityAllowlistAction.
+var (
+	ActivityAllowlistAction_name = map[int32]string{
+		0: "ACTIVITY_ALLOWLIST_UNSPECIFIED",
+		1: "ACTIVITY_ALLOWLIST_ADD",
+		2: "ACTIVITY_ALLOWLIST_REMOVE",
+	}
+	ActivityAllowlistAction_value = map[string]int32{
+		"ACTIVITY_ALLOWLIST_UNSPECIFIED": 0,
+		"ACTIVITY_ALLOWLIST_ADD":         1,
+		"ACTIVITY_ALLOWLIST_REMOVE":      2,
+	}
+)
+
+func (x ActivityAllowlistAction) Enum() *ActivityAllowlistAction {
+	p := new(ActivityAllowlistAction)
+	*p = x
+	return p
+}
+
+func (x ActivityAllowlistAction) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ActivityAllowlistAction) Descriptor() protoreflect.EnumDescriptor {
+	return file_auth_v1_subaccounts_proto_enumTypes[16].Descriptor()
+}
+
+func (ActivityAllowlistAction) Type() protoreflect.EnumType {
+	return &file_auth_v1_subaccounts_proto_enumTypes[16]
+}
+
+func (x ActivityAllowlistAction) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ActivityAllowlistAction.Descriptor instead.
+func (ActivityAllowlistAction) EnumDescriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{16}
 }
 
 // User-facing metadata for one stable sub-account permission.
@@ -1226,9 +1719,15 @@ type Subaccount struct {
 	// subscription to one of this sub-account's channels while the latest
 	// update lists this sub-account with a role and removed false, subscribe
 	// again: access is checked again on subscribe.
-	Removed       bool `protobuf:"varint,16,opt,name=removed,proto3" json:"removed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Removed bool `protobuf:"varint,16,opt,name=removed,proto3" json:"removed,omitempty"`
+	// The idempotency_key of the request that created this sub-account, so a
+	// caller that lost CreateSubaccount's response can find it. Present only
+	// when the caller owns the sub-account on an interactive session, the only
+	// kind of caller that can create one; real-time updates omit it. Empty when
+	// none was given.
+	IdempotencyKey string `protobuf:"bytes,17,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *Subaccount) Reset() {
@@ -1371,6 +1870,13 @@ func (x *Subaccount) GetRemoved() bool {
 		return x.Removed
 	}
 	return false
+}
+
+func (x *Subaccount) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
 }
 
 // Request to list sub-accounts owned by or shared with the caller.
@@ -1627,9 +2133,24 @@ type CreateSubaccountRequest struct {
 	Message string `protobuf:"bytes,3,opt,name=message,proto3" json:"message,omitempty"`
 	// Smart-account signature over message using EIP-191 personal_sign semantics.
 	// Deployed ERC-1271 and counterfactual ERC-6492 signatures are supported.
-	Signature     string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Signature string `protobuf:"bytes,4,opt,name=signature,proto3" json:"signature,omitempty"`
+	// Optional caller-chosen key that makes this request safe to retry: 1 to
+	// 128 letters, digits, '.', '_', ':' or '-'. It is unique within the root
+	// account and never reused, even after its sub-account is deleted. Every
+	// request is authenticated first, its signature included. Sending the
+	// identical request again (the same message, label, icon and color, for the
+	// same smart account address) under the same key returns the sub-account it
+	// created, with replayed set, and consumes no challenge; once that
+	// sub-account is deleted, it fails with NotFound and
+	// AUTH_RESOURCE_NOT_FOUND instead. Any other request under that key fails
+	// with AUTH_SUBACCOUNT_IDEMPOTENCY_CONFLICT. Neither creates anything, so a
+	// resent or stale signed challenge never creates a second sub-account. After a lost response, a new challenge names the next smart
+	// account address, so a request carrying it conflicts when the first
+	// request did create the sub-account: find that sub-account in
+	// ListSubaccounts by its idempotency_key. Empty when none.
+	IdempotencyKey string `protobuf:"bytes,9,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *CreateSubaccountRequest) Reset() {
@@ -1704,6 +2225,13 @@ func (x *CreateSubaccountRequest) GetSignature() string {
 	return ""
 }
 
+func (x *CreateSubaccountRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
 // Response returned after creating a sub-account.
 type CreateSubaccountResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1716,8 +2244,13 @@ type CreateSubaccountResponse struct {
 	// Today this equals total_created for a successful create.
 	SmartAccountSaltNonce uint32 `protobuf:"varint,3,opt,name=smart_account_salt_nonce,json=smartAccountSaltNonce,proto3" json:"smart_account_salt_nonce,omitempty"`
 	// Initial monotonic resource revision. Clients can pass this value directly
-	// as expected_revision on the next revision-gated mutation.
-	Revision      uint64 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	// as expected_revision on the next revision-gated mutation. A replayed
+	// request returns the sub-account's current revision.
+	Revision uint64 `protobuf:"varint,4,opt,name=revision,proto3" json:"revision,omitempty"`
+	// True when idempotency_key matched an earlier identical request: the
+	// response describes the sub-account that request created, and this call
+	// created nothing and consumed no challenge.
+	Replayed      bool `protobuf:"varint,5,opt,name=replayed,proto3" json:"replayed,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1778,6 +2311,13 @@ func (x *CreateSubaccountResponse) GetRevision() uint64 {
 		return x.Revision
 	}
 	return 0
+}
+
+func (x *CreateSubaccountResponse) GetReplayed() bool {
+	if x != nil {
+		return x.Replayed
+	}
+	return false
 }
 
 // SubaccountUpdateSpec contains mutable display and status configuration.
@@ -3109,7 +3649,2204 @@ func (x *GetSubaccountResponse) GetBalances() *v1.GetBalancesResponse {
 	return nil
 }
 
-// Activity or audit event of a main account or one of its sub-accounts.
+// The actor of an activity event.
+type ActivityActor struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Kind of actor.
+	Kind ActivityActorKind `protobuf:"varint,1,opt,name=kind,proto3,enum=auth.v1.ActivityActorKind" json:"kind,omitempty"`
+	// Account that acted (opaque ID), for a user or an API key. A sub-account
+	// member is named by their own account, and a QuickSwap broker's key by the
+	// broker's account. Absent for the system and an unauthenticated request.
+	AccountId uint64 `protobuf:"fixed64,2,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	// Username of that account, when it has one.
+	Username string `protobuf:"bytes,3,opt,name=username,proto3" json:"username,omitempty"`
+	// API key the actor signed the request with, as ApiKey.key_id names it, or
+	// a QuickSwap broker key's key_id. Set for an API key actor only.
+	ApiKeyId string `protobuf:"bytes,4,opt,name=api_key_id,json=apiKeyId,proto3" json:"api_key_id,omitempty"`
+	// Kind of that API key when the event was recorded, for example an AI
+	// assistant, a strategy bot or a QuickSwap broker key.
+	ApiKeyKind ActivityApiKeyKind `protobuf:"varint,5,opt,name=api_key_kind,json=apiKeyKind,proto3,enum=auth.v1.ActivityApiKeyKind" json:"api_key_kind,omitempty"`
+	// Label of that API key, when it has one.
+	ApiKeyLabel string `protobuf:"bytes,6,opt,name=api_key_label,json=apiKeyLabel,proto3" json:"api_key_label,omitempty"`
+	// Why Polyester acted. Set for the system actor only.
+	SystemReason  ActivitySystemReason `protobuf:"varint,7,opt,name=system_reason,json=systemReason,proto3,enum=auth.v1.ActivitySystemReason" json:"system_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityActor) Reset() {
+	*x = ActivityActor{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[35]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityActor) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityActor) ProtoMessage() {}
+
+func (x *ActivityActor) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[35]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityActor.ProtoReflect.Descriptor instead.
+func (*ActivityActor) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{35}
+}
+
+func (x *ActivityActor) GetKind() ActivityActorKind {
+	if x != nil {
+		return x.Kind
+	}
+	return ActivityActorKind_ACTIVITY_ACTOR_UNSPECIFIED
+}
+
+func (x *ActivityActor) GetAccountId() uint64 {
+	if x != nil {
+		return x.AccountId
+	}
+	return 0
+}
+
+func (x *ActivityActor) GetUsername() string {
+	if x != nil {
+		return x.Username
+	}
+	return ""
+}
+
+func (x *ActivityActor) GetApiKeyId() string {
+	if x != nil {
+		return x.ApiKeyId
+	}
+	return ""
+}
+
+func (x *ActivityActor) GetApiKeyKind() ActivityApiKeyKind {
+	if x != nil {
+		return x.ApiKeyKind
+	}
+	return ActivityApiKeyKind_ACTIVITY_KEY_UNSPECIFIED
+}
+
+func (x *ActivityActor) GetApiKeyLabel() string {
+	if x != nil {
+		return x.ApiKeyLabel
+	}
+	return ""
+}
+
+func (x *ActivityActor) GetSystemReason() ActivitySystemReason {
+	if x != nil {
+		return x.SystemReason
+	}
+	return ActivitySystemReason_ACTIVITY_SYSTEM_REASON_UNSPECIFIED
+}
+
+// The item an activity event affected. Exactly one ID is set, and which one
+// says what the item is. A sign-in session, a failed sign-in and the
+// recovery codes have no ID, only a name.
+type ActivityItem struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID of the item (opaque IDs as each item's own APIs return them).
+	//
+	// Types that are valid to be assigned to Id:
+	//
+	//	*ActivityItem_AccountId
+	//	*ActivityItem_SubaccountId
+	//	*ActivityItem_InviteId
+	//	*ActivityItem_SubaccountPolicyId
+	//	*ActivityItem_ApiPolicyId
+	//	*ActivityItem_ApiKeyId
+	//	*ActivityItem_MfaFactorId
+	//	*ActivityItem_AddressBookEntryId
+	//	*ActivityItem_BrokerAllowlistChangeId
+	//	*ActivityItem_ConnectedAppId
+	Id isActivityItem_Id `protobuf_oneof:"id"`
+	// Display name of the item when the event was recorded: a policy name, an
+	// API key or address-book label, a sub-account label, a member's username,
+	// an MFA factor label, a connected app's name, or a session's device.
+	Name          string `protobuf:"bytes,11,opt,name=name,proto3" json:"name,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityItem) Reset() {
+	*x = ActivityItem{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[36]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityItem) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityItem) ProtoMessage() {}
+
+func (x *ActivityItem) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[36]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityItem.ProtoReflect.Descriptor instead.
+func (*ActivityItem) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{36}
+}
+
+func (x *ActivityItem) GetId() isActivityItem_Id {
+	if x != nil {
+		return x.Id
+	}
+	return nil
+}
+
+func (x *ActivityItem) GetAccountId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_AccountId); ok {
+			return x.AccountId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetSubaccountId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_SubaccountId); ok {
+			return x.SubaccountId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetInviteId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_InviteId); ok {
+			return x.InviteId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetSubaccountPolicyId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_SubaccountPolicyId); ok {
+			return x.SubaccountPolicyId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetApiPolicyId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_ApiPolicyId); ok {
+			return x.ApiPolicyId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetApiKeyId() string {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_ApiKeyId); ok {
+			return x.ApiKeyId
+		}
+	}
+	return ""
+}
+
+func (x *ActivityItem) GetMfaFactorId() string {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_MfaFactorId); ok {
+			return x.MfaFactorId
+		}
+	}
+	return ""
+}
+
+func (x *ActivityItem) GetAddressBookEntryId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_AddressBookEntryId); ok {
+			return x.AddressBookEntryId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetBrokerAllowlistChangeId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_BrokerAllowlistChangeId); ok {
+			return x.BrokerAllowlistChangeId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetConnectedAppId() uint64 {
+	if x != nil {
+		if x, ok := x.Id.(*ActivityItem_ConnectedAppId); ok {
+			return x.ConnectedAppId
+		}
+	}
+	return 0
+}
+
+func (x *ActivityItem) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+type isActivityItem_Id interface {
+	isActivityItem_Id()
+}
+
+type ActivityItem_AccountId struct {
+	// A main account, or the member account of a sub-account membership.
+	AccountId uint64 `protobuf:"fixed64,1,opt,name=account_id,json=accountId,proto3,oneof"`
+}
+
+type ActivityItem_SubaccountId struct {
+	// A sub-account.
+	SubaccountId uint64 `protobuf:"fixed64,2,opt,name=subaccount_id,json=subaccountId,proto3,oneof"`
+}
+
+type ActivityItem_InviteId struct {
+	// A sub-account invitation.
+	InviteId uint64 `protobuf:"fixed64,3,opt,name=invite_id,json=inviteId,proto3,oneof"`
+}
+
+type ActivityItem_SubaccountPolicyId struct {
+	// A sub-account policy.
+	SubaccountPolicyId uint64 `protobuf:"fixed64,4,opt,name=subaccount_policy_id,json=subaccountPolicyId,proto3,oneof"`
+}
+
+type ActivityItem_ApiPolicyId struct {
+	// An API key policy.
+	ApiPolicyId uint64 `protobuf:"fixed64,5,opt,name=api_policy_id,json=apiPolicyId,proto3,oneof"`
+}
+
+type ActivityItem_ApiKeyId struct {
+	// An API key, as ApiKey.key_id names it.
+	ApiKeyId string `protobuf:"bytes,6,opt,name=api_key_id,json=apiKeyId,proto3,oneof"`
+}
+
+type ActivityItem_MfaFactorId struct {
+	// An MFA factor, as MFAFactor.factor_id names it.
+	MfaFactorId string `protobuf:"bytes,7,opt,name=mfa_factor_id,json=mfaFactorId,proto3,oneof"`
+}
+
+type ActivityItem_AddressBookEntryId struct {
+	// A saved address-book destination.
+	AddressBookEntryId uint64 `protobuf:"fixed64,8,opt,name=address_book_entry_id,json=addressBookEntryId,proto3,oneof"`
+}
+
+type ActivityItem_BrokerAllowlistChangeId struct {
+	// A QuickSwap broker allowlist change request.
+	BrokerAllowlistChangeId uint64 `protobuf:"fixed64,9,opt,name=broker_allowlist_change_id,json=brokerAllowlistChangeId,proto3,oneof"`
+}
+
+type ActivityItem_ConnectedAppId struct {
+	// A connected app.
+	ConnectedAppId uint64 `protobuf:"fixed64,10,opt,name=connected_app_id,json=connectedAppId,proto3,oneof"`
+}
+
+func (*ActivityItem_AccountId) isActivityItem_Id() {}
+
+func (*ActivityItem_SubaccountId) isActivityItem_Id() {}
+
+func (*ActivityItem_InviteId) isActivityItem_Id() {}
+
+func (*ActivityItem_SubaccountPolicyId) isActivityItem_Id() {}
+
+func (*ActivityItem_ApiPolicyId) isActivityItem_Id() {}
+
+func (*ActivityItem_ApiKeyId) isActivityItem_Id() {}
+
+func (*ActivityItem_MfaFactorId) isActivityItem_Id() {}
+
+func (*ActivityItem_AddressBookEntryId) isActivityItem_Id() {}
+
+func (*ActivityItem_BrokerAllowlistChangeId) isActivityItem_Id() {}
+
+func (*ActivityItem_ConnectedAppId) isActivityItem_Id() {}
+
+// A text value before and after an event. An empty value is unset.
+type ActivityTextChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Value before the event.
+	From string `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	// Value after the event.
+	To            string `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityTextChange) Reset() {
+	*x = ActivityTextChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[37]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityTextChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityTextChange) ProtoMessage() {}
+
+func (x *ActivityTextChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[37]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityTextChange.ProtoReflect.Descriptor instead.
+func (*ActivityTextChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{37}
+}
+
+func (x *ActivityTextChange) GetFrom() string {
+	if x != nil {
+		return x.From
+	}
+	return ""
+}
+
+func (x *ActivityTextChange) GetTo() string {
+	if x != nil {
+		return x.To
+	}
+	return ""
+}
+
+// A flag before and after an event.
+type ActivityBoolChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Value before the event.
+	From bool `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
+	// Value after the event.
+	To            bool `protobuf:"varint,2,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityBoolChange) Reset() {
+	*x = ActivityBoolChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[38]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityBoolChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityBoolChange) ProtoMessage() {}
+
+func (x *ActivityBoolChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[38]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityBoolChange.ProtoReflect.Descriptor instead.
+func (*ActivityBoolChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{38}
+}
+
+func (x *ActivityBoolChange) GetFrom() bool {
+	if x != nil {
+		return x.From
+	}
+	return false
+}
+
+func (x *ActivityBoolChange) GetTo() bool {
+	if x != nil {
+		return x.To
+	}
+	return false
+}
+
+// A count or amount before and after an event.
+type ActivityUintChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Value before the event.
+	From uint64 `protobuf:"varint,1,opt,name=from,proto3" json:"from,omitempty"`
+	// Value after the event.
+	To            uint64 `protobuf:"varint,2,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityUintChange) Reset() {
+	*x = ActivityUintChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[39]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityUintChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityUintChange) ProtoMessage() {}
+
+func (x *ActivityUintChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[39]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityUintChange.ProtoReflect.Descriptor instead.
+func (*ActivityUintChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{39}
+}
+
+func (x *ActivityUintChange) GetFrom() uint64 {
+	if x != nil {
+		return x.From
+	}
+	return 0
+}
+
+func (x *ActivityUintChange) GetTo() uint64 {
+	if x != nil {
+		return x.To
+	}
+	return 0
+}
+
+// A time before and after an event. An absent time is unset.
+type ActivityTimeChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Value before the event.
+	From *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=from,proto3" json:"from,omitempty"`
+	// Value after the event.
+	To            *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=to,proto3" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityTimeChange) Reset() {
+	*x = ActivityTimeChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[40]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityTimeChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityTimeChange) ProtoMessage() {}
+
+func (x *ActivityTimeChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[40]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityTimeChange.ProtoReflect.Descriptor instead.
+func (*ActivityTimeChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{40}
+}
+
+func (x *ActivityTimeChange) GetFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.From
+	}
+	return nil
+}
+
+func (x *ActivityTimeChange) GetTo() *timestamppb.Timestamp {
+	if x != nil {
+		return x.To
+	}
+	return nil
+}
+
+// An opaque ID before and after an event. Zero is none.
+type ActivityIdChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// ID before the event.
+	FromId uint64 `protobuf:"fixed64,1,opt,name=from_id,json=fromId,proto3" json:"from_id,omitempty"`
+	// ID after the event.
+	ToId          uint64 `protobuf:"fixed64,2,opt,name=to_id,json=toId,proto3" json:"to_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityIdChange) Reset() {
+	*x = ActivityIdChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[41]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityIdChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityIdChange) ProtoMessage() {}
+
+func (x *ActivityIdChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[41]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityIdChange.ProtoReflect.Descriptor instead.
+func (*ActivityIdChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{41}
+}
+
+func (x *ActivityIdChange) GetFromId() uint64 {
+	if x != nil {
+		return x.FromId
+	}
+	return 0
+}
+
+func (x *ActivityIdChange) GetToId() uint64 {
+	if x != nil {
+		return x.ToId
+	}
+	return 0
+}
+
+// Policy actions an event allowed and stopped allowing.
+type ActivityActionsChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Actions allowed by the event.
+	Added []PolicyAction `protobuf:"varint,1,rep,packed,name=added,proto3,enum=auth.v1.PolicyAction" json:"added,omitempty"`
+	// Actions no longer allowed after the event.
+	Removed       []PolicyAction `protobuf:"varint,2,rep,packed,name=removed,proto3,enum=auth.v1.PolicyAction" json:"removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityActionsChange) Reset() {
+	*x = ActivityActionsChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[42]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityActionsChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityActionsChange) ProtoMessage() {}
+
+func (x *ActivityActionsChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[42]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityActionsChange.ProtoReflect.Descriptor instead.
+func (*ActivityActionsChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{42}
+}
+
+func (x *ActivityActionsChange) GetAdded() []PolicyAction {
+	if x != nil {
+		return x.Added
+	}
+	return nil
+}
+
+func (x *ActivityActionsChange) GetRemoved() []PolicyAction {
+	if x != nil {
+		return x.Removed
+	}
+	return nil
+}
+
+// Entries an event added to and removed from a list.
+type ActivityListChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Entries added.
+	Added []string `protobuf:"bytes,1,rep,name=added,proto3" json:"added,omitempty"`
+	// Entries removed.
+	Removed       []string `protobuf:"bytes,2,rep,name=removed,proto3" json:"removed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityListChange) Reset() {
+	*x = ActivityListChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[43]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityListChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityListChange) ProtoMessage() {}
+
+func (x *ActivityListChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[43]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityListChange.ProtoReflect.Descriptor instead.
+func (*ActivityListChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{43}
+}
+
+func (x *ActivityListChange) GetAdded() []string {
+	if x != nil {
+		return x.Added
+	}
+	return nil
+}
+
+func (x *ActivityListChange) GetRemoved() []string {
+	if x != nil {
+		return x.Removed
+	}
+	return nil
+}
+
+// Opaque IDs an event added to and removed from a list.
+type ActivityIdListChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// IDs added.
+	AddedIds []uint64 `protobuf:"fixed64,1,rep,packed,name=added_ids,json=addedIds,proto3" json:"added_ids,omitempty"`
+	// IDs removed.
+	RemovedIds    []uint64 `protobuf:"fixed64,2,rep,packed,name=removed_ids,json=removedIds,proto3" json:"removed_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityIdListChange) Reset() {
+	*x = ActivityIdListChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[44]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityIdListChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityIdListChange) ProtoMessage() {}
+
+func (x *ActivityIdListChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[44]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityIdListChange.ProtoReflect.Descriptor instead.
+func (*ActivityIdListChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{44}
+}
+
+func (x *ActivityIdListChange) GetAddedIds() []uint64 {
+	if x != nil {
+		return x.AddedIds
+	}
+	return nil
+}
+
+func (x *ActivityIdListChange) GetRemovedIds() []uint64 {
+	if x != nil {
+		return x.RemovedIds
+	}
+	return nil
+}
+
+// An API key status before and after an event.
+type ActivityApiKeyStatusChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Status before the event.
+	From ApiKeyStatus `protobuf:"varint,1,opt,name=from,proto3,enum=auth.v1.ApiKeyStatus" json:"from,omitempty"`
+	// Status after the event.
+	To            ApiKeyStatus `protobuf:"varint,2,opt,name=to,proto3,enum=auth.v1.ApiKeyStatus" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityApiKeyStatusChange) Reset() {
+	*x = ActivityApiKeyStatusChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[45]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityApiKeyStatusChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityApiKeyStatusChange) ProtoMessage() {}
+
+func (x *ActivityApiKeyStatusChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[45]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityApiKeyStatusChange.ProtoReflect.Descriptor instead.
+func (*ActivityApiKeyStatusChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{45}
+}
+
+func (x *ActivityApiKeyStatusChange) GetFrom() ApiKeyStatus {
+	if x != nil {
+		return x.From
+	}
+	return ApiKeyStatus_API_KEY_STATUS_UNSPECIFIED
+}
+
+func (x *ActivityApiKeyStatusChange) GetTo() ApiKeyStatus {
+	if x != nil {
+		return x.To
+	}
+	return ApiKeyStatus_API_KEY_STATUS_UNSPECIFIED
+}
+
+// An API key purpose before and after an event.
+type ActivityApiKeyPurposeChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Purpose before the event.
+	From ApiKeyPurpose `protobuf:"varint,1,opt,name=from,proto3,enum=auth.v1.ApiKeyPurpose" json:"from,omitempty"`
+	// Purpose after the event.
+	To            ApiKeyPurpose `protobuf:"varint,2,opt,name=to,proto3,enum=auth.v1.ApiKeyPurpose" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityApiKeyPurposeChange) Reset() {
+	*x = ActivityApiKeyPurposeChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[46]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityApiKeyPurposeChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityApiKeyPurposeChange) ProtoMessage() {}
+
+func (x *ActivityApiKeyPurposeChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[46]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityApiKeyPurposeChange.ProtoReflect.Descriptor instead.
+func (*ActivityApiKeyPurposeChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{46}
+}
+
+func (x *ActivityApiKeyPurposeChange) GetFrom() ApiKeyPurpose {
+	if x != nil {
+		return x.From
+	}
+	return ApiKeyPurpose_PURPOSE_UNSPECIFIED
+}
+
+func (x *ActivityApiKeyPurposeChange) GetTo() ApiKeyPurpose {
+	if x != nil {
+		return x.To
+	}
+	return ApiKeyPurpose_PURPOSE_UNSPECIFIED
+}
+
+// A sub-account status before and after an event.
+type ActivitySubaccountStatusChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Status before the event.
+	From SubaccountStatus `protobuf:"varint,1,opt,name=from,proto3,enum=auth.v1.SubaccountStatus" json:"from,omitempty"`
+	// Status after the event.
+	To            SubaccountStatus `protobuf:"varint,2,opt,name=to,proto3,enum=auth.v1.SubaccountStatus" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivitySubaccountStatusChange) Reset() {
+	*x = ActivitySubaccountStatusChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[47]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivitySubaccountStatusChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivitySubaccountStatusChange) ProtoMessage() {}
+
+func (x *ActivitySubaccountStatusChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[47]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivitySubaccountStatusChange.ProtoReflect.Descriptor instead.
+func (*ActivitySubaccountStatusChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{47}
+}
+
+func (x *ActivitySubaccountStatusChange) GetFrom() SubaccountStatus {
+	if x != nil {
+		return x.From
+	}
+	return SubaccountStatus_SUBACCOUNT_STATUS_UNSPECIFIED
+}
+
+func (x *ActivitySubaccountStatusChange) GetTo() SubaccountStatus {
+	if x != nil {
+		return x.To
+	}
+	return SubaccountStatus_SUBACCOUNT_STATUS_UNSPECIFIED
+}
+
+// A sub-account member role before and after an event.
+type ActivitySubaccountRoleChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Role before the event. Unspecified when the member had none.
+	From SubaccountRole `protobuf:"varint,1,opt,name=from,proto3,enum=auth.v1.SubaccountRole" json:"from,omitempty"`
+	// Role after the event. Unspecified when the member has none.
+	To            SubaccountRole `protobuf:"varint,2,opt,name=to,proto3,enum=auth.v1.SubaccountRole" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivitySubaccountRoleChange) Reset() {
+	*x = ActivitySubaccountRoleChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[48]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivitySubaccountRoleChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivitySubaccountRoleChange) ProtoMessage() {}
+
+func (x *ActivitySubaccountRoleChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[48]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivitySubaccountRoleChange.ProtoReflect.Descriptor instead.
+func (*ActivitySubaccountRoleChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{48}
+}
+
+func (x *ActivitySubaccountRoleChange) GetFrom() SubaccountRole {
+	if x != nil {
+		return x.From
+	}
+	return SubaccountRole_SUBACCOUNT_ROLE_UNSPECIFIED
+}
+
+func (x *ActivitySubaccountRoleChange) GetTo() SubaccountRole {
+	if x != nil {
+		return x.To
+	}
+	return SubaccountRole_SUBACCOUNT_ROLE_UNSPECIFIED
+}
+
+// A QuickSwap broker member role before and after an event.
+type ActivityBrokerRoleChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Role before the event. Unspecified when the member had none.
+	From ActivityBrokerRole `protobuf:"varint,1,opt,name=from,proto3,enum=auth.v1.ActivityBrokerRole" json:"from,omitempty"`
+	// Role after the event. Unspecified when the member has none.
+	To            ActivityBrokerRole `protobuf:"varint,2,opt,name=to,proto3,enum=auth.v1.ActivityBrokerRole" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityBrokerRoleChange) Reset() {
+	*x = ActivityBrokerRoleChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[49]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityBrokerRoleChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityBrokerRoleChange) ProtoMessage() {}
+
+func (x *ActivityBrokerRoleChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[49]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityBrokerRoleChange.ProtoReflect.Descriptor instead.
+func (*ActivityBrokerRoleChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{49}
+}
+
+func (x *ActivityBrokerRoleChange) GetFrom() ActivityBrokerRole {
+	if x != nil {
+		return x.From
+	}
+	return ActivityBrokerRole_ACTIVITY_BROKER_ROLE_UNSPECIFIED
+}
+
+func (x *ActivityBrokerRoleChange) GetTo() ActivityBrokerRole {
+	if x != nil {
+		return x.To
+	}
+	return ActivityBrokerRole_ACTIVITY_BROKER_ROLE_UNSPECIFIED
+}
+
+// An invitation status before and after an event.
+type ActivityInviteStatusChange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Status before the event.
+	From SubaccountInviteStatus `protobuf:"varint,1,opt,name=from,proto3,enum=auth.v1.SubaccountInviteStatus" json:"from,omitempty"`
+	// Status after the event.
+	To            SubaccountInviteStatus `protobuf:"varint,2,opt,name=to,proto3,enum=auth.v1.SubaccountInviteStatus" json:"to,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityInviteStatusChange) Reset() {
+	*x = ActivityInviteStatusChange{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[50]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityInviteStatusChange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityInviteStatusChange) ProtoMessage() {}
+
+func (x *ActivityInviteStatusChange) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[50]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityInviteStatusChange.ProtoReflect.Descriptor instead.
+func (*ActivityInviteStatusChange) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{50}
+}
+
+func (x *ActivityInviteStatusChange) GetFrom() SubaccountInviteStatus {
+	if x != nil {
+		return x.From
+	}
+	return SubaccountInviteStatus_SUBACCOUNT_INVITE_STATUS_UNSPECIFIED
+}
+
+func (x *ActivityInviteStatusChange) GetTo() SubaccountInviteStatus {
+	if x != nil {
+		return x.To
+	}
+	return SubaccountInviteStatus_SUBACCOUNT_INVITE_STATUS_UNSPECIFIED
+}
+
+// What an account event changed.
+type ActivityAccountDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The account's username: before and after a change.
+	Username *ActivityTextChange `protobuf:"bytes,1,opt,name=username,proto3" json:"username,omitempty"`
+	// Whether Polyester generated the new username rather than the user
+	// choosing it.
+	GeneratedUsername bool `protobuf:"varint,2,opt,name=generated_username,json=generatedUsername,proto3" json:"generated_username,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ActivityAccountDetails) Reset() {
+	*x = ActivityAccountDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[51]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityAccountDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityAccountDetails) ProtoMessage() {}
+
+func (x *ActivityAccountDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[51]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityAccountDetails.ProtoReflect.Descriptor instead.
+func (*ActivityAccountDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{51}
+}
+
+func (x *ActivityAccountDetails) GetUsername() *ActivityTextChange {
+	if x != nil {
+		return x.Username
+	}
+	return nil
+}
+
+func (x *ActivityAccountDetails) GetGeneratedUsername() bool {
+	if x != nil {
+		return x.GeneratedUsername
+	}
+	return false
+}
+
+// What a session event recorded.
+type ActivitySessionDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// How the user signed in, for a sign-in or a failed one.
+	Method ActivitySignInMethod `protobuf:"varint,1,opt,name=method,proto3,enum=auth.v1.ActivitySignInMethod" json:"method,omitempty"`
+	// Wallet address that signed in, lowercase.
+	WalletAddress string `protobuf:"bytes,2,opt,name=wallet_address,json=walletAddress,proto3" json:"wallet_address,omitempty"`
+	// Why the sign-in failed, for a failed one.
+	Failure ActivitySignInFailure `protobuf:"varint,3,opt,name=failure,proto3,enum=auth.v1.ActivitySignInFailure" json:"failure,omitempty"`
+	// Scopes the user granted a connected app.
+	Scopes []string `protobuf:"bytes,4,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	// Action the session's recent MFA check was used for.
+	ElevatedAction ActivityElevatedAction `protobuf:"varint,5,opt,name=elevated_action,json=elevatedAction,proto3,enum=auth.v1.ActivityElevatedAction" json:"elevated_action,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ActivitySessionDetails) Reset() {
+	*x = ActivitySessionDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[52]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivitySessionDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivitySessionDetails) ProtoMessage() {}
+
+func (x *ActivitySessionDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[52]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivitySessionDetails.ProtoReflect.Descriptor instead.
+func (*ActivitySessionDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{52}
+}
+
+func (x *ActivitySessionDetails) GetMethod() ActivitySignInMethod {
+	if x != nil {
+		return x.Method
+	}
+	return ActivitySignInMethod_ACTIVITY_SIGN_IN_UNSPECIFIED
+}
+
+func (x *ActivitySessionDetails) GetWalletAddress() string {
+	if x != nil {
+		return x.WalletAddress
+	}
+	return ""
+}
+
+func (x *ActivitySessionDetails) GetFailure() ActivitySignInFailure {
+	if x != nil {
+		return x.Failure
+	}
+	return ActivitySignInFailure_ACTIVITY_SIGN_IN_FAILURE_UNSPECIFIED
+}
+
+func (x *ActivitySessionDetails) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+func (x *ActivitySessionDetails) GetElevatedAction() ActivityElevatedAction {
+	if x != nil {
+		return x.ElevatedAction
+	}
+	return ActivityElevatedAction_ACTIVITY_ELEVATED_UNSPECIFIED
+}
+
+// What an API key event changed. On creation, the key's starting values
+// appear as changes from unset.
+type ActivityApiKeyDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The key's label.
+	Label *ActivityTextChange `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// The key's status.
+	Status *ActivityApiKeyStatusChange `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	// The key's purpose.
+	Purpose *ActivityApiKeyPurposeChange `protobuf:"bytes,3,opt,name=purpose,proto3" json:"purpose,omitempty"`
+	// The key's icon.
+	Icon *ActivityTextChange `protobuf:"bytes,4,opt,name=icon,proto3" json:"icon,omitempty"`
+	// The key's color.
+	Color *ActivityTextChange `protobuf:"bytes,5,opt,name=color,proto3" json:"color,omitempty"`
+	// IP addresses or ranges added to and removed from the key's allowlist.
+	// Masked like the event's IP for callers who may not see IP addresses.
+	IpAllowlist *ActivityListChange `protobuf:"bytes,6,opt,name=ip_allowlist,json=ipAllowlist,proto3" json:"ip_allowlist,omitempty"`
+	// The key's expiry.
+	ExpiresAt *ActivityTimeChange `protobuf:"bytes,7,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// The API key policy bound to the key (opaque IDs).
+	ApiPolicyId *ActivityIdChange `protobuf:"bytes,8,opt,name=api_policy_id,json=apiPolicyId,proto3" json:"api_policy_id,omitempty"`
+	// Strategy bot the key belongs to, for a strategy bot key.
+	StrategyBotId uint64 `protobuf:"fixed64,9,opt,name=strategy_bot_id,json=strategyBotId,proto3" json:"strategy_bot_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityApiKeyDetails) Reset() {
+	*x = ActivityApiKeyDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[53]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityApiKeyDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityApiKeyDetails) ProtoMessage() {}
+
+func (x *ActivityApiKeyDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[53]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityApiKeyDetails.ProtoReflect.Descriptor instead.
+func (*ActivityApiKeyDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{53}
+}
+
+func (x *ActivityApiKeyDetails) GetLabel() *ActivityTextChange {
+	if x != nil {
+		return x.Label
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetStatus() *ActivityApiKeyStatusChange {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetPurpose() *ActivityApiKeyPurposeChange {
+	if x != nil {
+		return x.Purpose
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetIcon() *ActivityTextChange {
+	if x != nil {
+		return x.Icon
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetColor() *ActivityTextChange {
+	if x != nil {
+		return x.Color
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetIpAllowlist() *ActivityListChange {
+	if x != nil {
+		return x.IpAllowlist
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetExpiresAt() *ActivityTimeChange {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetApiPolicyId() *ActivityIdChange {
+	if x != nil {
+		return x.ApiPolicyId
+	}
+	return nil
+}
+
+func (x *ActivityApiKeyDetails) GetStrategyBotId() uint64 {
+	if x != nil {
+		return x.StrategyBotId
+	}
+	return 0
+}
+
+// What a policy event changed. On creation, the policy's starting values
+// appear as changes from unset.
+type ActivityPolicyDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The policy's name.
+	Name *ActivityTextChange `protobuf:"bytes,1,opt,name=name,proto3" json:"name,omitempty"`
+	// The policy's description.
+	Description *ActivityTextChange `protobuf:"bytes,2,opt,name=description,proto3" json:"description,omitempty"`
+	// Actions the policy allowed and stopped allowing.
+	Actions *ActivityActionsChange `protobuf:"bytes,3,opt,name=actions,proto3" json:"actions,omitempty"`
+	// Whether the policy allows every spot market.
+	AllSpotMarkets *ActivityBoolChange `protobuf:"bytes,4,opt,name=all_spot_markets,json=allSpotMarkets,proto3" json:"all_spot_markets,omitempty"`
+	// Maximum notional of one order, in canonical quote microunits (one unit is
+	// 0.000001 USDT). 0 is no cap.
+	MaxOrderNotional *ActivityUintChange `protobuf:"bytes,5,opt,name=max_order_notional,json=maxOrderNotional,proto3" json:"max_order_notional,omitempty"`
+	// Maximum number of resting orders. 0 is no cap.
+	MaxOpenOrders *ActivityUintChange `protobuf:"bytes,6,opt,name=max_open_orders,json=maxOpenOrders,proto3" json:"max_open_orders,omitempty"`
+	// Whether trading is halted.
+	TradingHalted *ActivityBoolChange `protobuf:"bytes,7,opt,name=trading_halted,json=tradingHalted,proto3" json:"trading_halted,omitempty"`
+	// Whether the policy is locked.
+	Locked *ActivityBoolChange `protobuf:"bytes,8,opt,name=locked,proto3" json:"locked,omitempty"`
+	// The policy's review time.
+	ReviewAt *ActivityTimeChange `protobuf:"bytes,9,opt,name=review_at,json=reviewAt,proto3" json:"review_at,omitempty"`
+	// The policy's expiry.
+	ExpiresAt *ActivityTimeChange `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// AI assistant key preset the policy follows.
+	AssistantPreset AssistantKeyPreset `protobuf:"varint,11,opt,name=assistant_preset,json=assistantPreset,proto3,enum=auth.v1.AssistantKeyPreset" json:"assistant_preset,omitempty"`
+	// Template the policy was copied from (opaque ID of a policy of the same
+	// kind), and that template's revision.
+	SourceTemplateId uint64 `protobuf:"fixed64,12,opt,name=source_template_id,json=sourceTemplateId,proto3" json:"source_template_id,omitempty"`
+	// Revision of the template when it was copied.
+	SourceTemplateRevision uint64 `protobuf:"varint,13,opt,name=source_template_revision,json=sourceTemplateRevision,proto3" json:"source_template_revision,omitempty"`
+	// Sub-account policy bound to the event's sub-account (opaque IDs).
+	SubaccountPolicyId *ActivityIdChange `protobuf:"bytes,14,opt,name=subaccount_policy_id,json=subaccountPolicyId,proto3" json:"subaccount_policy_id,omitempty"`
+	// Strategy bot the policy was made for.
+	StrategyBotId uint64 `protobuf:"fixed64,15,opt,name=strategy_bot_id,json=strategyBotId,proto3" json:"strategy_bot_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityPolicyDetails) Reset() {
+	*x = ActivityPolicyDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[54]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityPolicyDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityPolicyDetails) ProtoMessage() {}
+
+func (x *ActivityPolicyDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[54]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityPolicyDetails.ProtoReflect.Descriptor instead.
+func (*ActivityPolicyDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{54}
+}
+
+func (x *ActivityPolicyDetails) GetName() *ActivityTextChange {
+	if x != nil {
+		return x.Name
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetDescription() *ActivityTextChange {
+	if x != nil {
+		return x.Description
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetActions() *ActivityActionsChange {
+	if x != nil {
+		return x.Actions
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetAllSpotMarkets() *ActivityBoolChange {
+	if x != nil {
+		return x.AllSpotMarkets
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetMaxOrderNotional() *ActivityUintChange {
+	if x != nil {
+		return x.MaxOrderNotional
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetMaxOpenOrders() *ActivityUintChange {
+	if x != nil {
+		return x.MaxOpenOrders
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetTradingHalted() *ActivityBoolChange {
+	if x != nil {
+		return x.TradingHalted
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetLocked() *ActivityBoolChange {
+	if x != nil {
+		return x.Locked
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetReviewAt() *ActivityTimeChange {
+	if x != nil {
+		return x.ReviewAt
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetExpiresAt() *ActivityTimeChange {
+	if x != nil {
+		return x.ExpiresAt
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetAssistantPreset() AssistantKeyPreset {
+	if x != nil {
+		return x.AssistantPreset
+	}
+	return AssistantKeyPreset_PRESET_UNSPECIFIED
+}
+
+func (x *ActivityPolicyDetails) GetSourceTemplateId() uint64 {
+	if x != nil {
+		return x.SourceTemplateId
+	}
+	return 0
+}
+
+func (x *ActivityPolicyDetails) GetSourceTemplateRevision() uint64 {
+	if x != nil {
+		return x.SourceTemplateRevision
+	}
+	return 0
+}
+
+func (x *ActivityPolicyDetails) GetSubaccountPolicyId() *ActivityIdChange {
+	if x != nil {
+		return x.SubaccountPolicyId
+	}
+	return nil
+}
+
+func (x *ActivityPolicyDetails) GetStrategyBotId() uint64 {
+	if x != nil {
+		return x.StrategyBotId
+	}
+	return 0
+}
+
+// What a sub-account event changed.
+type ActivitySubaccountDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The sub-account's label.
+	Label *ActivityTextChange `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// The sub-account's status.
+	Status *ActivitySubaccountStatusChange `protobuf:"bytes,2,opt,name=status,proto3" json:"status,omitempty"`
+	// The sub-account's icon.
+	Icon *ActivityTextChange `protobuf:"bytes,3,opt,name=icon,proto3" json:"icon,omitempty"`
+	// The sub-account's color.
+	Color *ActivityTextChange `protobuf:"bytes,4,opt,name=color,proto3" json:"color,omitempty"`
+	// Whether the sub-account's members must use MFA.
+	RequireMemberMfa *ActivityBoolChange `protobuf:"bytes,5,opt,name=require_member_mfa,json=requireMemberMfa,proto3" json:"require_member_mfa,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
+}
+
+func (x *ActivitySubaccountDetails) Reset() {
+	*x = ActivitySubaccountDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[55]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivitySubaccountDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivitySubaccountDetails) ProtoMessage() {}
+
+func (x *ActivitySubaccountDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[55]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivitySubaccountDetails.ProtoReflect.Descriptor instead.
+func (*ActivitySubaccountDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{55}
+}
+
+func (x *ActivitySubaccountDetails) GetLabel() *ActivityTextChange {
+	if x != nil {
+		return x.Label
+	}
+	return nil
+}
+
+func (x *ActivitySubaccountDetails) GetStatus() *ActivitySubaccountStatusChange {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+func (x *ActivitySubaccountDetails) GetIcon() *ActivityTextChange {
+	if x != nil {
+		return x.Icon
+	}
+	return nil
+}
+
+func (x *ActivitySubaccountDetails) GetColor() *ActivityTextChange {
+	if x != nil {
+		return x.Color
+	}
+	return nil
+}
+
+func (x *ActivitySubaccountDetails) GetRequireMemberMfa() *ActivityBoolChange {
+	if x != nil {
+		return x.RequireMemberMfa
+	}
+	return nil
+}
+
+// What a member event changed. The member is the event's item.
+type ActivityMemberDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The member's role on a sub-account.
+	Role *ActivitySubaccountRoleChange `protobuf:"bytes,1,opt,name=role,proto3" json:"role,omitempty"`
+	// The member's role in a QuickSwap broker.
+	BrokerRole *ActivityBrokerRoleChange `protobuf:"bytes,2,opt,name=broker_role,json=brokerRole,proto3" json:"broker_role,omitempty"`
+	// Whether the event moved a QuickSwap broker's ownership to the member.
+	OwnershipTransfer bool `protobuf:"varint,3,opt,name=ownership_transfer,json=ownershipTransfer,proto3" json:"ownership_transfer,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *ActivityMemberDetails) Reset() {
+	*x = ActivityMemberDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[56]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityMemberDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityMemberDetails) ProtoMessage() {}
+
+func (x *ActivityMemberDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[56]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityMemberDetails.ProtoReflect.Descriptor instead.
+func (*ActivityMemberDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{56}
+}
+
+func (x *ActivityMemberDetails) GetRole() *ActivitySubaccountRoleChange {
+	if x != nil {
+		return x.Role
+	}
+	return nil
+}
+
+func (x *ActivityMemberDetails) GetBrokerRole() *ActivityBrokerRoleChange {
+	if x != nil {
+		return x.BrokerRole
+	}
+	return nil
+}
+
+func (x *ActivityMemberDetails) GetOwnershipTransfer() bool {
+	if x != nil {
+		return x.OwnershipTransfer
+	}
+	return false
+}
+
+// What an invitation event recorded. The invitation is the event's item.
+type ActivityInviteDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Account invited (opaque ID).
+	GranteeAccountId uint64 `protobuf:"fixed64,1,opt,name=grantee_account_id,json=granteeAccountId,proto3" json:"grantee_account_id,omitempty"`
+	// Role offered on a sub-account.
+	Role SubaccountRole `protobuf:"varint,2,opt,name=role,proto3,enum=auth.v1.SubaccountRole" json:"role,omitempty"`
+	// Role offered in a QuickSwap broker.
+	BrokerRole ActivityBrokerRole `protobuf:"varint,3,opt,name=broker_role,json=brokerRole,proto3,enum=auth.v1.ActivityBrokerRole" json:"broker_role,omitempty"`
+	// The invitation's status.
+	Status        *ActivityInviteStatusChange `protobuf:"bytes,4,opt,name=status,proto3" json:"status,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityInviteDetails) Reset() {
+	*x = ActivityInviteDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[57]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityInviteDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityInviteDetails) ProtoMessage() {}
+
+func (x *ActivityInviteDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[57]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityInviteDetails.ProtoReflect.Descriptor instead.
+func (*ActivityInviteDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{57}
+}
+
+func (x *ActivityInviteDetails) GetGranteeAccountId() uint64 {
+	if x != nil {
+		return x.GranteeAccountId
+	}
+	return 0
+}
+
+func (x *ActivityInviteDetails) GetRole() SubaccountRole {
+	if x != nil {
+		return x.Role
+	}
+	return SubaccountRole_SUBACCOUNT_ROLE_UNSPECIFIED
+}
+
+func (x *ActivityInviteDetails) GetBrokerRole() ActivityBrokerRole {
+	if x != nil {
+		return x.BrokerRole
+	}
+	return ActivityBrokerRole_ACTIVITY_BROKER_ROLE_UNSPECIFIED
+}
+
+func (x *ActivityInviteDetails) GetStatus() *ActivityInviteStatusChange {
+	if x != nil {
+		return x.Status
+	}
+	return nil
+}
+
+// What an address-book event changed. The entry is the event's item.
+type ActivityDestinationDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The entry's label.
+	Label *ActivityTextChange `protobuf:"bytes,1,opt,name=label,proto3" json:"label,omitempty"`
+	// Whether the entry's note changed. The note itself is not shown.
+	NoteChanged bool `protobuf:"varint,2,opt,name=note_changed,json=noteChanged,proto3" json:"note_changed,omitempty"`
+	// Tags added to and removed from the entry (opaque IDs).
+	TagIds        *ActivityIdListChange `protobuf:"bytes,3,opt,name=tag_ids,json=tagIds,proto3" json:"tag_ids,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityDestinationDetails) Reset() {
+	*x = ActivityDestinationDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[58]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityDestinationDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityDestinationDetails) ProtoMessage() {}
+
+func (x *ActivityDestinationDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[58]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityDestinationDetails.ProtoReflect.Descriptor instead.
+func (*ActivityDestinationDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{58}
+}
+
+func (x *ActivityDestinationDetails) GetLabel() *ActivityTextChange {
+	if x != nil {
+		return x.Label
+	}
+	return nil
+}
+
+func (x *ActivityDestinationDetails) GetNoteChanged() bool {
+	if x != nil {
+		return x.NoteChanged
+	}
+	return false
+}
+
+func (x *ActivityDestinationDetails) GetTagIds() *ActivityIdListChange {
+	if x != nil {
+		return x.TagIds
+	}
+	return nil
+}
+
+// What a QuickSwap broker allowlist event recorded. The change request is
+// the event's item.
+type ActivityBrokerAllowlistDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Whether the change adds or removes the destination.
+	Action ActivityAllowlistAction `protobuf:"varint,1,opt,name=action,proto3,enum=auth.v1.ActivityAllowlistAction" json:"action,omitempty"`
+	// Destination address.
+	Destination string `protobuf:"bytes,2,opt,name=destination,proto3" json:"destination,omitempty"`
+	// Chain ID of the destination.
+	DestinationChainId uint64 `protobuf:"varint,3,opt,name=destination_chain_id,json=destinationChainId,proto3" json:"destination_chain_id,omitempty"`
+	// Label of the destination.
+	Label         string `protobuf:"bytes,4,opt,name=label,proto3" json:"label,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityBrokerAllowlistDetails) Reset() {
+	*x = ActivityBrokerAllowlistDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[59]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityBrokerAllowlistDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityBrokerAllowlistDetails) ProtoMessage() {}
+
+func (x *ActivityBrokerAllowlistDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[59]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityBrokerAllowlistDetails.ProtoReflect.Descriptor instead.
+func (*ActivityBrokerAllowlistDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{59}
+}
+
+func (x *ActivityBrokerAllowlistDetails) GetAction() ActivityAllowlistAction {
+	if x != nil {
+		return x.Action
+	}
+	return ActivityAllowlistAction_ACTIVITY_ALLOWLIST_UNSPECIFIED
+}
+
+func (x *ActivityBrokerAllowlistDetails) GetDestination() string {
+	if x != nil {
+		return x.Destination
+	}
+	return ""
+}
+
+func (x *ActivityBrokerAllowlistDetails) GetDestinationChainId() uint64 {
+	if x != nil {
+		return x.DestinationChainId
+	}
+	return 0
+}
+
+func (x *ActivityBrokerAllowlistDetails) GetLabel() string {
+	if x != nil {
+		return x.Label
+	}
+	return ""
+}
+
+// What an account security event changed.
+type ActivitySecurityDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Type of the MFA factor added, changed, removed or used.
+	FactorType MFAFactorType `protobuf:"varint,1,opt,name=factor_type,json=factorType,proto3,enum=auth.v1.MFAFactorType" json:"factor_type,omitempty"`
+	// The MFA factor's label.
+	Label *ActivityTextChange `protobuf:"bytes,2,opt,name=label,proto3" json:"label,omitempty"`
+	// What a passed MFA check was for.
+	ChallengePurpose MFAChallengePurpose `protobuf:"varint,3,opt,name=challenge_purpose,json=challengePurpose,proto3,enum=auth.v1.MFAChallengePurpose" json:"challenge_purpose,omitempty"`
+	// Whether the recovery codes were replaced by new ones.
+	RecoveryCodesRotated bool `protobuf:"varint,4,opt,name=recovery_codes_rotated,json=recoveryCodesRotated,proto3" json:"recovery_codes_rotated,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *ActivitySecurityDetails) Reset() {
+	*x = ActivitySecurityDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[60]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivitySecurityDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivitySecurityDetails) ProtoMessage() {}
+
+func (x *ActivitySecurityDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[60]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivitySecurityDetails.ProtoReflect.Descriptor instead.
+func (*ActivitySecurityDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{60}
+}
+
+func (x *ActivitySecurityDetails) GetFactorType() MFAFactorType {
+	if x != nil {
+		return x.FactorType
+	}
+	return MFAFactorType_MFA_FACTOR_TYPE_UNSPECIFIED
+}
+
+func (x *ActivitySecurityDetails) GetLabel() *ActivityTextChange {
+	if x != nil {
+		return x.Label
+	}
+	return nil
+}
+
+func (x *ActivitySecurityDetails) GetChallengePurpose() MFAChallengePurpose {
+	if x != nil {
+		return x.ChallengePurpose
+	}
+	return MFAChallengePurpose_MFA_CHALLENGE_PURPOSE_UNSPECIFIED
+}
+
+func (x *ActivitySecurityDetails) GetRecoveryCodesRotated() bool {
+	if x != nil {
+		return x.RecoveryCodesRotated
+	}
+	return false
+}
+
+// What an activity event changed, by the kind of item it affected.
+type ActivityDetails struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Details of one kind of item.
+	//
+	// Types that are valid to be assigned to Kind:
+	//
+	//	*ActivityDetails_Account
+	//	*ActivityDetails_Session
+	//	*ActivityDetails_ApiKey
+	//	*ActivityDetails_Policy
+	//	*ActivityDetails_Subaccount
+	//	*ActivityDetails_Member
+	//	*ActivityDetails_Invite
+	//	*ActivityDetails_Destination
+	//	*ActivityDetails_BrokerAllowlist
+	//	*ActivityDetails_Security
+	Kind          isActivityDetails_Kind `protobuf_oneof:"kind"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ActivityDetails) Reset() {
+	*x = ActivityDetails{}
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[61]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ActivityDetails) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ActivityDetails) ProtoMessage() {}
+
+func (x *ActivityDetails) ProtoReflect() protoreflect.Message {
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[61]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ActivityDetails.ProtoReflect.Descriptor instead.
+func (*ActivityDetails) Descriptor() ([]byte, []int) {
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{61}
+}
+
+func (x *ActivityDetails) GetKind() isActivityDetails_Kind {
+	if x != nil {
+		return x.Kind
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetAccount() *ActivityAccountDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Account); ok {
+			return x.Account
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetSession() *ActivitySessionDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Session); ok {
+			return x.Session
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetApiKey() *ActivityApiKeyDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_ApiKey); ok {
+			return x.ApiKey
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetPolicy() *ActivityPolicyDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Policy); ok {
+			return x.Policy
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetSubaccount() *ActivitySubaccountDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Subaccount); ok {
+			return x.Subaccount
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetMember() *ActivityMemberDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Member); ok {
+			return x.Member
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetInvite() *ActivityInviteDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Invite); ok {
+			return x.Invite
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetDestination() *ActivityDestinationDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Destination); ok {
+			return x.Destination
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetBrokerAllowlist() *ActivityBrokerAllowlistDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_BrokerAllowlist); ok {
+			return x.BrokerAllowlist
+		}
+	}
+	return nil
+}
+
+func (x *ActivityDetails) GetSecurity() *ActivitySecurityDetails {
+	if x != nil {
+		if x, ok := x.Kind.(*ActivityDetails_Security); ok {
+			return x.Security
+		}
+	}
+	return nil
+}
+
+type isActivityDetails_Kind interface {
+	isActivityDetails_Kind()
+}
+
+type ActivityDetails_Account struct {
+	// An account change.
+	Account *ActivityAccountDetails `protobuf:"bytes,1,opt,name=account,proto3,oneof"`
+}
+
+type ActivityDetails_Session struct {
+	// A sign-in, a failed sign-in, a connected app or an MFA-elevated action.
+	Session *ActivitySessionDetails `protobuf:"bytes,2,opt,name=session,proto3,oneof"`
+}
+
+type ActivityDetails_ApiKey struct {
+	// An API key change.
+	ApiKey *ActivityApiKeyDetails `protobuf:"bytes,3,opt,name=api_key,json=apiKey,proto3,oneof"`
+}
+
+type ActivityDetails_Policy struct {
+	// A sub-account or API key policy change.
+	Policy *ActivityPolicyDetails `protobuf:"bytes,4,opt,name=policy,proto3,oneof"`
+}
+
+type ActivityDetails_Subaccount struct {
+	// A sub-account change.
+	Subaccount *ActivitySubaccountDetails `protobuf:"bytes,5,opt,name=subaccount,proto3,oneof"`
+}
+
+type ActivityDetails_Member struct {
+	// A sub-account or QuickSwap broker membership change.
+	Member *ActivityMemberDetails `protobuf:"bytes,6,opt,name=member,proto3,oneof"`
+}
+
+type ActivityDetails_Invite struct {
+	// A sub-account or QuickSwap broker invitation.
+	Invite *ActivityInviteDetails `protobuf:"bytes,7,opt,name=invite,proto3,oneof"`
+}
+
+type ActivityDetails_Destination struct {
+	// An address-book change.
+	Destination *ActivityDestinationDetails `protobuf:"bytes,8,opt,name=destination,proto3,oneof"`
+}
+
+type ActivityDetails_BrokerAllowlist struct {
+	// A QuickSwap broker allowlist change.
+	BrokerAllowlist *ActivityBrokerAllowlistDetails `protobuf:"bytes,9,opt,name=broker_allowlist,json=brokerAllowlist,proto3,oneof"`
+}
+
+type ActivityDetails_Security struct {
+	// An MFA or recovery-code change.
+	Security *ActivitySecurityDetails `protobuf:"bytes,10,opt,name=security,proto3,oneof"`
+}
+
+func (*ActivityDetails_Account) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_Session) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_ApiKey) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_Policy) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_Subaccount) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_Member) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_Invite) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_Destination) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_BrokerAllowlist) isActivityDetails_Kind() {}
+
+func (*ActivityDetails_Security) isActivityDetails_Kind() {}
+
+// Activity or audit event of a main account or one of its sub-accounts: who
+// did what to which item.
 type ActivityEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Time when the event occurred.
@@ -3118,30 +5855,32 @@ type ActivityEvent struct {
 	EntityKind ActivityEntityKind `protobuf:"varint,3,opt,name=entity_kind,json=entityKind,proto3,enum=auth.v1.ActivityEntityKind" json:"entity_kind,omitempty"`
 	// Action recorded for the entity.
 	EventAction ActivityEventAction `protobuf:"varint,4,opt,name=event_action,json=eventAction,proto3,enum=auth.v1.ActivityEventAction" json:"event_action,omitempty"`
-	// Client channel from which the event originated.
+	// Client channel from which the event originated. SYSTEM for an event
+	// Polyester recorded by itself.
 	Source ActivityEventSource `protobuf:"varint,5,opt,name=source,proto3,enum=auth.v1.ActivityEventSource" json:"source,omitempty"`
-	// Origin IP address. Masked for non-owner and non-admin callers.
+	// Origin IP address. Masked for non-owner and non-admin callers. Absent
+	// for a system event.
 	Ip string `protobuf:"bytes,6,opt,name=ip,proto3" json:"ip,omitempty"`
 	// User agent associated with the event, when available.
 	UserAgent string `protobuf:"bytes,7,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
-	// Account that performed the action (opaque ID).
-	ActorAccountId uint64 `protobuf:"fixed64,8,opt,name=actor_account_id,json=actorAccountId,proto3" json:"actor_account_id,omitempty"`
-	// Structured event details as a JSON string. Maximum 64 KiB (65536 UTF-8
-	// bytes).
-	PayloadJson string `protobuf:"bytes,9,opt,name=payload_json,json=payloadJson,proto3" json:"payload_json,omitempty"`
 	// Sub-account the event belongs to (opaque ID). Absent for an event of the
 	// main account itself.
 	SubaccountId uint64 `protobuf:"fixed64,10,opt,name=subaccount_id,json=subaccountId,proto3" json:"subaccount_id,omitempty"`
-	// API key the actor used (opaque ID). Absent when the actor used a session.
-	// Set by ListAccountActivity only.
-	ActorApiKeyId uint64 `protobuf:"fixed64,11,opt,name=actor_api_key_id,json=actorApiKeyId,proto3" json:"actor_api_key_id,omitempty"`
+	// Who performed the event. Always set.
+	Actor *ActivityActor `protobuf:"bytes,12,opt,name=actor,proto3" json:"actor,omitempty"`
+	// Item the event affected. Absent only for an event recorded before items
+	// were.
+	Item *ActivityItem `protobuf:"bytes,13,opt,name=item,proto3" json:"item,omitempty"`
+	// What the event changed. Absent when the event records no change, such
+	// as a deletion, or was recorded before details were.
+	Details       *ActivityDetails `protobuf:"bytes,14,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ActivityEvent) Reset() {
 	*x = ActivityEvent{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[35]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[62]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3153,7 +5892,7 @@ func (x *ActivityEvent) String() string {
 func (*ActivityEvent) ProtoMessage() {}
 
 func (x *ActivityEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[35]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[62]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3166,7 +5905,7 @@ func (x *ActivityEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ActivityEvent.ProtoReflect.Descriptor instead.
 func (*ActivityEvent) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{35}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{62}
 }
 
 func (x *ActivityEvent) GetCreatedAt() *timestamppb.Timestamp {
@@ -3211,20 +5950,6 @@ func (x *ActivityEvent) GetUserAgent() string {
 	return ""
 }
 
-func (x *ActivityEvent) GetActorAccountId() uint64 {
-	if x != nil {
-		return x.ActorAccountId
-	}
-	return 0
-}
-
-func (x *ActivityEvent) GetPayloadJson() string {
-	if x != nil {
-		return x.PayloadJson
-	}
-	return ""
-}
-
 func (x *ActivityEvent) GetSubaccountId() uint64 {
 	if x != nil {
 		return x.SubaccountId
@@ -3232,11 +5957,25 @@ func (x *ActivityEvent) GetSubaccountId() uint64 {
 	return 0
 }
 
-func (x *ActivityEvent) GetActorApiKeyId() uint64 {
+func (x *ActivityEvent) GetActor() *ActivityActor {
 	if x != nil {
-		return x.ActorApiKeyId
+		return x.Actor
 	}
-	return 0
+	return nil
+}
+
+func (x *ActivityEvent) GetItem() *ActivityItem {
+	if x != nil {
+		return x.Item
+	}
+	return nil
+}
+
+func (x *ActivityEvent) GetDetails() *ActivityDetails {
+	if x != nil {
+		return x.Details
+	}
+	return nil
 }
 
 // Request to list sub-account activity.
@@ -3256,7 +5995,7 @@ type ListSubaccountEventsRequest struct {
 
 func (x *ListSubaccountEventsRequest) Reset() {
 	*x = ListSubaccountEventsRequest{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[36]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[63]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3268,7 +6007,7 @@ func (x *ListSubaccountEventsRequest) String() string {
 func (*ListSubaccountEventsRequest) ProtoMessage() {}
 
 func (x *ListSubaccountEventsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[36]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[63]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3281,7 +6020,7 @@ func (x *ListSubaccountEventsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountEventsRequest.ProtoReflect.Descriptor instead.
 func (*ListSubaccountEventsRequest) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{36}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{63}
 }
 
 func (x *ListSubaccountEventsRequest) GetSubaccountId() uint64 {
@@ -3318,7 +6057,7 @@ type ListSubaccountEventsResponse struct {
 
 func (x *ListSubaccountEventsResponse) Reset() {
 	*x = ListSubaccountEventsResponse{}
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[37]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[64]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -3330,7 +6069,7 @@ func (x *ListSubaccountEventsResponse) String() string {
 func (*ListSubaccountEventsResponse) ProtoMessage() {}
 
 func (x *ListSubaccountEventsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_auth_v1_subaccounts_proto_msgTypes[37]
+	mi := &file_auth_v1_subaccounts_proto_msgTypes[64]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -3343,7 +6082,7 @@ func (x *ListSubaccountEventsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListSubaccountEventsResponse.ProtoReflect.Descriptor instead.
 func (*ListSubaccountEventsResponse) Descriptor() ([]byte, []int) {
-	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{37}
+	return file_auth_v1_subaccounts_proto_rawDescGZIP(), []int{64}
 }
 
 func (x *ListSubaccountEventsResponse) GetEvents() []*ActivityEvent {
@@ -3364,7 +6103,7 @@ var File_auth_v1_subaccounts_proto protoreflect.FileDescriptor
 
 const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
-	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xf7\x01\n" +
+	"\x19auth/v1/subaccounts.proto\x12\aauth.v1\x1a\x16auth/v1/api_keys.proto\x1a\x11auth/v1/mfa.proto\x1a\x16auth/v1/policies.proto\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/api/field_behavior.proto\x1a google/protobuf/field_mask.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1bpolyester/api/options.proto\x1a9polyester/api/validation/v1/predefined_string_rules.proto\"\xf7\x01\n" +
 	"\x1eSubaccountPermissionDefinition\x12J\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\x0e2\x1d.auth.v1.SubaccountPermissionB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\n" +
@@ -3394,7 +6133,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x14subaccount_policy_id\x18\x03 \x01(\x06R\x12subaccountPolicyId\"p\n" +
 	"\x12SubaccountRoleView\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x125\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xe7\x05\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\x90\x06\n" +
 	"\n" +
 	"Subaccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x125\n" +
@@ -3414,7 +6153,8 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\n" +
 	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
 	"\brevision\x18\x0f \x01(\x04R\brevision\x12\x18\n" +
-	"\aremoved\x18\x10 \x01(\bR\aremovedB\x1b\n" +
+	"\aremoved\x18\x10 \x01(\bR\aremoved\x12'\n" +
+	"\x0fidempotency_key\x18\x11 \x01(\tR\x0eidempotencyKeyB\x1b\n" +
 	"\x19_smart_account_salt_nonce\"\x18\n" +
 	"\x16ListSubaccountsRequest\"u\n" +
 	"\x17ListSubaccountsResponse\x125\n" +
@@ -3429,19 +6169,21 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\x129\n" +
 	"\n" +
 	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12,\n" +
-	"\x12polyester_chain_id\x18\x05 \x01(\x04R\x10polyesterChainId\"\xdd\x02\n" +
+	"\x12polyester_chain_id\x18\x05 \x01(\x04R\x10polyesterChainId\"\xb8\x03\n" +
 	"\x17CreateSubaccountRequest\x12,\n" +
 	"\x05label\x18\x01 \x01(\tB\x16\xbaH\x13r\x11\x98\xb5\x18\x01\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
 	"\x04icon\x18\a \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
 	"\x05color\x18\b \x01(\tB\a\xbaH\x04r\x02\x18 R\x05color\x12\x81\x01\n" +
 	"\x15smart_account_address\x18\x02 \x01(\tBM\xe0A\x02\xbaHGrE2\x13^0x[0-9a-fA-F]{40}$\x98\x01*\x92\x02*0x0000000000000000000000000000000000000000R\x13smartAccountAddress\x12'\n" +
 	"\amessage\x18\x03 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01(\x80 R\amessage\x12+\n" +
-	"\tsignature\x18\x04 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80@R\tsignature\"\xb9\x01\n" +
+	"\tsignature\x18\x04 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80@R\tsignature\x12Y\n" +
+	"\x0fidempotency_key\x18\t \x01(\tB0\xbaH-r+2\x1b^([A-Za-z0-9._:-]{1,128})?$\x92\x02\vdeploy-1842R\x0eidempotencyKey\"\xd5\x01\n" +
 	"\x18CreateSubaccountResponse\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12#\n" +
 	"\rtotal_created\x18\x02 \x01(\rR\ftotalCreated\x127\n" +
 	"\x18smart_account_salt_nonce\x18\x03 \x01(\rR\x15smartAccountSaltNonce\x12\x1a\n" +
-	"\brevision\x18\x04 \x01(\x04R\brevision\"\xbd\x01\n" +
+	"\brevision\x18\x04 \x01(\x04R\brevision\x12\x1a\n" +
+	"\breplayed\x18\x05 \x01(\bR\breplayed\"\xbd\x01\n" +
 	"\x14SubaccountUpdateSpec\x12,\n" +
 	"\x05label\x18\x01 \x01(\tB\x16\xbaH\x13r\x11\x98\xb5\x18\x01\x18@\x92\x02\bTreasuryR\x05label\x12\x1b\n" +
 	"\x04icon\x18\x02 \x01(\tB\a\xbaH\x04r\x02\x18 R\x04icon\x12\x1d\n" +
@@ -3534,7 +6276,162 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\amembers\x18\x03 \x03(\v2\x1d.auth.v1.SubaccountMemberViewR\amembers\x123\n" +
 	"\ainvites\x18\x04 \x03(\v2\x19.auth.v1.SubaccountInviteR\ainvites\x125\n" +
 	"\x06policy\x18\x05 \x01(\v2\x1d.auth.v1.SubaccountPolicyViewR\x06policy\x12?\n" +
-	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\x88\x04\n" +
+	"\bbalances\x18\x06 \x01(\v2#.ledger.read.v1.GetBalancesResponseR\bbalances\"\xf9\x02\n" +
+	"\rActivityActor\x128\n" +
+	"\x04kind\x18\x01 \x01(\x0e2\x1a.auth.v1.ActivityActorKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04kind\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x02 \x01(\x06R\taccountId\x12#\n" +
+	"\busername\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18@R\busername\x12%\n" +
+	"\n" +
+	"api_key_id\x18\x04 \x01(\tB\a\xbaH\x04r\x02\x18@R\bapiKeyId\x12G\n" +
+	"\fapi_key_kind\x18\x05 \x01(\x0e2\x1b.auth.v1.ActivityApiKeyKindB\b\xbaH\x05\x82\x01\x02\x10\x01R\n" +
+	"apiKeyKind\x12,\n" +
+	"\rapi_key_label\x18\x06 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\vapiKeyLabel\x12L\n" +
+	"\rsystem_reason\x18\a \x01(\x0e2\x1d.auth.v1.ActivitySystemReasonB\b\xbaH\x05\x82\x01\x02\x10\x01R\fsystemReason\"\xeb\x03\n" +
+	"\fActivityItem\x12\x1f\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\x06H\x00R\taccountId\x12%\n" +
+	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x12\x1d\n" +
+	"\tinvite_id\x18\x03 \x01(\x06H\x00R\binviteId\x122\n" +
+	"\x14subaccount_policy_id\x18\x04 \x01(\x06H\x00R\x12subaccountPolicyId\x12$\n" +
+	"\rapi_policy_id\x18\x05 \x01(\x06H\x00R\vapiPolicyId\x12'\n" +
+	"\n" +
+	"api_key_id\x18\x06 \x01(\tB\a\xbaH\x04r\x02\x18@H\x00R\bapiKeyId\x12-\n" +
+	"\rmfa_factor_id\x18\a \x01(\tB\a\xbaH\x04r\x02\x18@H\x00R\vmfaFactorId\x123\n" +
+	"\x15address_book_entry_id\x18\b \x01(\x06H\x00R\x12addressBookEntryId\x12=\n" +
+	"\x1abroker_allowlist_change_id\x18\t \x01(\x06H\x00R\x17brokerAllowlistChangeId\x12*\n" +
+	"\x10connected_app_id\x18\n" +
+	" \x01(\x06H\x00R\x0econnectedAppId\x12\x1c\n" +
+	"\x04name\x18\v \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04nameB\x04\n" +
+	"\x02id\"L\n" +
+	"\x12ActivityTextChange\x12\x1c\n" +
+	"\x04from\x18\x01 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x04from\x12\x18\n" +
+	"\x02to\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\x02to\"8\n" +
+	"\x12ActivityBoolChange\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\bR\x04from\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\bR\x02to\"8\n" +
+	"\x12ActivityUintChange\x12\x12\n" +
+	"\x04from\x18\x01 \x01(\x04R\x04from\x12\x0e\n" +
+	"\x02to\x18\x02 \x01(\x04R\x02to\"p\n" +
+	"\x12ActivityTimeChange\x12.\n" +
+	"\x04from\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\x04from\x12*\n" +
+	"\x02to\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x02to\"@\n" +
+	"\x10ActivityIdChange\x12\x17\n" +
+	"\afrom_id\x18\x01 \x01(\x06R\x06fromId\x12\x13\n" +
+	"\x05to_id\x18\x02 \x01(\x06R\x04toId\"\x89\x01\n" +
+	"\x15ActivityActionsChange\x125\n" +
+	"\x05added\x18\x01 \x03(\x0e2\x15.auth.v1.PolicyActionB\b\xbaH\x05\x92\x01\x02\x10@R\x05added\x129\n" +
+	"\aremoved\x18\x02 \x03(\x0e2\x15.auth.v1.PolicyActionB\b\xbaH\x05\x92\x01\x02\x10@R\aremoved\"X\n" +
+	"\x12ActivityListChange\x12\x1e\n" +
+	"\x05added\x18\x01 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10@R\x05added\x12\"\n" +
+	"\aremoved\x18\x02 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10@R\aremoved\"h\n" +
+	"\x14ActivityIdListChange\x12%\n" +
+	"\tadded_ids\x18\x01 \x03(\x06B\b\xbaH\x05\x92\x01\x02\x10@R\baddedIds\x12)\n" +
+	"\vremoved_ids\x18\x02 \x03(\x06B\b\xbaH\x05\x92\x01\x02\x10@R\n" +
+	"removedIds\"n\n" +
+	"\x1aActivityApiKeyStatusChange\x12)\n" +
+	"\x04from\x18\x01 \x01(\x0e2\x15.auth.v1.ApiKeyStatusR\x04from\x12%\n" +
+	"\x02to\x18\x02 \x01(\x0e2\x15.auth.v1.ApiKeyStatusR\x02to\"q\n" +
+	"\x1bActivityApiKeyPurposeChange\x12*\n" +
+	"\x04from\x18\x01 \x01(\x0e2\x16.auth.v1.ApiKeyPurposeR\x04from\x12&\n" +
+	"\x02to\x18\x02 \x01(\x0e2\x16.auth.v1.ApiKeyPurposeR\x02to\"z\n" +
+	"\x1eActivitySubaccountStatusChange\x12-\n" +
+	"\x04from\x18\x01 \x01(\x0e2\x19.auth.v1.SubaccountStatusR\x04from\x12)\n" +
+	"\x02to\x18\x02 \x01(\x0e2\x19.auth.v1.SubaccountStatusR\x02to\"t\n" +
+	"\x1cActivitySubaccountRoleChange\x12+\n" +
+	"\x04from\x18\x01 \x01(\x0e2\x17.auth.v1.SubaccountRoleR\x04from\x12'\n" +
+	"\x02to\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleR\x02to\"x\n" +
+	"\x18ActivityBrokerRoleChange\x12/\n" +
+	"\x04from\x18\x01 \x01(\x0e2\x1b.auth.v1.ActivityBrokerRoleR\x04from\x12+\n" +
+	"\x02to\x18\x02 \x01(\x0e2\x1b.auth.v1.ActivityBrokerRoleR\x02to\"\x82\x01\n" +
+	"\x1aActivityInviteStatusChange\x123\n" +
+	"\x04from\x18\x01 \x01(\x0e2\x1f.auth.v1.SubaccountInviteStatusR\x04from\x12/\n" +
+	"\x02to\x18\x02 \x01(\x0e2\x1f.auth.v1.SubaccountInviteStatusR\x02to\"\x80\x01\n" +
+	"\x16ActivityAccountDetails\x127\n" +
+	"\busername\x18\x01 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\busername\x12-\n" +
+	"\x12generated_username\x18\x02 \x01(\bR\x11generatedUsername\"\xc4\x02\n" +
+	"\x16ActivitySessionDetails\x12?\n" +
+	"\x06method\x18\x01 \x01(\x0e2\x1d.auth.v1.ActivitySignInMethodB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06method\x12/\n" +
+	"\x0ewallet_address\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\rwalletAddress\x12B\n" +
+	"\afailure\x18\x03 \x01(\x0e2\x1e.auth.v1.ActivitySignInFailureB\b\xbaH\x05\x82\x01\x02\x10\x01R\afailure\x12 \n" +
+	"\x06scopes\x18\x04 \x03(\tB\b\xbaH\x05\x92\x01\x02\x10 R\x06scopes\x12R\n" +
+	"\x0felevated_action\x18\x05 \x01(\x0e2\x1f.auth.v1.ActivityElevatedActionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0eelevatedAction\"\x8e\x04\n" +
+	"\x15ActivityApiKeyDetails\x121\n" +
+	"\x05label\x18\x01 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x05label\x12;\n" +
+	"\x06status\x18\x02 \x01(\v2#.auth.v1.ActivityApiKeyStatusChangeR\x06status\x12>\n" +
+	"\apurpose\x18\x03 \x01(\v2$.auth.v1.ActivityApiKeyPurposeChangeR\apurpose\x12/\n" +
+	"\x04icon\x18\x04 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x04icon\x121\n" +
+	"\x05color\x18\x05 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x05color\x12>\n" +
+	"\fip_allowlist\x18\x06 \x01(\v2\x1b.auth.v1.ActivityListChangeR\vipAllowlist\x12:\n" +
+	"\n" +
+	"expires_at\x18\a \x01(\v2\x1b.auth.v1.ActivityTimeChangeR\texpiresAt\x12=\n" +
+	"\rapi_policy_id\x18\b \x01(\v2\x19.auth.v1.ActivityIdChangeR\vapiPolicyId\x12&\n" +
+	"\x0fstrategy_bot_id\x18\t \x01(\x06R\rstrategyBotId\"\xb6\a\n" +
+	"\x15ActivityPolicyDetails\x12/\n" +
+	"\x04name\x18\x01 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x04name\x12=\n" +
+	"\vdescription\x18\x02 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\vdescription\x128\n" +
+	"\aactions\x18\x03 \x01(\v2\x1e.auth.v1.ActivityActionsChangeR\aactions\x12E\n" +
+	"\x10all_spot_markets\x18\x04 \x01(\v2\x1b.auth.v1.ActivityBoolChangeR\x0eallSpotMarkets\x12I\n" +
+	"\x12max_order_notional\x18\x05 \x01(\v2\x1b.auth.v1.ActivityUintChangeR\x10maxOrderNotional\x12C\n" +
+	"\x0fmax_open_orders\x18\x06 \x01(\v2\x1b.auth.v1.ActivityUintChangeR\rmaxOpenOrders\x12B\n" +
+	"\x0etrading_halted\x18\a \x01(\v2\x1b.auth.v1.ActivityBoolChangeR\rtradingHalted\x123\n" +
+	"\x06locked\x18\b \x01(\v2\x1b.auth.v1.ActivityBoolChangeR\x06locked\x128\n" +
+	"\treview_at\x18\t \x01(\v2\x1b.auth.v1.ActivityTimeChangeR\breviewAt\x12:\n" +
+	"\n" +
+	"expires_at\x18\n" +
+	" \x01(\v2\x1b.auth.v1.ActivityTimeChangeR\texpiresAt\x12P\n" +
+	"\x10assistant_preset\x18\v \x01(\x0e2\x1b.auth.v1.AssistantKeyPresetB\b\xbaH\x05\x82\x01\x02\x10\x01R\x0fassistantPreset\x12,\n" +
+	"\x12source_template_id\x18\f \x01(\x06R\x10sourceTemplateId\x128\n" +
+	"\x18source_template_revision\x18\r \x01(\x04R\x16sourceTemplateRevision\x12K\n" +
+	"\x14subaccount_policy_id\x18\x0e \x01(\v2\x19.auth.v1.ActivityIdChangeR\x12subaccountPolicyId\x12&\n" +
+	"\x0fstrategy_bot_id\x18\x0f \x01(\x06R\rstrategyBotId\"\xbe\x02\n" +
+	"\x19ActivitySubaccountDetails\x121\n" +
+	"\x05label\x18\x01 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x05label\x12?\n" +
+	"\x06status\x18\x02 \x01(\v2'.auth.v1.ActivitySubaccountStatusChangeR\x06status\x12/\n" +
+	"\x04icon\x18\x03 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x04icon\x121\n" +
+	"\x05color\x18\x04 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x05color\x12I\n" +
+	"\x12require_member_mfa\x18\x05 \x01(\v2\x1b.auth.v1.ActivityBoolChangeR\x10requireMemberMfa\"\xc5\x01\n" +
+	"\x15ActivityMemberDetails\x129\n" +
+	"\x04role\x18\x01 \x01(\v2%.auth.v1.ActivitySubaccountRoleChangeR\x04role\x12B\n" +
+	"\vbroker_role\x18\x02 \x01(\v2!.auth.v1.ActivityBrokerRoleChangeR\n" +
+	"brokerRole\x12-\n" +
+	"\x12ownership_transfer\x18\x03 \x01(\bR\x11ownershipTransfer\"\x81\x02\n" +
+	"\x15ActivityInviteDetails\x12,\n" +
+	"\x12grantee_account_id\x18\x01 \x01(\x06R\x10granteeAccountId\x125\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\x12F\n" +
+	"\vbroker_role\x18\x03 \x01(\x0e2\x1b.auth.v1.ActivityBrokerRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\n" +
+	"brokerRole\x12;\n" +
+	"\x06status\x18\x04 \x01(\v2#.auth.v1.ActivityInviteStatusChangeR\x06status\"\xaa\x01\n" +
+	"\x1aActivityDestinationDetails\x121\n" +
+	"\x05label\x18\x01 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x05label\x12!\n" +
+	"\fnote_changed\x18\x02 \x01(\bR\vnoteChanged\x126\n" +
+	"\atag_ids\x18\x03 \x01(\v2\x1d.auth.v1.ActivityIdListChangeR\x06tagIds\"\xe2\x01\n" +
+	"\x1eActivityBrokerAllowlistDetails\x12B\n" +
+	"\x06action\x18\x01 \x01(\x0e2 .auth.v1.ActivityAllowlistActionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x06action\x12*\n" +
+	"\vdestination\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\vdestination\x120\n" +
+	"\x14destination_chain_id\x18\x03 \x01(\x04R\x12destinationChainId\x12\x1e\n" +
+	"\x05label\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x05label\"\x9a\x02\n" +
+	"\x17ActivitySecurityDetails\x12A\n" +
+	"\vfactor_type\x18\x01 \x01(\x0e2\x16.auth.v1.MFAFactorTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\n" +
+	"factorType\x121\n" +
+	"\x05label\x18\x02 \x01(\v2\x1b.auth.v1.ActivityTextChangeR\x05label\x12S\n" +
+	"\x11challenge_purpose\x18\x03 \x01(\x0e2\x1c.auth.v1.MFAChallengePurposeB\b\xbaH\x05\x82\x01\x02\x10\x01R\x10challengePurpose\x124\n" +
+	"\x16recovery_codes_rotated\x18\x04 \x01(\bR\x14recoveryCodesRotated\"\xa1\x05\n" +
+	"\x0fActivityDetails\x12;\n" +
+	"\aaccount\x18\x01 \x01(\v2\x1f.auth.v1.ActivityAccountDetailsH\x00R\aaccount\x12;\n" +
+	"\asession\x18\x02 \x01(\v2\x1f.auth.v1.ActivitySessionDetailsH\x00R\asession\x129\n" +
+	"\aapi_key\x18\x03 \x01(\v2\x1e.auth.v1.ActivityApiKeyDetailsH\x00R\x06apiKey\x128\n" +
+	"\x06policy\x18\x04 \x01(\v2\x1e.auth.v1.ActivityPolicyDetailsH\x00R\x06policy\x12D\n" +
+	"\n" +
+	"subaccount\x18\x05 \x01(\v2\".auth.v1.ActivitySubaccountDetailsH\x00R\n" +
+	"subaccount\x128\n" +
+	"\x06member\x18\x06 \x01(\v2\x1e.auth.v1.ActivityMemberDetailsH\x00R\x06member\x128\n" +
+	"\x06invite\x18\a \x01(\v2\x1e.auth.v1.ActivityInviteDetailsH\x00R\x06invite\x12G\n" +
+	"\vdestination\x18\b \x01(\v2#.auth.v1.ActivityDestinationDetailsH\x00R\vdestination\x12T\n" +
+	"\x10broker_allowlist\x18\t \x01(\v2'.auth.v1.ActivityBrokerAllowlistDetailsH\x00R\x0fbrokerAllowlist\x12>\n" +
+	"\bsecurity\x18\n" +
+	" \x01(\v2 .auth.v1.ActivitySecurityDetailsH\x00R\bsecurityB\x06\n" +
+	"\x04kind\"\x94\x04\n" +
 	"\rActivityEvent\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12F\n" +
@@ -3545,12 +6442,12 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x02ip\x18\x06 \x01(\tB\n" +
 	"\xbaH\a\xd8\x01\x01r\x02\x18@R\x02ip\x12'\n" +
 	"\n" +
-	"user_agent\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tuserAgent\x12(\n" +
-	"\x10actor_account_id\x18\b \x01(\x06R\x0eactorAccountId\x12,\n" +
-	"\fpayload_json\x18\t \x01(\tB\t\xbaH\x06r\x04(\x80\x80\x04R\vpayloadJson\x12#\n" +
+	"user_agent\x18\a \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\tuserAgent\x12#\n" +
 	"\rsubaccount_id\x18\n" +
-	" \x01(\x06R\fsubaccountId\x12'\n" +
-	"\x10actor_api_key_id\x18\v \x01(\x06R\ractorApiKeyId\"\x9e\x01\n" +
+	" \x01(\x06R\fsubaccountId\x12,\n" +
+	"\x05actor\x18\f \x01(\v2\x16.auth.v1.ActivityActorR\x05actor\x12)\n" +
+	"\x04item\x18\r \x01(\v2\x15.auth.v1.ActivityItemR\x04item\x122\n" +
+	"\adetails\x18\x0e \x01(\v2\x18.auth.v1.ActivityDetailsR\adetails\"\x9e\x01\n" +
 	"\x1bListSubaccountEventsRequest\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xe0A\x02\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
@@ -3653,12 +6550,60 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x1bACTIVITY_ACTION_HOLD_PLACED\x10\r\x12!\n" +
 	"\x1dACTIVITY_ACTION_HOLD_RELEASED\x10\x0e\x12\x1d\n" +
 	"\x19ACTIVITY_ACTION_REQUESTED\x10\x0f\x12\x1b\n" +
-	"\x17ACTIVITY_ACTION_APPLIED\x10\x10*\x84\x01\n" +
+	"\x17ACTIVITY_ACTION_APPLIED\x10\x10*\xa0\x01\n" +
 	"\x13ActivityEventSource\x12\x1f\n" +
 	"\x1bACTIVITY_SOURCE_UNSPECIFIED\x10\x00\x12\x17\n" +
 	"\x13ACTIVITY_SOURCE_WEB\x10\x01\x12\x1a\n" +
 	"\x16ACTIVITY_SOURCE_MOBILE\x10\x02\x12\x17\n" +
-	"\x13ACTIVITY_SOURCE_API\x10\x032\xfa\x06\n" +
+	"\x13ACTIVITY_SOURCE_API\x10\x03\x12\x1a\n" +
+	"\x16ACTIVITY_SOURCE_SYSTEM\x10\x04*\xa7\x01\n" +
+	"\x11ActivityActorKind\x12\x1e\n" +
+	"\x1aACTIVITY_ACTOR_UNSPECIFIED\x10\x00\x12\x17\n" +
+	"\x13ACTIVITY_ACTOR_USER\x10\x01\x12\x1a\n" +
+	"\x16ACTIVITY_ACTOR_API_KEY\x10\x02\x12\x19\n" +
+	"\x15ACTIVITY_ACTOR_SYSTEM\x10\x03\x12\"\n" +
+	"\x1eACTIVITY_ACTOR_UNAUTHENTICATED\x10\x04*\xb9\x01\n" +
+	"\x12ActivityApiKeyKind\x12\x1c\n" +
+	"\x18ACTIVITY_KEY_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ACTIVITY_KEY_STANDARD\x10\x01\x12\x1a\n" +
+	"\x16ACTIVITY_KEY_ASSISTANT\x10\x02\x12\x16\n" +
+	"\x12ACTIVITY_KEY_ADMIN\x10\x03\x12\x1d\n" +
+	"\x19ACTIVITY_KEY_STRATEGY_BOT\x10\x04\x12\x17\n" +
+	"\x13ACTIVITY_KEY_BROKER\x10\x05*\xd0\x01\n" +
+	"\x12ActivityBrokerRole\x12$\n" +
+	" ACTIVITY_BROKER_ROLE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ACTIVITY_BROKER_OWNER\x10\x01\x12\x19\n" +
+	"\x15ACTIVITY_BROKER_ADMIN\x10\x02\x12\x1b\n" +
+	"\x17ACTIVITY_BROKER_FINANCE\x10\x03\x12%\n" +
+	"!ACTIVITY_BROKER_AFFILIATE_MANAGER\x10\x04\x12\x1a\n" +
+	"\x16ACTIVITY_BROKER_VIEWER\x10\x05*\xbc\x02\n" +
+	"\x14ActivitySystemReason\x12&\n" +
+	"\"ACTIVITY_SYSTEM_REASON_UNSPECIFIED\x10\x00\x12,\n" +
+	"(ACTIVITY_SYSTEM_ASSISTANT_PRESET_UPDATED\x10\x01\x123\n" +
+	"/ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_SETTLED\x10\x02\x12.\n" +
+	"*ACTIVITY_SYSTEM_QUICKSWAP_POOL_PROVISIONED\x10\x03\x120\n" +
+	",ACTIVITY_SYSTEM_QUICKSWAP_BROKER_PROVISIONED\x10\x04\x127\n" +
+	"3ACTIVITY_SYSTEM_BROKER_ALLOWLIST_CHANGE_RECONCILING\x10\x05*y\n" +
+	"\x14ActivitySignInMethod\x12 \n" +
+	"\x1cACTIVITY_SIGN_IN_UNSPECIFIED\x10\x00\x12\x1b\n" +
+	"\x17ACTIVITY_SIGN_IN_WALLET\x10\x01\x12\"\n" +
+	"\x1eACTIVITY_SIGN_IN_CONNECTED_APP\x10\x02*\xa9\x02\n" +
+	"\x15ActivitySignInFailure\x12(\n" +
+	"$ACTIVITY_SIGN_IN_FAILURE_UNSPECIFIED\x10\x00\x12.\n" +
+	"*ACTIVITY_SIGN_IN_FAILURE_INVALID_CHALLENGE\x10\x01\x12.\n" +
+	"*ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_EXPIRED\x10\x02\x12+\n" +
+	"'ACTIVITY_SIGN_IN_FAILURE_CHALLENGE_USED\x10\x03\x12.\n" +
+	"*ACTIVITY_SIGN_IN_FAILURE_INVALID_SIGNATURE\x10\x04\x12)\n" +
+	"%ACTIVITY_SIGN_IN_FAILURE_NO_CHALLENGE\x10\x05*\xb3\x01\n" +
+	"\x16ActivityElevatedAction\x12!\n" +
+	"\x1dACTIVITY_ELEVATED_UNSPECIFIED\x10\x00\x12&\n" +
+	"\"ACTIVITY_ELEVATED_ASSISTANT_ACCESS\x10\x01\x12)\n" +
+	"%ACTIVITY_ELEVATED_STRATEGY_BOT_ACCESS\x10\x02\x12#\n" +
+	"\x1fACTIVITY_ELEVATED_TELEGRAM_LINK\x10\x03*x\n" +
+	"\x17ActivityAllowlistAction\x12\"\n" +
+	"\x1eACTIVITY_ALLOWLIST_UNSPECIFIED\x10\x00\x12\x1a\n" +
+	"\x16ACTIVITY_ALLOWLIST_ADD\x10\x01\x12\x1d\n" +
+	"\x19ACTIVITY_ALLOWLIST_REMOVE\x10\x022\xfa\x06\n" +
 	"\x15SubaccountViewService\x12\x86\x04\n" +
 	"\rGetSubaccount\x12\x1d.auth.v1.GetSubaccountRequest\x1a\x1e.auth.v1.GetSubaccountResponse\"\xb5\x03\xbaG\xff\x02\n" +
 	"\fAuth Service\x12\x13Get Subaccount View\x1a\xd9\x02Return a single payload containing the sub-account and requested related read models, such as members, API keys, invites, policy, and balances. An API key needs READ_SUBACCOUNTS within its scope; it gets the members and invites expansions only with READ_SUBACCOUNT_MEMBERS and READ_SUBACCOUNT_INVITES, and never the API-key or policy expansions.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/auth/subaccounts/{subaccount_id}\x12\xca\x02\n" +
@@ -3705,8 +6650,8 @@ func file_auth_v1_subaccounts_proto_rawDescGZIP() []byte {
 	return file_auth_v1_subaccounts_proto_rawDescData
 }
 
-var file_auth_v1_subaccounts_proto_enumTypes = make([]protoimpl.EnumInfo, 9)
-var file_auth_v1_subaccounts_proto_msgTypes = make([]protoimpl.MessageInfo, 38)
+var file_auth_v1_subaccounts_proto_enumTypes = make([]protoimpl.EnumInfo, 17)
+var file_auth_v1_subaccounts_proto_msgTypes = make([]protoimpl.MessageInfo, 65)
 var file_auth_v1_subaccounts_proto_goTypes = []any{
 	(SubaccountStatus)(0),                             // 0: auth.v1.SubaccountStatus
 	(SubaccountRole)(0),                               // 1: auth.v1.SubaccountRole
@@ -3717,130 +6662,242 @@ var file_auth_v1_subaccounts_proto_goTypes = []any{
 	(ActivityEntityKind)(0),                           // 6: auth.v1.ActivityEntityKind
 	(ActivityEventAction)(0),                          // 7: auth.v1.ActivityEventAction
 	(ActivityEventSource)(0),                          // 8: auth.v1.ActivityEventSource
-	(*SubaccountPermissionDefinition)(nil),            // 9: auth.v1.SubaccountPermissionDefinition
-	(*SubaccountRoleDefinition)(nil),                  // 10: auth.v1.SubaccountRoleDefinition
-	(*ListSubaccountRolesRequest)(nil),                // 11: auth.v1.ListSubaccountRolesRequest
-	(*ListSubaccountRolesResponse)(nil),               // 12: auth.v1.ListSubaccountRolesResponse
-	(*GetEffectiveSubaccountPermissionsRequest)(nil),  // 13: auth.v1.GetEffectiveSubaccountPermissionsRequest
-	(*GetEffectiveSubaccountPermissionsResponse)(nil), // 14: auth.v1.GetEffectiveSubaccountPermissionsResponse
-	(*SubaccountRoleView)(nil),                        // 15: auth.v1.SubaccountRoleView
-	(*Subaccount)(nil),                                // 16: auth.v1.Subaccount
-	(*ListSubaccountsRequest)(nil),                    // 17: auth.v1.ListSubaccountsRequest
-	(*ListSubaccountsResponse)(nil),                   // 18: auth.v1.ListSubaccountsResponse
-	(*CreateSubaccountChallengeRequest)(nil),          // 19: auth.v1.CreateSubaccountChallengeRequest
-	(*CreateSubaccountChallengeResponse)(nil),         // 20: auth.v1.CreateSubaccountChallengeResponse
-	(*CreateSubaccountRequest)(nil),                   // 21: auth.v1.CreateSubaccountRequest
-	(*CreateSubaccountResponse)(nil),                  // 22: auth.v1.CreateSubaccountResponse
-	(*SubaccountUpdateSpec)(nil),                      // 23: auth.v1.SubaccountUpdateSpec
-	(*UpdateSubaccountRequest)(nil),                   // 24: auth.v1.UpdateSubaccountRequest
-	(*UpdateSubaccountResponse)(nil),                  // 25: auth.v1.UpdateSubaccountResponse
-	(*SetSubaccountMemberMFARequirementRequest)(nil),  // 26: auth.v1.SetSubaccountMemberMFARequirementRequest
-	(*SetSubaccountMemberMFARequirementResponse)(nil), // 27: auth.v1.SetSubaccountMemberMFARequirementResponse
-	(*SubaccountMemberView)(nil),                      // 28: auth.v1.SubaccountMemberView
-	(*ListSubaccountMembersRequest)(nil),              // 29: auth.v1.ListSubaccountMembersRequest
-	(*ListSubaccountMembersResponse)(nil),             // 30: auth.v1.ListSubaccountMembersResponse
-	(*RemoveSubaccountMemberRequest)(nil),             // 31: auth.v1.RemoveSubaccountMemberRequest
-	(*RemoveSubaccountMemberResponse)(nil),            // 32: auth.v1.RemoveSubaccountMemberResponse
-	(*UpdateSubaccountMemberRoleRequest)(nil),         // 33: auth.v1.UpdateSubaccountMemberRoleRequest
-	(*UpdateSubaccountMemberRoleResponse)(nil),        // 34: auth.v1.UpdateSubaccountMemberRoleResponse
-	(*SubaccountInvite)(nil),                          // 35: auth.v1.SubaccountInvite
-	(*InviteSubaccountMemberRequest)(nil),             // 36: auth.v1.InviteSubaccountMemberRequest
-	(*InviteSubaccountMemberResponse)(nil),            // 37: auth.v1.InviteSubaccountMemberResponse
-	(*ListSubaccountInvitesRequest)(nil),              // 38: auth.v1.ListSubaccountInvitesRequest
-	(*ListSubaccountInvitesResponse)(nil),             // 39: auth.v1.ListSubaccountInvitesResponse
-	(*RespondSubaccountInviteRequest)(nil),            // 40: auth.v1.RespondSubaccountInviteRequest
-	(*RespondSubaccountInviteResponse)(nil),           // 41: auth.v1.RespondSubaccountInviteResponse
-	(*GetSubaccountRequest)(nil),                      // 42: auth.v1.GetSubaccountRequest
-	(*GetSubaccountResponse)(nil),                     // 43: auth.v1.GetSubaccountResponse
-	(*ActivityEvent)(nil),                             // 44: auth.v1.ActivityEvent
-	(*ListSubaccountEventsRequest)(nil),               // 45: auth.v1.ListSubaccountEventsRequest
-	(*ListSubaccountEventsResponse)(nil),              // 46: auth.v1.ListSubaccountEventsResponse
-	(PolicyAction)(0),                                 // 47: auth.v1.PolicyAction
-	(*timestamppb.Timestamp)(nil),                     // 48: google.protobuf.Timestamp
-	(*fieldmaskpb.FieldMask)(nil),                     // 49: google.protobuf.FieldMask
-	(*ApiKey)(nil),                                    // 50: auth.v1.ApiKey
-	(*SubaccountPolicyView)(nil),                      // 51: auth.v1.SubaccountPolicyView
-	(*v1.GetBalancesResponse)(nil),                    // 52: ledger.read.v1.GetBalancesResponse
+	(ActivityActorKind)(0),                            // 9: auth.v1.ActivityActorKind
+	(ActivityApiKeyKind)(0),                           // 10: auth.v1.ActivityApiKeyKind
+	(ActivityBrokerRole)(0),                           // 11: auth.v1.ActivityBrokerRole
+	(ActivitySystemReason)(0),                         // 12: auth.v1.ActivitySystemReason
+	(ActivitySignInMethod)(0),                         // 13: auth.v1.ActivitySignInMethod
+	(ActivitySignInFailure)(0),                        // 14: auth.v1.ActivitySignInFailure
+	(ActivityElevatedAction)(0),                       // 15: auth.v1.ActivityElevatedAction
+	(ActivityAllowlistAction)(0),                      // 16: auth.v1.ActivityAllowlistAction
+	(*SubaccountPermissionDefinition)(nil),            // 17: auth.v1.SubaccountPermissionDefinition
+	(*SubaccountRoleDefinition)(nil),                  // 18: auth.v1.SubaccountRoleDefinition
+	(*ListSubaccountRolesRequest)(nil),                // 19: auth.v1.ListSubaccountRolesRequest
+	(*ListSubaccountRolesResponse)(nil),               // 20: auth.v1.ListSubaccountRolesResponse
+	(*GetEffectiveSubaccountPermissionsRequest)(nil),  // 21: auth.v1.GetEffectiveSubaccountPermissionsRequest
+	(*GetEffectiveSubaccountPermissionsResponse)(nil), // 22: auth.v1.GetEffectiveSubaccountPermissionsResponse
+	(*SubaccountRoleView)(nil),                        // 23: auth.v1.SubaccountRoleView
+	(*Subaccount)(nil),                                // 24: auth.v1.Subaccount
+	(*ListSubaccountsRequest)(nil),                    // 25: auth.v1.ListSubaccountsRequest
+	(*ListSubaccountsResponse)(nil),                   // 26: auth.v1.ListSubaccountsResponse
+	(*CreateSubaccountChallengeRequest)(nil),          // 27: auth.v1.CreateSubaccountChallengeRequest
+	(*CreateSubaccountChallengeResponse)(nil),         // 28: auth.v1.CreateSubaccountChallengeResponse
+	(*CreateSubaccountRequest)(nil),                   // 29: auth.v1.CreateSubaccountRequest
+	(*CreateSubaccountResponse)(nil),                  // 30: auth.v1.CreateSubaccountResponse
+	(*SubaccountUpdateSpec)(nil),                      // 31: auth.v1.SubaccountUpdateSpec
+	(*UpdateSubaccountRequest)(nil),                   // 32: auth.v1.UpdateSubaccountRequest
+	(*UpdateSubaccountResponse)(nil),                  // 33: auth.v1.UpdateSubaccountResponse
+	(*SetSubaccountMemberMFARequirementRequest)(nil),  // 34: auth.v1.SetSubaccountMemberMFARequirementRequest
+	(*SetSubaccountMemberMFARequirementResponse)(nil), // 35: auth.v1.SetSubaccountMemberMFARequirementResponse
+	(*SubaccountMemberView)(nil),                      // 36: auth.v1.SubaccountMemberView
+	(*ListSubaccountMembersRequest)(nil),              // 37: auth.v1.ListSubaccountMembersRequest
+	(*ListSubaccountMembersResponse)(nil),             // 38: auth.v1.ListSubaccountMembersResponse
+	(*RemoveSubaccountMemberRequest)(nil),             // 39: auth.v1.RemoveSubaccountMemberRequest
+	(*RemoveSubaccountMemberResponse)(nil),            // 40: auth.v1.RemoveSubaccountMemberResponse
+	(*UpdateSubaccountMemberRoleRequest)(nil),         // 41: auth.v1.UpdateSubaccountMemberRoleRequest
+	(*UpdateSubaccountMemberRoleResponse)(nil),        // 42: auth.v1.UpdateSubaccountMemberRoleResponse
+	(*SubaccountInvite)(nil),                          // 43: auth.v1.SubaccountInvite
+	(*InviteSubaccountMemberRequest)(nil),             // 44: auth.v1.InviteSubaccountMemberRequest
+	(*InviteSubaccountMemberResponse)(nil),            // 45: auth.v1.InviteSubaccountMemberResponse
+	(*ListSubaccountInvitesRequest)(nil),              // 46: auth.v1.ListSubaccountInvitesRequest
+	(*ListSubaccountInvitesResponse)(nil),             // 47: auth.v1.ListSubaccountInvitesResponse
+	(*RespondSubaccountInviteRequest)(nil),            // 48: auth.v1.RespondSubaccountInviteRequest
+	(*RespondSubaccountInviteResponse)(nil),           // 49: auth.v1.RespondSubaccountInviteResponse
+	(*GetSubaccountRequest)(nil),                      // 50: auth.v1.GetSubaccountRequest
+	(*GetSubaccountResponse)(nil),                     // 51: auth.v1.GetSubaccountResponse
+	(*ActivityActor)(nil),                             // 52: auth.v1.ActivityActor
+	(*ActivityItem)(nil),                              // 53: auth.v1.ActivityItem
+	(*ActivityTextChange)(nil),                        // 54: auth.v1.ActivityTextChange
+	(*ActivityBoolChange)(nil),                        // 55: auth.v1.ActivityBoolChange
+	(*ActivityUintChange)(nil),                        // 56: auth.v1.ActivityUintChange
+	(*ActivityTimeChange)(nil),                        // 57: auth.v1.ActivityTimeChange
+	(*ActivityIdChange)(nil),                          // 58: auth.v1.ActivityIdChange
+	(*ActivityActionsChange)(nil),                     // 59: auth.v1.ActivityActionsChange
+	(*ActivityListChange)(nil),                        // 60: auth.v1.ActivityListChange
+	(*ActivityIdListChange)(nil),                      // 61: auth.v1.ActivityIdListChange
+	(*ActivityApiKeyStatusChange)(nil),                // 62: auth.v1.ActivityApiKeyStatusChange
+	(*ActivityApiKeyPurposeChange)(nil),               // 63: auth.v1.ActivityApiKeyPurposeChange
+	(*ActivitySubaccountStatusChange)(nil),            // 64: auth.v1.ActivitySubaccountStatusChange
+	(*ActivitySubaccountRoleChange)(nil),              // 65: auth.v1.ActivitySubaccountRoleChange
+	(*ActivityBrokerRoleChange)(nil),                  // 66: auth.v1.ActivityBrokerRoleChange
+	(*ActivityInviteStatusChange)(nil),                // 67: auth.v1.ActivityInviteStatusChange
+	(*ActivityAccountDetails)(nil),                    // 68: auth.v1.ActivityAccountDetails
+	(*ActivitySessionDetails)(nil),                    // 69: auth.v1.ActivitySessionDetails
+	(*ActivityApiKeyDetails)(nil),                     // 70: auth.v1.ActivityApiKeyDetails
+	(*ActivityPolicyDetails)(nil),                     // 71: auth.v1.ActivityPolicyDetails
+	(*ActivitySubaccountDetails)(nil),                 // 72: auth.v1.ActivitySubaccountDetails
+	(*ActivityMemberDetails)(nil),                     // 73: auth.v1.ActivityMemberDetails
+	(*ActivityInviteDetails)(nil),                     // 74: auth.v1.ActivityInviteDetails
+	(*ActivityDestinationDetails)(nil),                // 75: auth.v1.ActivityDestinationDetails
+	(*ActivityBrokerAllowlistDetails)(nil),            // 76: auth.v1.ActivityBrokerAllowlistDetails
+	(*ActivitySecurityDetails)(nil),                   // 77: auth.v1.ActivitySecurityDetails
+	(*ActivityDetails)(nil),                           // 78: auth.v1.ActivityDetails
+	(*ActivityEvent)(nil),                             // 79: auth.v1.ActivityEvent
+	(*ListSubaccountEventsRequest)(nil),               // 80: auth.v1.ListSubaccountEventsRequest
+	(*ListSubaccountEventsResponse)(nil),              // 81: auth.v1.ListSubaccountEventsResponse
+	(PolicyAction)(0),                                 // 82: auth.v1.PolicyAction
+	(*timestamppb.Timestamp)(nil),                     // 83: google.protobuf.Timestamp
+	(*fieldmaskpb.FieldMask)(nil),                     // 84: google.protobuf.FieldMask
+	(*ApiKey)(nil),                                    // 85: auth.v1.ApiKey
+	(*SubaccountPolicyView)(nil),                      // 86: auth.v1.SubaccountPolicyView
+	(*v1.GetBalancesResponse)(nil),                    // 87: ledger.read.v1.GetBalancesResponse
+	(ApiKeyStatus)(0),                                 // 88: auth.v1.ApiKeyStatus
+	(ApiKeyPurpose)(0),                                // 89: auth.v1.ApiKeyPurpose
+	(AssistantKeyPreset)(0),                           // 90: auth.v1.AssistantKeyPreset
+	(MFAFactorType)(0),                                // 91: auth.v1.MFAFactorType
+	(MFAChallengePurpose)(0),                          // 92: auth.v1.MFAChallengePurpose
 }
 var file_auth_v1_subaccounts_proto_depIdxs = []int32{
-	2,  // 0: auth.v1.SubaccountPermissionDefinition.permission:type_name -> auth.v1.SubaccountPermission
-	47, // 1: auth.v1.SubaccountPermissionDefinition.policy_action:type_name -> auth.v1.PolicyAction
-	1,  // 2: auth.v1.SubaccountRoleDefinition.role:type_name -> auth.v1.SubaccountRole
-	2,  // 3: auth.v1.SubaccountRoleDefinition.permissions:type_name -> auth.v1.SubaccountPermission
-	9,  // 4: auth.v1.ListSubaccountRolesResponse.permissions:type_name -> auth.v1.SubaccountPermissionDefinition
-	10, // 5: auth.v1.ListSubaccountRolesResponse.roles:type_name -> auth.v1.SubaccountRoleDefinition
-	1,  // 6: auth.v1.GetEffectiveSubaccountPermissionsResponse.role:type_name -> auth.v1.SubaccountRole
-	2,  // 7: auth.v1.GetEffectiveSubaccountPermissionsResponse.permissions:type_name -> auth.v1.SubaccountPermission
-	1,  // 8: auth.v1.SubaccountRoleView.role:type_name -> auth.v1.SubaccountRole
-	1,  // 9: auth.v1.Subaccount.role:type_name -> auth.v1.SubaccountRole
-	0,  // 10: auth.v1.Subaccount.status:type_name -> auth.v1.SubaccountStatus
-	48, // 11: auth.v1.Subaccount.updated_at:type_name -> google.protobuf.Timestamp
-	16, // 12: auth.v1.ListSubaccountsResponse.subaccounts:type_name -> auth.v1.Subaccount
-	48, // 13: auth.v1.CreateSubaccountChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 14: auth.v1.SubaccountUpdateSpec.status:type_name -> auth.v1.SubaccountStatus
-	23, // 15: auth.v1.UpdateSubaccountRequest.subaccount:type_name -> auth.v1.SubaccountUpdateSpec
-	49, // 16: auth.v1.UpdateSubaccountRequest.update_mask:type_name -> google.protobuf.FieldMask
-	16, // 17: auth.v1.UpdateSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
-	1,  // 18: auth.v1.SubaccountMemberView.role:type_name -> auth.v1.SubaccountRole
-	28, // 19: auth.v1.ListSubaccountMembersResponse.members:type_name -> auth.v1.SubaccountMemberView
-	1,  // 20: auth.v1.UpdateSubaccountMemberRoleRequest.role:type_name -> auth.v1.SubaccountRole
-	1,  // 21: auth.v1.SubaccountInvite.role:type_name -> auth.v1.SubaccountRole
-	3,  // 22: auth.v1.SubaccountInvite.status:type_name -> auth.v1.SubaccountInviteStatus
-	48, // 23: auth.v1.SubaccountInvite.created_at:type_name -> google.protobuf.Timestamp
-	48, // 24: auth.v1.SubaccountInvite.responded_at:type_name -> google.protobuf.Timestamp
-	1,  // 25: auth.v1.InviteSubaccountMemberRequest.role:type_name -> auth.v1.SubaccountRole
-	35, // 26: auth.v1.InviteSubaccountMemberResponse.invite:type_name -> auth.v1.SubaccountInvite
-	4,  // 27: auth.v1.ListSubaccountInvitesRequest.direction:type_name -> auth.v1.SubaccountInviteDirection
-	35, // 28: auth.v1.ListSubaccountInvitesResponse.invites:type_name -> auth.v1.SubaccountInvite
-	5,  // 29: auth.v1.RespondSubaccountInviteRequest.action:type_name -> auth.v1.SubaccountInviteAction
-	35, // 30: auth.v1.RespondSubaccountInviteResponse.invite:type_name -> auth.v1.SubaccountInvite
-	4,  // 31: auth.v1.GetSubaccountRequest.invites_direction:type_name -> auth.v1.SubaccountInviteDirection
-	16, // 32: auth.v1.GetSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
-	50, // 33: auth.v1.GetSubaccountResponse.api_keys:type_name -> auth.v1.ApiKey
-	28, // 34: auth.v1.GetSubaccountResponse.members:type_name -> auth.v1.SubaccountMemberView
-	35, // 35: auth.v1.GetSubaccountResponse.invites:type_name -> auth.v1.SubaccountInvite
-	51, // 36: auth.v1.GetSubaccountResponse.policy:type_name -> auth.v1.SubaccountPolicyView
-	52, // 37: auth.v1.GetSubaccountResponse.balances:type_name -> ledger.read.v1.GetBalancesResponse
-	48, // 38: auth.v1.ActivityEvent.created_at:type_name -> google.protobuf.Timestamp
-	6,  // 39: auth.v1.ActivityEvent.entity_kind:type_name -> auth.v1.ActivityEntityKind
-	7,  // 40: auth.v1.ActivityEvent.event_action:type_name -> auth.v1.ActivityEventAction
-	8,  // 41: auth.v1.ActivityEvent.source:type_name -> auth.v1.ActivityEventSource
-	44, // 42: auth.v1.ListSubaccountEventsResponse.events:type_name -> auth.v1.ActivityEvent
-	42, // 43: auth.v1.SubaccountViewService.GetSubaccount:input_type -> auth.v1.GetSubaccountRequest
-	45, // 44: auth.v1.SubaccountViewService.ListSubaccountActivity:input_type -> auth.v1.ListSubaccountEventsRequest
-	17, // 45: auth.v1.SubaccountService.ListSubaccounts:input_type -> auth.v1.ListSubaccountsRequest
-	19, // 46: auth.v1.SubaccountService.CreateSubaccountChallenge:input_type -> auth.v1.CreateSubaccountChallengeRequest
-	21, // 47: auth.v1.SubaccountService.CreateSubaccount:input_type -> auth.v1.CreateSubaccountRequest
-	24, // 48: auth.v1.SubaccountService.UpdateSubaccount:input_type -> auth.v1.UpdateSubaccountRequest
-	26, // 49: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:input_type -> auth.v1.SetSubaccountMemberMFARequirementRequest
-	29, // 50: auth.v1.SubaccountService.ListSubaccountMembers:input_type -> auth.v1.ListSubaccountMembersRequest
-	31, // 51: auth.v1.SubaccountService.RemoveSubaccountMember:input_type -> auth.v1.RemoveSubaccountMemberRequest
-	33, // 52: auth.v1.SubaccountService.UpdateSubaccountMemberRole:input_type -> auth.v1.UpdateSubaccountMemberRoleRequest
-	36, // 53: auth.v1.SubaccountService.InviteSubaccountMember:input_type -> auth.v1.InviteSubaccountMemberRequest
-	38, // 54: auth.v1.SubaccountService.ListSubaccountInvites:input_type -> auth.v1.ListSubaccountInvitesRequest
-	40, // 55: auth.v1.SubaccountService.RespondSubaccountInvite:input_type -> auth.v1.RespondSubaccountInviteRequest
-	11, // 56: auth.v1.SubaccountRoleService.ListSubaccountRoles:input_type -> auth.v1.ListSubaccountRolesRequest
-	13, // 57: auth.v1.SubaccountRoleService.GetEffectiveSubaccountPermissions:input_type -> auth.v1.GetEffectiveSubaccountPermissionsRequest
-	43, // 58: auth.v1.SubaccountViewService.GetSubaccount:output_type -> auth.v1.GetSubaccountResponse
-	46, // 59: auth.v1.SubaccountViewService.ListSubaccountActivity:output_type -> auth.v1.ListSubaccountEventsResponse
-	18, // 60: auth.v1.SubaccountService.ListSubaccounts:output_type -> auth.v1.ListSubaccountsResponse
-	20, // 61: auth.v1.SubaccountService.CreateSubaccountChallenge:output_type -> auth.v1.CreateSubaccountChallengeResponse
-	22, // 62: auth.v1.SubaccountService.CreateSubaccount:output_type -> auth.v1.CreateSubaccountResponse
-	25, // 63: auth.v1.SubaccountService.UpdateSubaccount:output_type -> auth.v1.UpdateSubaccountResponse
-	27, // 64: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:output_type -> auth.v1.SetSubaccountMemberMFARequirementResponse
-	30, // 65: auth.v1.SubaccountService.ListSubaccountMembers:output_type -> auth.v1.ListSubaccountMembersResponse
-	32, // 66: auth.v1.SubaccountService.RemoveSubaccountMember:output_type -> auth.v1.RemoveSubaccountMemberResponse
-	34, // 67: auth.v1.SubaccountService.UpdateSubaccountMemberRole:output_type -> auth.v1.UpdateSubaccountMemberRoleResponse
-	37, // 68: auth.v1.SubaccountService.InviteSubaccountMember:output_type -> auth.v1.InviteSubaccountMemberResponse
-	39, // 69: auth.v1.SubaccountService.ListSubaccountInvites:output_type -> auth.v1.ListSubaccountInvitesResponse
-	41, // 70: auth.v1.SubaccountService.RespondSubaccountInvite:output_type -> auth.v1.RespondSubaccountInviteResponse
-	12, // 71: auth.v1.SubaccountRoleService.ListSubaccountRoles:output_type -> auth.v1.ListSubaccountRolesResponse
-	14, // 72: auth.v1.SubaccountRoleService.GetEffectiveSubaccountPermissions:output_type -> auth.v1.GetEffectiveSubaccountPermissionsResponse
-	58, // [58:73] is the sub-list for method output_type
-	43, // [43:58] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	2,   // 0: auth.v1.SubaccountPermissionDefinition.permission:type_name -> auth.v1.SubaccountPermission
+	82,  // 1: auth.v1.SubaccountPermissionDefinition.policy_action:type_name -> auth.v1.PolicyAction
+	1,   // 2: auth.v1.SubaccountRoleDefinition.role:type_name -> auth.v1.SubaccountRole
+	2,   // 3: auth.v1.SubaccountRoleDefinition.permissions:type_name -> auth.v1.SubaccountPermission
+	17,  // 4: auth.v1.ListSubaccountRolesResponse.permissions:type_name -> auth.v1.SubaccountPermissionDefinition
+	18,  // 5: auth.v1.ListSubaccountRolesResponse.roles:type_name -> auth.v1.SubaccountRoleDefinition
+	1,   // 6: auth.v1.GetEffectiveSubaccountPermissionsResponse.role:type_name -> auth.v1.SubaccountRole
+	2,   // 7: auth.v1.GetEffectiveSubaccountPermissionsResponse.permissions:type_name -> auth.v1.SubaccountPermission
+	1,   // 8: auth.v1.SubaccountRoleView.role:type_name -> auth.v1.SubaccountRole
+	1,   // 9: auth.v1.Subaccount.role:type_name -> auth.v1.SubaccountRole
+	0,   // 10: auth.v1.Subaccount.status:type_name -> auth.v1.SubaccountStatus
+	83,  // 11: auth.v1.Subaccount.updated_at:type_name -> google.protobuf.Timestamp
+	24,  // 12: auth.v1.ListSubaccountsResponse.subaccounts:type_name -> auth.v1.Subaccount
+	83,  // 13: auth.v1.CreateSubaccountChallengeResponse.expires_at:type_name -> google.protobuf.Timestamp
+	0,   // 14: auth.v1.SubaccountUpdateSpec.status:type_name -> auth.v1.SubaccountStatus
+	31,  // 15: auth.v1.UpdateSubaccountRequest.subaccount:type_name -> auth.v1.SubaccountUpdateSpec
+	84,  // 16: auth.v1.UpdateSubaccountRequest.update_mask:type_name -> google.protobuf.FieldMask
+	24,  // 17: auth.v1.UpdateSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
+	1,   // 18: auth.v1.SubaccountMemberView.role:type_name -> auth.v1.SubaccountRole
+	36,  // 19: auth.v1.ListSubaccountMembersResponse.members:type_name -> auth.v1.SubaccountMemberView
+	1,   // 20: auth.v1.UpdateSubaccountMemberRoleRequest.role:type_name -> auth.v1.SubaccountRole
+	1,   // 21: auth.v1.SubaccountInvite.role:type_name -> auth.v1.SubaccountRole
+	3,   // 22: auth.v1.SubaccountInvite.status:type_name -> auth.v1.SubaccountInviteStatus
+	83,  // 23: auth.v1.SubaccountInvite.created_at:type_name -> google.protobuf.Timestamp
+	83,  // 24: auth.v1.SubaccountInvite.responded_at:type_name -> google.protobuf.Timestamp
+	1,   // 25: auth.v1.InviteSubaccountMemberRequest.role:type_name -> auth.v1.SubaccountRole
+	43,  // 26: auth.v1.InviteSubaccountMemberResponse.invite:type_name -> auth.v1.SubaccountInvite
+	4,   // 27: auth.v1.ListSubaccountInvitesRequest.direction:type_name -> auth.v1.SubaccountInviteDirection
+	43,  // 28: auth.v1.ListSubaccountInvitesResponse.invites:type_name -> auth.v1.SubaccountInvite
+	5,   // 29: auth.v1.RespondSubaccountInviteRequest.action:type_name -> auth.v1.SubaccountInviteAction
+	43,  // 30: auth.v1.RespondSubaccountInviteResponse.invite:type_name -> auth.v1.SubaccountInvite
+	4,   // 31: auth.v1.GetSubaccountRequest.invites_direction:type_name -> auth.v1.SubaccountInviteDirection
+	24,  // 32: auth.v1.GetSubaccountResponse.subaccount:type_name -> auth.v1.Subaccount
+	85,  // 33: auth.v1.GetSubaccountResponse.api_keys:type_name -> auth.v1.ApiKey
+	36,  // 34: auth.v1.GetSubaccountResponse.members:type_name -> auth.v1.SubaccountMemberView
+	43,  // 35: auth.v1.GetSubaccountResponse.invites:type_name -> auth.v1.SubaccountInvite
+	86,  // 36: auth.v1.GetSubaccountResponse.policy:type_name -> auth.v1.SubaccountPolicyView
+	87,  // 37: auth.v1.GetSubaccountResponse.balances:type_name -> ledger.read.v1.GetBalancesResponse
+	9,   // 38: auth.v1.ActivityActor.kind:type_name -> auth.v1.ActivityActorKind
+	10,  // 39: auth.v1.ActivityActor.api_key_kind:type_name -> auth.v1.ActivityApiKeyKind
+	12,  // 40: auth.v1.ActivityActor.system_reason:type_name -> auth.v1.ActivitySystemReason
+	83,  // 41: auth.v1.ActivityTimeChange.from:type_name -> google.protobuf.Timestamp
+	83,  // 42: auth.v1.ActivityTimeChange.to:type_name -> google.protobuf.Timestamp
+	82,  // 43: auth.v1.ActivityActionsChange.added:type_name -> auth.v1.PolicyAction
+	82,  // 44: auth.v1.ActivityActionsChange.removed:type_name -> auth.v1.PolicyAction
+	88,  // 45: auth.v1.ActivityApiKeyStatusChange.from:type_name -> auth.v1.ApiKeyStatus
+	88,  // 46: auth.v1.ActivityApiKeyStatusChange.to:type_name -> auth.v1.ApiKeyStatus
+	89,  // 47: auth.v1.ActivityApiKeyPurposeChange.from:type_name -> auth.v1.ApiKeyPurpose
+	89,  // 48: auth.v1.ActivityApiKeyPurposeChange.to:type_name -> auth.v1.ApiKeyPurpose
+	0,   // 49: auth.v1.ActivitySubaccountStatusChange.from:type_name -> auth.v1.SubaccountStatus
+	0,   // 50: auth.v1.ActivitySubaccountStatusChange.to:type_name -> auth.v1.SubaccountStatus
+	1,   // 51: auth.v1.ActivitySubaccountRoleChange.from:type_name -> auth.v1.SubaccountRole
+	1,   // 52: auth.v1.ActivitySubaccountRoleChange.to:type_name -> auth.v1.SubaccountRole
+	11,  // 53: auth.v1.ActivityBrokerRoleChange.from:type_name -> auth.v1.ActivityBrokerRole
+	11,  // 54: auth.v1.ActivityBrokerRoleChange.to:type_name -> auth.v1.ActivityBrokerRole
+	3,   // 55: auth.v1.ActivityInviteStatusChange.from:type_name -> auth.v1.SubaccountInviteStatus
+	3,   // 56: auth.v1.ActivityInviteStatusChange.to:type_name -> auth.v1.SubaccountInviteStatus
+	54,  // 57: auth.v1.ActivityAccountDetails.username:type_name -> auth.v1.ActivityTextChange
+	13,  // 58: auth.v1.ActivitySessionDetails.method:type_name -> auth.v1.ActivitySignInMethod
+	14,  // 59: auth.v1.ActivitySessionDetails.failure:type_name -> auth.v1.ActivitySignInFailure
+	15,  // 60: auth.v1.ActivitySessionDetails.elevated_action:type_name -> auth.v1.ActivityElevatedAction
+	54,  // 61: auth.v1.ActivityApiKeyDetails.label:type_name -> auth.v1.ActivityTextChange
+	62,  // 62: auth.v1.ActivityApiKeyDetails.status:type_name -> auth.v1.ActivityApiKeyStatusChange
+	63,  // 63: auth.v1.ActivityApiKeyDetails.purpose:type_name -> auth.v1.ActivityApiKeyPurposeChange
+	54,  // 64: auth.v1.ActivityApiKeyDetails.icon:type_name -> auth.v1.ActivityTextChange
+	54,  // 65: auth.v1.ActivityApiKeyDetails.color:type_name -> auth.v1.ActivityTextChange
+	60,  // 66: auth.v1.ActivityApiKeyDetails.ip_allowlist:type_name -> auth.v1.ActivityListChange
+	57,  // 67: auth.v1.ActivityApiKeyDetails.expires_at:type_name -> auth.v1.ActivityTimeChange
+	58,  // 68: auth.v1.ActivityApiKeyDetails.api_policy_id:type_name -> auth.v1.ActivityIdChange
+	54,  // 69: auth.v1.ActivityPolicyDetails.name:type_name -> auth.v1.ActivityTextChange
+	54,  // 70: auth.v1.ActivityPolicyDetails.description:type_name -> auth.v1.ActivityTextChange
+	59,  // 71: auth.v1.ActivityPolicyDetails.actions:type_name -> auth.v1.ActivityActionsChange
+	55,  // 72: auth.v1.ActivityPolicyDetails.all_spot_markets:type_name -> auth.v1.ActivityBoolChange
+	56,  // 73: auth.v1.ActivityPolicyDetails.max_order_notional:type_name -> auth.v1.ActivityUintChange
+	56,  // 74: auth.v1.ActivityPolicyDetails.max_open_orders:type_name -> auth.v1.ActivityUintChange
+	55,  // 75: auth.v1.ActivityPolicyDetails.trading_halted:type_name -> auth.v1.ActivityBoolChange
+	55,  // 76: auth.v1.ActivityPolicyDetails.locked:type_name -> auth.v1.ActivityBoolChange
+	57,  // 77: auth.v1.ActivityPolicyDetails.review_at:type_name -> auth.v1.ActivityTimeChange
+	57,  // 78: auth.v1.ActivityPolicyDetails.expires_at:type_name -> auth.v1.ActivityTimeChange
+	90,  // 79: auth.v1.ActivityPolicyDetails.assistant_preset:type_name -> auth.v1.AssistantKeyPreset
+	58,  // 80: auth.v1.ActivityPolicyDetails.subaccount_policy_id:type_name -> auth.v1.ActivityIdChange
+	54,  // 81: auth.v1.ActivitySubaccountDetails.label:type_name -> auth.v1.ActivityTextChange
+	64,  // 82: auth.v1.ActivitySubaccountDetails.status:type_name -> auth.v1.ActivitySubaccountStatusChange
+	54,  // 83: auth.v1.ActivitySubaccountDetails.icon:type_name -> auth.v1.ActivityTextChange
+	54,  // 84: auth.v1.ActivitySubaccountDetails.color:type_name -> auth.v1.ActivityTextChange
+	55,  // 85: auth.v1.ActivitySubaccountDetails.require_member_mfa:type_name -> auth.v1.ActivityBoolChange
+	65,  // 86: auth.v1.ActivityMemberDetails.role:type_name -> auth.v1.ActivitySubaccountRoleChange
+	66,  // 87: auth.v1.ActivityMemberDetails.broker_role:type_name -> auth.v1.ActivityBrokerRoleChange
+	1,   // 88: auth.v1.ActivityInviteDetails.role:type_name -> auth.v1.SubaccountRole
+	11,  // 89: auth.v1.ActivityInviteDetails.broker_role:type_name -> auth.v1.ActivityBrokerRole
+	67,  // 90: auth.v1.ActivityInviteDetails.status:type_name -> auth.v1.ActivityInviteStatusChange
+	54,  // 91: auth.v1.ActivityDestinationDetails.label:type_name -> auth.v1.ActivityTextChange
+	61,  // 92: auth.v1.ActivityDestinationDetails.tag_ids:type_name -> auth.v1.ActivityIdListChange
+	16,  // 93: auth.v1.ActivityBrokerAllowlistDetails.action:type_name -> auth.v1.ActivityAllowlistAction
+	91,  // 94: auth.v1.ActivitySecurityDetails.factor_type:type_name -> auth.v1.MFAFactorType
+	54,  // 95: auth.v1.ActivitySecurityDetails.label:type_name -> auth.v1.ActivityTextChange
+	92,  // 96: auth.v1.ActivitySecurityDetails.challenge_purpose:type_name -> auth.v1.MFAChallengePurpose
+	68,  // 97: auth.v1.ActivityDetails.account:type_name -> auth.v1.ActivityAccountDetails
+	69,  // 98: auth.v1.ActivityDetails.session:type_name -> auth.v1.ActivitySessionDetails
+	70,  // 99: auth.v1.ActivityDetails.api_key:type_name -> auth.v1.ActivityApiKeyDetails
+	71,  // 100: auth.v1.ActivityDetails.policy:type_name -> auth.v1.ActivityPolicyDetails
+	72,  // 101: auth.v1.ActivityDetails.subaccount:type_name -> auth.v1.ActivitySubaccountDetails
+	73,  // 102: auth.v1.ActivityDetails.member:type_name -> auth.v1.ActivityMemberDetails
+	74,  // 103: auth.v1.ActivityDetails.invite:type_name -> auth.v1.ActivityInviteDetails
+	75,  // 104: auth.v1.ActivityDetails.destination:type_name -> auth.v1.ActivityDestinationDetails
+	76,  // 105: auth.v1.ActivityDetails.broker_allowlist:type_name -> auth.v1.ActivityBrokerAllowlistDetails
+	77,  // 106: auth.v1.ActivityDetails.security:type_name -> auth.v1.ActivitySecurityDetails
+	83,  // 107: auth.v1.ActivityEvent.created_at:type_name -> google.protobuf.Timestamp
+	6,   // 108: auth.v1.ActivityEvent.entity_kind:type_name -> auth.v1.ActivityEntityKind
+	7,   // 109: auth.v1.ActivityEvent.event_action:type_name -> auth.v1.ActivityEventAction
+	8,   // 110: auth.v1.ActivityEvent.source:type_name -> auth.v1.ActivityEventSource
+	52,  // 111: auth.v1.ActivityEvent.actor:type_name -> auth.v1.ActivityActor
+	53,  // 112: auth.v1.ActivityEvent.item:type_name -> auth.v1.ActivityItem
+	78,  // 113: auth.v1.ActivityEvent.details:type_name -> auth.v1.ActivityDetails
+	79,  // 114: auth.v1.ListSubaccountEventsResponse.events:type_name -> auth.v1.ActivityEvent
+	50,  // 115: auth.v1.SubaccountViewService.GetSubaccount:input_type -> auth.v1.GetSubaccountRequest
+	80,  // 116: auth.v1.SubaccountViewService.ListSubaccountActivity:input_type -> auth.v1.ListSubaccountEventsRequest
+	25,  // 117: auth.v1.SubaccountService.ListSubaccounts:input_type -> auth.v1.ListSubaccountsRequest
+	27,  // 118: auth.v1.SubaccountService.CreateSubaccountChallenge:input_type -> auth.v1.CreateSubaccountChallengeRequest
+	29,  // 119: auth.v1.SubaccountService.CreateSubaccount:input_type -> auth.v1.CreateSubaccountRequest
+	32,  // 120: auth.v1.SubaccountService.UpdateSubaccount:input_type -> auth.v1.UpdateSubaccountRequest
+	34,  // 121: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:input_type -> auth.v1.SetSubaccountMemberMFARequirementRequest
+	37,  // 122: auth.v1.SubaccountService.ListSubaccountMembers:input_type -> auth.v1.ListSubaccountMembersRequest
+	39,  // 123: auth.v1.SubaccountService.RemoveSubaccountMember:input_type -> auth.v1.RemoveSubaccountMemberRequest
+	41,  // 124: auth.v1.SubaccountService.UpdateSubaccountMemberRole:input_type -> auth.v1.UpdateSubaccountMemberRoleRequest
+	44,  // 125: auth.v1.SubaccountService.InviteSubaccountMember:input_type -> auth.v1.InviteSubaccountMemberRequest
+	46,  // 126: auth.v1.SubaccountService.ListSubaccountInvites:input_type -> auth.v1.ListSubaccountInvitesRequest
+	48,  // 127: auth.v1.SubaccountService.RespondSubaccountInvite:input_type -> auth.v1.RespondSubaccountInviteRequest
+	19,  // 128: auth.v1.SubaccountRoleService.ListSubaccountRoles:input_type -> auth.v1.ListSubaccountRolesRequest
+	21,  // 129: auth.v1.SubaccountRoleService.GetEffectiveSubaccountPermissions:input_type -> auth.v1.GetEffectiveSubaccountPermissionsRequest
+	51,  // 130: auth.v1.SubaccountViewService.GetSubaccount:output_type -> auth.v1.GetSubaccountResponse
+	81,  // 131: auth.v1.SubaccountViewService.ListSubaccountActivity:output_type -> auth.v1.ListSubaccountEventsResponse
+	26,  // 132: auth.v1.SubaccountService.ListSubaccounts:output_type -> auth.v1.ListSubaccountsResponse
+	28,  // 133: auth.v1.SubaccountService.CreateSubaccountChallenge:output_type -> auth.v1.CreateSubaccountChallengeResponse
+	30,  // 134: auth.v1.SubaccountService.CreateSubaccount:output_type -> auth.v1.CreateSubaccountResponse
+	33,  // 135: auth.v1.SubaccountService.UpdateSubaccount:output_type -> auth.v1.UpdateSubaccountResponse
+	35,  // 136: auth.v1.SubaccountService.SetSubaccountMemberMFARequirement:output_type -> auth.v1.SetSubaccountMemberMFARequirementResponse
+	38,  // 137: auth.v1.SubaccountService.ListSubaccountMembers:output_type -> auth.v1.ListSubaccountMembersResponse
+	40,  // 138: auth.v1.SubaccountService.RemoveSubaccountMember:output_type -> auth.v1.RemoveSubaccountMemberResponse
+	42,  // 139: auth.v1.SubaccountService.UpdateSubaccountMemberRole:output_type -> auth.v1.UpdateSubaccountMemberRoleResponse
+	45,  // 140: auth.v1.SubaccountService.InviteSubaccountMember:output_type -> auth.v1.InviteSubaccountMemberResponse
+	47,  // 141: auth.v1.SubaccountService.ListSubaccountInvites:output_type -> auth.v1.ListSubaccountInvitesResponse
+	49,  // 142: auth.v1.SubaccountService.RespondSubaccountInvite:output_type -> auth.v1.RespondSubaccountInviteResponse
+	20,  // 143: auth.v1.SubaccountRoleService.ListSubaccountRoles:output_type -> auth.v1.ListSubaccountRolesResponse
+	22,  // 144: auth.v1.SubaccountRoleService.GetEffectiveSubaccountPermissions:output_type -> auth.v1.GetEffectiveSubaccountPermissionsResponse
+	130, // [130:145] is the sub-list for method output_type
+	115, // [115:130] is the sub-list for method input_type
+	115, // [115:115] is the sub-list for extension type_name
+	115, // [115:115] is the sub-list for extension extendee
+	0,   // [0:115] is the sub-list for field type_name
 }
 
 func init() { file_auth_v1_subaccounts_proto_init() }
@@ -3849,15 +6906,40 @@ func file_auth_v1_subaccounts_proto_init() {
 		return
 	}
 	file_auth_v1_api_keys_proto_init()
+	file_auth_v1_mfa_proto_init()
 	file_auth_v1_policies_proto_init()
 	file_auth_v1_subaccounts_proto_msgTypes[7].OneofWrappers = []any{}
+	file_auth_v1_subaccounts_proto_msgTypes[36].OneofWrappers = []any{
+		(*ActivityItem_AccountId)(nil),
+		(*ActivityItem_SubaccountId)(nil),
+		(*ActivityItem_InviteId)(nil),
+		(*ActivityItem_SubaccountPolicyId)(nil),
+		(*ActivityItem_ApiPolicyId)(nil),
+		(*ActivityItem_ApiKeyId)(nil),
+		(*ActivityItem_MfaFactorId)(nil),
+		(*ActivityItem_AddressBookEntryId)(nil),
+		(*ActivityItem_BrokerAllowlistChangeId)(nil),
+		(*ActivityItem_ConnectedAppId)(nil),
+	}
+	file_auth_v1_subaccounts_proto_msgTypes[61].OneofWrappers = []any{
+		(*ActivityDetails_Account)(nil),
+		(*ActivityDetails_Session)(nil),
+		(*ActivityDetails_ApiKey)(nil),
+		(*ActivityDetails_Policy)(nil),
+		(*ActivityDetails_Subaccount)(nil),
+		(*ActivityDetails_Member)(nil),
+		(*ActivityDetails_Invite)(nil),
+		(*ActivityDetails_Destination)(nil),
+		(*ActivityDetails_BrokerAllowlist)(nil),
+		(*ActivityDetails_Security)(nil),
+	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_auth_v1_subaccounts_proto_rawDesc), len(file_auth_v1_subaccounts_proto_rawDesc)),
-			NumEnums:      9,
-			NumMessages:   38,
+			NumEnums:      17,
+			NumMessages:   65,
 			NumExtensions: 0,
 			NumServices:   3,
 		},

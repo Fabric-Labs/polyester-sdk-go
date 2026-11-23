@@ -15,6 +15,7 @@ import (
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
+	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/marketdata/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/pnl/v1"
@@ -27,12 +28,14 @@ import (
 // contractFieldMessages are the request and reply messages public contracts
 // 1945423c, 5c2119f and 0.93.5 added or changed, and the messages nested in their new
 // replies, the lifecycle flow views every flow read and update decodes, and the
-// balance read, profit and loss and trigger cancel-all messages.
+// balance read, profit and loss, trigger cancel-all, activity actor and index
+// price candle messages.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
 	"chain.lifecycle.v1.FlowSummaryView", "chain.lifecycle.v1.FlowTxMatchView", "chain.lifecycle.v1.AssetIds",
 	"chain.lifecycle.v1.RequestFee", "chain.lifecycle.v1.FlowSummaryProgressView", "chain.lifecycle.v1.FlowTimelineItemView",
-	"auth.v1.ListAccountActivityRequest", "auth.v1.ListAccountActivityResponse", "auth.v1.ActivityEvent",
+	"auth.v1.ListAccountActivityRequest", "auth.v1.ListAccountActivityResponse", "auth.v1.ActivityEvent", "auth.v1.ActivityActor",
+	"marketdata.v1.GetIndexPriceCandlesRequest", "marketdata.v1.GetIndexPriceCandlesResponse",
 	"chain.lifecycle.v1.GetAccountFlowRequest", "chain.lifecycle.v1.GetAccountFlowResponse",
 	"chain.lifecycle.v1.ListAccountFlowsRequest", "chain.lifecycle.v1.ListAccountFlowsResponse",
 	"ledger.read.v1.BalanceSeries", "ledger.read.v1.GetBalanceHistoryResponse",
@@ -91,6 +94,9 @@ var contractFieldTypes = map[string]reflect.Type{
 	"errors.TimestampSkewError":             reflect.TypeFor[sdkerrors.TimestampSkewError](),
 	"models.OrderErrorDetail":               reflect.TypeFor[models.OrderErrorDetail](),
 	"models.SubAccountActivityEvent":        reflect.TypeFor[models.SubAccountActivityEvent](),
+	"models.SubAccountActivityActor":        reflect.TypeFor[models.SubAccountActivityActor](),
+	"models.IndexPriceCandlesResult":        reflect.TypeFor[models.IndexPriceCandlesResult](),
+	"models.IndexPriceCandle":               reflect.TypeFor[models.IndexPriceCandle](),
 	"models.SubAccountActivityList":         reflect.TypeFor[models.SubAccountActivityList](),
 	"models.ListAccountActivityOptions":     reflect.TypeFor[models.ListAccountActivityOptions](),
 	"errors.LadderLevelCause":               reflect.TypeFor[sdkerrors.LadderLevelCause](),

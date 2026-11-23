@@ -41,6 +41,9 @@ const (
 	// ChangelogSurfaceAssistant covers the AI assistant: chats, approvals,
 	// memories and preferences.
 	ChangelogSurfaceAssistant = "assistant"
+	// ChangelogSurfaceTradingBots covers trading bots: strategies you build,
+	// backtest and share, and bots running them live.
+	ChangelogSurfaceTradingBots = "trading_bots"
 )
 
 // Changelog environment labels. An environment newer than this SDK reads as
@@ -220,7 +223,8 @@ type ListChangelogChangesOptions struct {
 	Categories []string
 	// ActionRequired keeps only changes whose action_required matches.
 	ActionRequired *bool
-	// Surfaces are ChangelogSurface* labels, at most 11.
+	// Surfaces are ChangelogSurface* labels, at most 12 (the contract's
+	// limit, one per surface); the server refuses a repeated one.
 	Surfaces []string
 	// Audiences are ChangelogAudience* labels. Changes addressed to all users
 	// always match.
