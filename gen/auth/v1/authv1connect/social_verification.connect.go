@@ -66,10 +66,12 @@ type SocialVerificationServiceClient interface {
 	// proof in the X-Auth-Step-Up header: AUTH_MFA_NOT_ENROLLED means enroll MFA
 	// first; AUTH_STEP_UP_REQUIRED and AUTH_STEP_UP_PROOF_UNAVAILABLE mean
 	// complete a new fresh step-up and retry.
-	// The new verification fails with error_code AUTH_SOCIAL_ACCOUNT_COOLDOWN when
-	// the verified account was unlinked from another Polyester account less than
-	// 30 days ago, and AUTH_SOCIAL_CHANGE_LIMIT_REACHED when it would replace a
-	// link within 30 days of the last change; retry_after says when.
+	// The new verification fails with error_code SOCIAL_ACCOUNT_COOLDOWN (in
+	// ConnectRPC, AUTH_SOCIAL_ACCOUNT_COOLDOWN) when the verified account was
+	// unlinked from another Polyester account less than 30 days ago, and
+	// SOCIAL_CHANGE_LIMIT_REACHED (AUTH_SOCIAL_CHANGE_LIMIT_REACHED) when it
+	// would replace a link within 30 days of the last change; retry_after says
+	// when.
 	StartSocialVerification(context.Context, *connect.Request[v1.StartSocialVerificationRequest]) (*connect.Response[v1.StartSocialVerificationResponse], error)
 	// Mark a verification as ready after the challenge code has been placed.
 	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.
@@ -209,10 +211,12 @@ type SocialVerificationServiceHandler interface {
 	// proof in the X-Auth-Step-Up header: AUTH_MFA_NOT_ENROLLED means enroll MFA
 	// first; AUTH_STEP_UP_REQUIRED and AUTH_STEP_UP_PROOF_UNAVAILABLE mean
 	// complete a new fresh step-up and retry.
-	// The new verification fails with error_code AUTH_SOCIAL_ACCOUNT_COOLDOWN when
-	// the verified account was unlinked from another Polyester account less than
-	// 30 days ago, and AUTH_SOCIAL_CHANGE_LIMIT_REACHED when it would replace a
-	// link within 30 days of the last change; retry_after says when.
+	// The new verification fails with error_code SOCIAL_ACCOUNT_COOLDOWN (in
+	// ConnectRPC, AUTH_SOCIAL_ACCOUNT_COOLDOWN) when the verified account was
+	// unlinked from another Polyester account less than 30 days ago, and
+	// SOCIAL_CHANGE_LIMIT_REACHED (AUTH_SOCIAL_CHANGE_LIMIT_REACHED) when it
+	// would replace a link within 30 days of the last change; retry_after says
+	// when.
 	StartSocialVerification(context.Context, *connect.Request[v1.StartSocialVerificationRequest]) (*connect.Response[v1.StartSocialVerificationResponse], error)
 	// Mark a verification as ready after the challenge code has been placed.
 	// AUTH_RESOURCE_NOT_FOUND means no verification exists; start one first.

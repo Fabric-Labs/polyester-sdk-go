@@ -45,6 +45,9 @@ const (
 	// MarketDataServiceGetCandlesColumnsProcedure is the fully-qualified name of the
 	// MarketDataService's GetCandlesColumns RPC.
 	MarketDataServiceGetCandlesColumnsProcedure = "/marketdata.v1.MarketDataService/GetCandlesColumns"
+	// MarketDataServiceGetIndexPriceCandlesProcedure is the fully-qualified name of the
+	// MarketDataService's GetIndexPriceCandles RPC.
+	MarketDataServiceGetIndexPriceCandlesProcedure = "/marketdata.v1.MarketDataService/GetIndexPriceCandles"
 	// MarketDataServiceGetSpotConfigProcedure is the fully-qualified name of the MarketDataService's
 	// GetSpotConfig RPC.
 	MarketDataServiceGetSpotConfigProcedure = "/marketdata.v1.MarketDataService/GetSpotConfig"
@@ -74,6 +77,16 @@ type MarketDataServiceClient interface {
 	// reference_price_scale, and volumes use the base asset's
 	// market_data_volume_scale from GetSpotConfig.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
+	// Retrieve one continuous price series of a spot market in a columnar
+	// representation: its composite reference candles before the bucket
+	// containing listing_at, and its index price candles from that bucket on,
+	// each candle marked with its source. Results are closed candles ordered
+	// newest-first, with inclusive time bounds and opaque keyset pagination.
+	// Prices use the pair's reference_price_scale from GetSpotConfig. There is
+	// no volume field, and buckets with no index price sample are omitted as
+	// gaps. A bad page_token fails with invalid_argument (PAGE_TOKEN_INVALID).
+	// This method is for ConnectRPC clients and has no REST route.
+	GetIndexPriceCandles(context.Context, *connect.Request[v1.GetIndexPriceCandlesRequest]) (*connect.Response[v1.GetIndexPriceCandlesResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)
 	// Retrieve a spot pair's live price band: its reference price and the
@@ -122,6 +135,12 @@ func NewMarketDataServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithSchema(marketDataServiceMethods.ByName("GetCandlesColumns")),
 			connect.WithClientOptions(opts...),
 		),
+		getIndexPriceCandles: connect.NewClient[v1.GetIndexPriceCandlesRequest, v1.GetIndexPriceCandlesResponse](
+			httpClient,
+			baseURL+MarketDataServiceGetIndexPriceCandlesProcedure,
+			connect.WithSchema(marketDataServiceMethods.ByName("GetIndexPriceCandles")),
+			connect.WithClientOptions(opts...),
+		),
 		getSpotConfig: connect.NewClient[v1.GetSpotConfigRequest, v1.GetSpotConfigResponse](
 			httpClient,
 			baseURL+MarketDataServiceGetSpotConfigProcedure,
@@ -139,12 +158,13 @@ func NewMarketDataServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // marketDataServiceClient implements MarketDataServiceClient.
 type marketDataServiceClient struct {
-	listAssetInfo     *connect.Client[v1.ListAssetInfoRequest, v1.ListAssetInfoResponse]
-	getTrades         *connect.Client[v1.GetTradesRequest, v1.GetTradesResponse]
-	getCandles        *connect.Client[v1.GetCandlesRequest, v1.GetCandlesResponse]
-	getCandlesColumns *connect.Client[v1.GetCandlesColumnsRequest, v1.GetCandlesColumnsResponse]
-	getSpotConfig     *connect.Client[v1.GetSpotConfigRequest, v1.GetSpotConfigResponse]
-	getPriceBand      *connect.Client[v1.GetPriceBandRequest, v1.GetPriceBandResponse]
+	listAssetInfo        *connect.Client[v1.ListAssetInfoRequest, v1.ListAssetInfoResponse]
+	getTrades            *connect.Client[v1.GetTradesRequest, v1.GetTradesResponse]
+	getCandles           *connect.Client[v1.GetCandlesRequest, v1.GetCandlesResponse]
+	getCandlesColumns    *connect.Client[v1.GetCandlesColumnsRequest, v1.GetCandlesColumnsResponse]
+	getIndexPriceCandles *connect.Client[v1.GetIndexPriceCandlesRequest, v1.GetIndexPriceCandlesResponse]
+	getSpotConfig        *connect.Client[v1.GetSpotConfigRequest, v1.GetSpotConfigResponse]
+	getPriceBand         *connect.Client[v1.GetPriceBandRequest, v1.GetPriceBandResponse]
 }
 
 // ListAssetInfo calls marketdata.v1.MarketDataService.ListAssetInfo.
@@ -165,6 +185,11 @@ func (c *marketDataServiceClient) GetCandles(ctx context.Context, req *connect.R
 // GetCandlesColumns calls marketdata.v1.MarketDataService.GetCandlesColumns.
 func (c *marketDataServiceClient) GetCandlesColumns(ctx context.Context, req *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error) {
 	return c.getCandlesColumns.CallUnary(ctx, req)
+}
+
+// GetIndexPriceCandles calls marketdata.v1.MarketDataService.GetIndexPriceCandles.
+func (c *marketDataServiceClient) GetIndexPriceCandles(ctx context.Context, req *connect.Request[v1.GetIndexPriceCandlesRequest]) (*connect.Response[v1.GetIndexPriceCandlesResponse], error) {
+	return c.getIndexPriceCandles.CallUnary(ctx, req)
 }
 
 // GetSpotConfig calls marketdata.v1.MarketDataService.GetSpotConfig.
@@ -198,6 +223,16 @@ type MarketDataServiceHandler interface {
 	// reference_price_scale, and volumes use the base asset's
 	// market_data_volume_scale from GetSpotConfig.
 	GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error)
+	// Retrieve one continuous price series of a spot market in a columnar
+	// representation: its composite reference candles before the bucket
+	// containing listing_at, and its index price candles from that bucket on,
+	// each candle marked with its source. Results are closed candles ordered
+	// newest-first, with inclusive time bounds and opaque keyset pagination.
+	// Prices use the pair's reference_price_scale from GetSpotConfig. There is
+	// no volume field, and buckets with no index price sample are omitted as
+	// gaps. A bad page_token fails with invalid_argument (PAGE_TOKEN_INVALID).
+	// This method is for ConnectRPC clients and has no REST route.
+	GetIndexPriceCandles(context.Context, *connect.Request[v1.GetIndexPriceCandlesRequest]) (*connect.Response[v1.GetIndexPriceCandlesResponse], error)
 	// Retrieve a cacheable snapshot of spot assets and pairs, including precision and trading constraints.
 	GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error)
 	// Retrieve a spot pair's live price band: its reference price and the
@@ -242,6 +277,12 @@ func NewMarketDataServiceHandler(svc MarketDataServiceHandler, opts ...connect.H
 		connect.WithSchema(marketDataServiceMethods.ByName("GetCandlesColumns")),
 		connect.WithHandlerOptions(opts...),
 	)
+	marketDataServiceGetIndexPriceCandlesHandler := connect.NewUnaryHandler(
+		MarketDataServiceGetIndexPriceCandlesProcedure,
+		svc.GetIndexPriceCandles,
+		connect.WithSchema(marketDataServiceMethods.ByName("GetIndexPriceCandles")),
+		connect.WithHandlerOptions(opts...),
+	)
 	marketDataServiceGetSpotConfigHandler := connect.NewUnaryHandler(
 		MarketDataServiceGetSpotConfigProcedure,
 		svc.GetSpotConfig,
@@ -264,6 +305,8 @@ func NewMarketDataServiceHandler(svc MarketDataServiceHandler, opts ...connect.H
 			marketDataServiceGetCandlesHandler.ServeHTTP(w, r)
 		case MarketDataServiceGetCandlesColumnsProcedure:
 			marketDataServiceGetCandlesColumnsHandler.ServeHTTP(w, r)
+		case MarketDataServiceGetIndexPriceCandlesProcedure:
+			marketDataServiceGetIndexPriceCandlesHandler.ServeHTTP(w, r)
 		case MarketDataServiceGetSpotConfigProcedure:
 			marketDataServiceGetSpotConfigHandler.ServeHTTP(w, r)
 		case MarketDataServiceGetPriceBandProcedure:
@@ -291,6 +334,10 @@ func (UnimplementedMarketDataServiceHandler) GetCandles(context.Context, *connec
 
 func (UnimplementedMarketDataServiceHandler) GetCandlesColumns(context.Context, *connect.Request[v1.GetCandlesColumnsRequest]) (*connect.Response[v1.GetCandlesColumnsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketdata.v1.MarketDataService.GetCandlesColumns is not implemented"))
+}
+
+func (UnimplementedMarketDataServiceHandler) GetIndexPriceCandles(context.Context, *connect.Request[v1.GetIndexPriceCandlesRequest]) (*connect.Response[v1.GetIndexPriceCandlesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("marketdata.v1.MarketDataService.GetIndexPriceCandles is not implemented"))
 }
 
 func (UnimplementedMarketDataServiceHandler) GetSpotConfig(context.Context, *connect.Request[v1.GetSpotConfigRequest]) (*connect.Response[v1.GetSpotConfigResponse], error) {

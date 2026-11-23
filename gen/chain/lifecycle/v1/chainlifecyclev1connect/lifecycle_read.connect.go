@@ -52,12 +52,15 @@ const (
 
 // LifecycleReadServiceClient is a client for the chain.lifecycle.v1.LifecycleReadService service.
 type LifecycleReadServiceClient interface {
-	// GetFlowById retrieves one lifecycle flow by public flow id. It finds only
-	// flows that carry a chain transaction, `source_tx_hash`; a flow without
-	// one, such as a Trading withdrawal not yet sent to a chain, or a transfer
-	// between Trading accounts before the Polyester Chain transaction that
-	// records it is observed, is not found. Its account reads it with
-	// GetAccountFlow.
+	// GetFlowById retrieves one lifecycle flow by public flow id. It finds the
+	// flows that carry a chain transaction, `source_tx_hash`, and the flows the
+	// ledger settled without one, which end in their settlement step: each
+	// transfer of an atomic batch between Trading accounts, or a single
+	// transfer before the Polyester Chain transaction that records it is
+	// observed. Any other flow without a chain transaction, such as a
+	// Trading withdrawal not yet sent to a chain, is not found; its account
+	// reads it with GetAccountFlow. ListFlows and ListFlowsByTx list only the
+	// flows that carry a chain transaction.
 	GetFlowById(context.Context, *connect.Request[v1.GetFlowByIdRequest]) (*connect.Response[v1.GetFlowResponse], error)
 	// ListFlows lists lifecycle flows with optional filters and keyset
 	// pagination. It lists only flows that carry a chain transaction,
@@ -160,12 +163,15 @@ func (c *lifecycleReadServiceClient) GetAccountFlow(ctx context.Context, req *co
 // LifecycleReadServiceHandler is an implementation of the chain.lifecycle.v1.LifecycleReadService
 // service.
 type LifecycleReadServiceHandler interface {
-	// GetFlowById retrieves one lifecycle flow by public flow id. It finds only
-	// flows that carry a chain transaction, `source_tx_hash`; a flow without
-	// one, such as a Trading withdrawal not yet sent to a chain, or a transfer
-	// between Trading accounts before the Polyester Chain transaction that
-	// records it is observed, is not found. Its account reads it with
-	// GetAccountFlow.
+	// GetFlowById retrieves one lifecycle flow by public flow id. It finds the
+	// flows that carry a chain transaction, `source_tx_hash`, and the flows the
+	// ledger settled without one, which end in their settlement step: each
+	// transfer of an atomic batch between Trading accounts, or a single
+	// transfer before the Polyester Chain transaction that records it is
+	// observed. Any other flow without a chain transaction, such as a
+	// Trading withdrawal not yet sent to a chain, is not found; its account
+	// reads it with GetAccountFlow. ListFlows and ListFlowsByTx list only the
+	// flows that carry a chain transaction.
 	GetFlowById(context.Context, *connect.Request[v1.GetFlowByIdRequest]) (*connect.Response[v1.GetFlowResponse], error)
 	// ListFlows lists lifecycle flows with optional filters and keyset
 	// pagination. It lists only flows that carry a chain transaction,

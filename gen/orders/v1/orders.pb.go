@@ -446,11 +446,10 @@ const (
 	// policy is read-only. When the API key's policy lacks it instead, the
 	// refusal is ERROR_CODE_API_KEY_SPOT_TRADE_DENY.
 	ErrorCode_ERROR_CODE_POLICY_SPOT_TRADE_DENY ErrorCode = 23
-	// API key is scoped to the master/root account and cannot trade on
-	// sub-accounts.
+	// API key is scoped to the root account and cannot trade on sub-accounts.
 	ErrorCode_ERROR_CODE_API_KEY_ROOT_SCOPE_ONLY ErrorCode = 24
-	// API key is scoped to a specific sub-account and cannot trade on the
-	// master/root account.
+	// API key is scoped to a specific sub-account and cannot trade on the root
+	// account.
 	ErrorCode_ERROR_CODE_API_KEY_SUB_SCOPE_ONLY ErrorCode = 25
 	// API key is scoped to a different sub-account than the one requested.
 	ErrorCode_ERROR_CODE_API_KEY_SUBACCOUNT_MISMATCH ErrorCode = 26
@@ -571,7 +570,7 @@ const (
 	ErrorCode_ERROR_CODE_SUBACCOUNT_READ_FORBIDDEN ErrorCode = 70
 	// Sub-account policy does not allow reading spot data.
 	ErrorCode_ERROR_CODE_POLICY_SPOT_READ_DENY ErrorCode = 71
-	// API key policy does not allow reading spot data.
+	// API key policy does not grant READ_SPOT.
 	ErrorCode_ERROR_CODE_API_KEY_SPOT_READ_DENY ErrorCode = 72
 	// The cancel-all request arrived after its acceptance window of about two
 	// minutes had passed, so nothing was canceled. Send a new request with a
@@ -658,8 +657,8 @@ const (
 	// An order flag is unknown, or not accepted with this order type or time in
 	// force, or on a trigger's child order.
 	ErrorCode_ERROR_CODE_INVALID_ORDER_FLAGS ErrorCode = 214
-	// Another item of the same batch was invalid, so this item was not applied
-	// either. Nothing in the batch changed.
+	// Another item of the same BatchReplaceOrders batch was invalid, so this item
+	// was not applied either. Nothing in the batch changed.
 	ErrorCode_ERROR_CODE_BATCH_OTHER_ITEM_INVALID ErrorCode = 215
 	// The replacement order identifier equals the identifier of the order it
 	// replaces.
@@ -2912,8 +2911,15 @@ type CreateOrderResponse struct {
 	AcceptedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=accepted_at,json=acceptedAt,proto3" json:"accepted_at,omitempty"`
 	// Admission completion time as epoch nanoseconds (UTC).
 	AcceptedAtTsNs uint64 `protobuf:"varint,4,opt,name=accepted_at_ts_ns,json=acceptedAtTsNs,proto3" json:"accepted_at_ts_ns,omitempty"`
-	// Gross base quantity resolved for execution, scaled by the pair's
-	// base_quantity_scale from GetSpotConfig.
+	// Gross base quantity admission resolved, scaled by the pair's
+	// base_quantity_scale from GetSpotConfig. For base_qty_scaled sizing, the
+	// order's quantity. For quote sizing (max_quote_debit_scaled BUY or
+	// quote_proceeds_scaled SELL), the quantity the quote amount buys or sells at
+	// the order's limit price, or a market order's protection price: a BUY can
+	// fill more at better prices, or less when the book runs out, and a SELL sells
+	// at most this. The executed quantity is the order's cumulative filled
+	// quantity (cum_qty_scaled in GetOrder) or the sum of its fills
+	// (GetUserTrades, or the fills of its private order events).
 	ResolvedBaseQtyScaled int64 `protobuf:"varint,5,opt,name=resolved_base_qty_scaled,json=resolvedBaseQtyScaled,proto3" json:"resolved_base_qty_scaled,omitempty"`
 	// Submitted hard all-in quote debit limit, scaled by the pair's
 	// quote_quantity_scale from GetSpotConfig. Present only when that sizing
@@ -3105,9 +3111,18 @@ type PreviewOrderResponse struct {
 	// Typed reason the order is not currently admissible. Omitted when
 	// admissible is true.
 	Rejection *ErrorDetail `protobuf:"bytes,2,opt,name=rejection,proto3" json:"rejection,omitempty"`
-	// Gross base quantity resolved for execution. REST returns resolvedBaseQty as
-	// a decimal string in base asset units, for example "0.005". Protobuf uses the
-	// pair's base_quantity_scale from GetSpotConfig. Present when sizing was resolved.
+	// Gross base quantity admission resolved. REST returns resolvedBaseQty as a
+	// decimal string in base asset units, for example "0.005". Protobuf uses the
+	// pair's base_quantity_scale from GetSpotConfig. Present when sizing was
+	// resolved. For base_qty_scaled sizing, the order's quantity. For quote sizing
+	// (max_quote_debit_scaled BUY or quote_proceeds_scaled SELL), the quantity the
+	// quote amount buys or sells at the order's limit price, or at the market
+	// protection price at preview time (protected_price_bound_ticks). CreateOrder
+	// resolves the protection price and the order's quantity again at submission,
+	// so the submitted order can buy or sell more or less than this. The executed
+	// quantity is the order's cumulative filled quantity (cum_qty_scaled in
+	// GetOrder) or the sum of its fills (GetUserTrades, or the fills of its
+	// private order events).
 	ResolvedBaseQtyScaled *int64 `protobuf:"varint,3,opt,name=resolved_base_qty_scaled,json=resolvedBaseQtyScaled,proto3,oneof" json:"resolved_base_qty_scaled,omitempty"`
 	// Protective execution boundary. REST returns protectedPriceBound as a decimal
 	// string in quote asset units per base asset unit, for example "2751.6".
@@ -4834,8 +4849,15 @@ type BatchCreateAccepted struct {
 	StopLossTriggerId *uint64 `protobuf:"varint,3,opt,name=stop_loss_trigger_id,json=stopLossTriggerId,proto3,oneof" json:"stop_loss_trigger_id,omitempty"`
 	// Trigger ID for attached trailing stop (when accepted and configured).
 	TrailingStopTriggerId *uint64 `protobuf:"varint,4,opt,name=trailing_stop_trigger_id,json=trailingStopTriggerId,proto3,oneof" json:"trailing_stop_trigger_id,omitempty"`
-	// Gross base quantity resolved for execution, scaled by the pair's
-	// base_quantity_scale from GetSpotConfig.
+	// Gross base quantity admission resolved, scaled by the pair's
+	// base_quantity_scale from GetSpotConfig. For base_qty_scaled sizing, the
+	// order's quantity. For quote sizing (max_quote_debit_scaled BUY or
+	// quote_proceeds_scaled SELL), the quantity the quote amount buys or sells at
+	// the order's limit price, or a market order's protection price: a BUY can
+	// fill more at better prices, or less when the book runs out, and a SELL sells
+	// at most this. The executed quantity is the order's cumulative filled
+	// quantity (cum_qty_scaled in GetOrder) or the sum of its fills
+	// (GetUserTrades, or the fills of its private order events).
 	ResolvedBaseQtyScaled int64 `protobuf:"varint,5,opt,name=resolved_base_qty_scaled,json=resolvedBaseQtyScaled,proto3" json:"resolved_base_qty_scaled,omitempty"`
 	// Submitted hard all-in quote debit limit, scaled by the pair's
 	// quote_quantity_scale from GetSpotConfig. Present only when submitted.
@@ -5068,7 +5090,14 @@ func (*BatchCreateResultItem_Accepted) isBatchCreateResultItem_Outcome() {}
 
 func (*BatchCreateResultItem_Rejected) isBatchCreateResultItem_Outcome() {}
 
-// BatchCreateOrdersRequest places multiple orders in one request.
+// BatchCreateOrdersRequest places multiple orders in one request. A request can
+// be refused as a whole before admission, admitting nothing: for example an
+// invalid request_id or number of items, an item whose fields cannot be decoded
+// over REST (a malformed decimal, or more than one execution or sizing field),
+// or a failed authentication, permission or receive-window check. Once a
+// request reaches admission, each item is admitted or rejected on its own,
+// never all-or-nothing: a rejected item does not stop the other items from
+// being admitted.
 type BatchCreateOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -5779,6 +5808,11 @@ func (x *BatchReplaceAdmissionItem) GetActionTaken() ModifyActionTaken {
 
 // BatchReplaceOrdersRequest modifies same-symbol orders as one quote refresh:
 // each item is amended in place or replaced as ModifyOrder decides by default.
+// A request can be refused as a whole before admission, changing nothing: for
+// example an invalid request_id or number of items, an item that names no
+// order, supplies no patch field or breaks a field rule, or a failed
+// authentication, permission or receive-window check. Once a request reaches
+// admission, each item is admitted or rejected on its own.
 // Identical retries replay the admission result for 60 seconds from acceptance;
 // a different payload under the same key conflicts. Use a fresh key for a new batch.
 // Read the batch's status with GetBatchReplaceStatus within the same window;
@@ -6135,7 +6169,12 @@ func (x *BatchCancelResultItem) GetError() *ErrorDetail {
 	return nil
 }
 
-// BatchCancelOrdersRequest cancels multiple orders by explicit ID.
+// BatchCancelOrdersRequest cancels multiple orders by explicit ID. A request
+// can be refused as a whole before admission, canceling nothing: for example an
+// invalid request_id or number of items, an item that sets both order_id and
+// client_order_id or neither, or a failed authentication, permission or
+// receive-window check. Once a request reaches admission, each item's
+// cancellation is accepted or rejected on its own.
 type BatchCancelOrdersRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -6920,7 +6959,7 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x1fBatchReplaceItemAdmissionStatus\x123\n" +
 	"/BATCH_REPLACE_ITEM_ADMISSION_STATUS_UNSPECIFIED\x10\x00\x120\n" +
 	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_ADMITTED\x10\x01\x120\n" +
-	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\xc5'\n" +
+	",BATCH_REPLACE_ITEM_ADMISSION_STATUS_REJECTED\x10\x022\x960\n" +
 	"\rOrdersService\x12\x9a\x02\n" +
 	"\fPreviewOrder\x12\x1e.orders.v1.PreviewOrderRequest\x1a\x1f.orders.v1.PreviewOrderResponse\"\xc8\x01\xbaG\xbe\x01\n" +
 	"\x0eOrders Service\x12\rPreview Order\x1a\x9c\x01Check current order eligibility and available balance without creating an order or reservation. Returns resolved sizing and price protection when available.\xa2\xb5\x18\x02\x01\x02\x12\xb0\x02\n" +
@@ -6931,15 +6970,15 @@ const file_orders_v1_orders_proto_rawDesc = "" +
 	"\x0fCancelAllOrders\x12!.orders.v1.CancelAllOrdersRequest\x1a\".orders.v1.CancelAllOrdersResponse\"\xae\r\xbaG\xa4\r\n" +
 	"\x0eOrders Service\x12\x11Cancel All Orders\x1a\xfe\fCancel all matching open orders for an account. Supports an optional list of symbols and a side filter plus dry-run preview. Returns up to 200 canceled order IDs, oldest first, with the total count. Unless it is a dry run, it covers every matching order admitted before its requestId was first admitted, from any interface, including orders not yet open and replacement orders: an order whose create or replace response arrived before the first request with this requestId was sent is covered, while requests still in flight or with an unknown outcome have no defined order with it. A retry with the same requestId keeps the original scope and covers no order admitted since; use a fresh requestId for a new cancellation. Each covered order eventually ends; any still open when the cancellation applies is canceled. It cancels open orders, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, in the same request; matched_triggers counts them. Every request counts 10 against the cancel rate limit, however many orders it cancels, a dry run and a retry included.\xa2\xb5\x18\x02\x01\x02\x12\xf5\a\n" +
 	"\x0eCancelAllAfter\x12 .orders.v1.CancelAllAfterRequest\x1a!.orders.v1.CancelAllAfterResponse\"\x9d\a\xbaG\x93\a\n" +
-	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\xdc\x06Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh. On expiry it cancels open orders in scope, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, when the switch fires.\xa2\xb5\x18\x02\x01\x02\x12\xa5\x02\n" +
-	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\xc4\x01\xbaG\xba\x01\n" +
-	"\x0eOrders Service\x12\x13Batch Create Orders\x1a\x92\x01Create up to 20 orders in a single request with per-item results. Supports mixed symbols, attached risk payloads, and optional partial acceptance.\xa2\xb5\x18\x02\x01\x02\x12\x98\x02\n" +
+	"\x0eOrders Service\x12\"Cancel All After (Dead-Man Switch)\x1a\xdc\x06Set or disable a dead-man switch timeout for automatic cancel-all. Supports optional symbol and side scope with idempotent heartbeat refresh. On expiry it cancels open orders in scope, including those that triggers placed (TWAP slices, ladder levels and exit orders). By default it does not cancel triggers: standalone stop-loss, take-profit and trailing triggers and TWAPs keep running and can place new orders; a ladder stops once its levels are canceled. An attached stop-loss, take-profit or trailing leg whose exit order is canceled ends, and so do the parent's other legs when oco is set, so the position loses that protection. Other attached legs keep protecting the parent's filled quantity; those of a parent canceled before any fill end with it. Set include_triggers to also stop every matching trigger, attached legs included, when the switch fires.\xa2\xb5\x18\x02\x01\x02\x12\xe3\x05\n" +
+	"\x11BatchCreateOrders\x12#.orders.v1.BatchCreateOrdersRequest\x1a$.orders.v1.BatchCreateOrdersResponse\"\x82\x05\xbaG\xf8\x04\n" +
+	"\x0eOrders Service\x12\x13Batch Create Orders\x1a\xd0\x04Create up to 20 orders in a single request with per-item results. Supports mixed symbols and attached risk payloads. A request can be refused as a whole before admission, admitting nothing: for example an invalid request ID or number of items, an item whose fields cannot be decoded over REST (a malformed decimal, or more than one execution or sizing field), or a failed authentication, permission or receive-window check. Once a request reaches admission, each item is admitted or rejected on its own, never all-or-nothing: a rejected item does not stop the other items from being admitted.\xa2\xb5\x18\x02\x01\x02\x12\x98\x02\n" +
 	"\vModifyOrder\x12\x1d.orders.v1.ModifyOrderRequest\x1a\x1e.orders.v1.ModifyOrderResponse\"\xc9\x01\xbaG\xbf\x01\n" +
-	"\x0eOrders Service\x12\fModify Order\x1a\x9e\x01Modify a single open order by order ID or client order ID. Supports amend-or-replace behavior policies, price and quantity updates, and attached risk updates.\xa2\xb5\x18\x02\x01\x02\x12\x8c\x04\n" +
-	"\x12BatchReplaceOrders\x12$.orders.v1.BatchReplaceOrdersRequest\x1a%.orders.v1.BatchReplaceOrdersResponse\"\xa8\x03\xbaG\x9e\x03\n" +
-	"\x0eOrders Service\x12\x14Batch Replace Orders\x1a\xf5\x02Modify up to 50 orders for one symbol as a quote refresh. Each item amends its order in place, keeping its order ID and queue priority, when it keeps the price, does not raise the total quantity and keeps the client order ID; otherwise it replaces the order with a successor under a new order ID. Returns an admission receipt for status and private realtime reconciliation.\xa2\xb5\x18\x02\x01\x02\x12\x99\x02\n" +
-	"\x11BatchCancelOrders\x12#.orders.v1.BatchCancelOrdersRequest\x1a$.orders.v1.BatchCancelOrdersResponse\"\xb8\x01\xbaG\xae\x01\n" +
-	"\x0eOrders Service\x12\x13Batch Cancel Orders\x1a\x86\x01Cancel up to 50 orders by order ID or client order ID in one request. Returns per-item accept or reject results with aggregate counts.\xa2\xb5\x18\x02\x01\x02\x1a\v\x8a\xb5\x18\atradingB\x8d\x01\xbaGJ:H\n" +
+	"\x0eOrders Service\x12\fModify Order\x1a\x9e\x01Modify a single open order by order ID or client order ID. Supports amend-or-replace behavior policies, price and quantity updates, and attached risk updates.\xa2\xb5\x18\x02\x01\x02\x12\xe7\x06\n" +
+	"\x12BatchReplaceOrders\x12$.orders.v1.BatchReplaceOrdersRequest\x1a%.orders.v1.BatchReplaceOrdersResponse\"\x83\x06\xbaG\xf9\x05\n" +
+	"\x0eOrders Service\x12\x14Batch Replace Orders\x1a\xd0\x05Modify up to 50 orders for one symbol as a quote refresh. Each item amends its order in place, keeping its order ID and queue priority, when it keeps the price, does not raise the total quantity and keeps the client order ID; otherwise it replaces the order with a successor under a new order ID. Returns an admission receipt for status and private realtime reconciliation. A request can be refused as a whole before admission, changing nothing: for example an invalid request ID or number of items, an item that names no order, supplies no patch field or breaks a field rule, or a failed authentication, permission or receive-window check. Once a request reaches admission, each item is admitted or rejected on its own.\xa2\xb5\x18\x02\x01\x02\x12\xd1\x04\n" +
+	"\x11BatchCancelOrders\x12#.orders.v1.BatchCancelOrdersRequest\x1a$.orders.v1.BatchCancelOrdersResponse\"\xf0\x03\xbaG\xe6\x03\n" +
+	"\x0eOrders Service\x12\x13Batch Cancel Orders\x1a\xbe\x03Cancel up to 50 orders by order ID or client order ID in one request. A request can be refused as a whole before admission, canceling nothing: for example an invalid request ID or number of items, an item that sets both identifiers or neither, or a failed authentication, permission or receive-window check. Once a request reaches admission, each item's cancellation is accepted or rejected on its own, with per-item results and aggregate counts.\xa2\xb5\x18\x02\x01\x02\x1a\v\x8a\xb5\x18\atradingB\x8d\x01\xbaGJ:H\n" +
 	"\x0eOrders Service\x126Public write surface for placing and canceling orders.Z>github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1;ordersv1b\x06proto3"
 
 var (

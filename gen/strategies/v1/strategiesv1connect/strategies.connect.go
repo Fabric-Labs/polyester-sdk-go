@@ -60,6 +60,18 @@ const (
 	// StrategiesServiceDeleteStrategyProcedure is the fully-qualified name of the StrategiesService's
 	// DeleteStrategy RPC.
 	StrategiesServiceDeleteStrategyProcedure = "/strategies.v1.StrategiesService/DeleteStrategy"
+	// StrategiesServiceGetStrategyNotesProcedure is the fully-qualified name of the StrategiesService's
+	// GetStrategyNotes RPC.
+	StrategiesServiceGetStrategyNotesProcedure = "/strategies.v1.StrategiesService/GetStrategyNotes"
+	// StrategiesServiceSaveStrategyNotesProcedure is the fully-qualified name of the
+	// StrategiesService's SaveStrategyNotes RPC.
+	StrategiesServiceSaveStrategyNotesProcedure = "/strategies.v1.StrategiesService/SaveStrategyNotes"
+	// StrategiesServiceListStrategyNotesRevisionsProcedure is the fully-qualified name of the
+	// StrategiesService's ListStrategyNotesRevisions RPC.
+	StrategiesServiceListStrategyNotesRevisionsProcedure = "/strategies.v1.StrategiesService/ListStrategyNotesRevisions"
+	// StrategiesServiceListBacktestsProcedure is the fully-qualified name of the StrategiesService's
+	// ListBacktests RPC.
+	StrategiesServiceListBacktestsProcedure = "/strategies.v1.StrategiesService/ListBacktests"
 	// StrategiesServiceRunScenariosProcedure is the fully-qualified name of the StrategiesService's
 	// RunScenarios RPC.
 	StrategiesServiceRunScenariosProcedure = "/strategies.v1.StrategiesService/RunScenarios"
@@ -69,12 +81,18 @@ const (
 	// StrategiesServiceGetBacktestProcedure is the fully-qualified name of the StrategiesService's
 	// GetBacktest RPC.
 	StrategiesServiceGetBacktestProcedure = "/strategies.v1.StrategiesService/GetBacktest"
+	// StrategiesServiceListBacktestTradesProcedure is the fully-qualified name of the
+	// StrategiesService's ListBacktestTrades RPC.
+	StrategiesServiceListBacktestTradesProcedure = "/strategies.v1.StrategiesService/ListBacktestTrades"
 	// StrategiesServiceExplainStrategyProcedure is the fully-qualified name of the StrategiesService's
 	// ExplainStrategy RPC.
 	StrategiesServiceExplainStrategyProcedure = "/strategies.v1.StrategiesService/ExplainStrategy"
 	// StrategiesServiceProposeDeployProcedure is the fully-qualified name of the StrategiesService's
 	// ProposeDeploy RPC.
 	StrategiesServiceProposeDeployProcedure = "/strategies.v1.StrategiesService/ProposeDeploy"
+	// StrategiesServiceDeployBotProcedure is the fully-qualified name of the StrategiesService's
+	// DeployBot RPC.
+	StrategiesServiceDeployBotProcedure = "/strategies.v1.StrategiesService/DeployBot"
 	// StrategiesServiceGetDeployStatusProcedure is the fully-qualified name of the StrategiesService's
 	// GetDeployStatus RPC.
 	StrategiesServiceGetDeployStatusProcedure = "/strategies.v1.StrategiesService/GetDeployStatus"
@@ -152,7 +170,9 @@ type StrategiesServiceClient interface {
 	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
 	//     an unknown one.
 	//   - FAILED_PRECONDITION: DRAFT_REVISION_CONFLICT; revision_conflict gives
-	//     the current revision and its version.
+	//     the current revision and its version. NOTES_REVISION_CONFLICT when
+	//     expected_notes_revision is set and the notes moved past it;
+	//     notes_conflict gives their current revision.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original save stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
 	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
@@ -224,14 +244,75 @@ type StrategiesServiceClient interface {
 	//     does not grant DRAFT_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	DeleteStrategy(context.Context, *connect.Request[v1.DeleteStrategyRequest]) (*connect.Response[v1.DeleteStrategyResponse], error)
+	// GetStrategyNotes reads the notes of one strategy of the caller: its
+	// summary and body as last saved.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	GetStrategyNotes(context.Context, *connect.Request[v1.GetStrategyNotesRequest]) (*connect.Response[v1.GetStrategyNotesResponse], error)
+	// SaveStrategyNotes saves the notes of one strategy of the caller as their
+	// next revision. expected_notes_revision must be the notes' current
+	// revision; every revision is kept. Notes equal to the current ones add no
+	// revision.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, including a summary with a line
+	//     break or over 120 characters, or a body over 8192 bytes; its
+	//     buf.validate.Violations detail names the field and the rule.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - FAILED_PRECONDITION: NOTES_REVISION_CONFLICT; notes_conflict gives the
+	//     notes' current revision. DRAFT_REVISION_CONFLICT when
+	//     expected_revision is set and the strategy moved past it.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original save stands.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant DRAFT_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	SaveStrategyNotes(context.Context, *connect.Request[v1.SaveStrategyNotesRequest]) (*connect.Response[v1.SaveStrategyNotesResponse], error)
+	// ListStrategyNotesRevisions lists the saved notes of one strategy of the
+	// caller, newest first, with who saved each.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request or page token.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListStrategyNotesRevisions(context.Context, *connect.Request[v1.ListStrategyNotesRevisionsRequest]) (*connect.Response[v1.ListStrategyNotesRevisionsResponse], error)
+	// ListBacktests lists the backtests of one strategy of the caller, newest
+	// first: those of the versions its revisions saved, each as a headline. A
+	// backtest is kept 30 days after it finished; GetBacktest reads one whole.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request or page token.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListBacktests(context.Context, *connect.Request[v1.ListBacktestsRequest]) (*connect.Response[v1.ListBacktestsResponse], error)
 	// RunScenarios runs a version's behaviour examples against its code and
-	// records the results. The result is deterministic: a version always gets
-	// the same one.
+	// records the results. Each market's trading rules (tick, step, minimum
+	// quantity and minimum notional) are the exchange's when the version first
+	// runs, unless an example's `observe.markets` says otherwise, and the
+	// record keeps them: a version always gets the same result, and a new
+	// version runs on the rules current then.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: VERSION_NOT_FOUND.
-	//   - FAILED_PRECONDITION: VERSION_INVALID.
+	//   - FAILED_PRECONDITION: VERSION_INVALID, also when a market of the
+	//     version isn't listed on the exchange.
 	//   - RESOURCE_EXHAUSTED: SCENARIO_RUN_LIMIT_REACHED; retry after
 	//     retry_after.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
@@ -241,9 +322,10 @@ type StrategiesServiceClient interface {
 	RunScenarios(context.Context, *connect.Request[v1.RunScenariosRequest]) (*connect.Response[v1.RunScenariosResponse], error)
 	// StartBacktest starts a backtest of a version. A retry with the same
 	// idempotency_key and request returns the backtest the first call started.
-	// Across keys, a request with the same version, effective window, effective
-	// settings and effective initial balances returns the same backtest rather
-	// than running again; defaults count as their resolved values (see
+	// Across keys, a request with the same identity (version, effective window,
+	// settings and initial balances, and the fee rates, platform assumptions and
+	// simulation versions in force) returns the same backtest rather than
+	// running again; defaults count as their resolved values (see
 	// StartBacktestRequest). Every new backtest counts in the attempts of the
 	// bot's family of versions.
 	//
@@ -253,8 +335,9 @@ type StrategiesServiceClient interface {
 	//   - NOT_FOUND: VERSION_NOT_FOUND.
 	//   - FAILED_PRECONDITION: VERSION_INVALID, WINDOW_HAS_NO_DATA or
 	//     NOT_BACKTESTABLE.
-	//   - RESOURCE_EXHAUSTED: BACKTEST_LIMIT_REACHED, retry after retry_after; or
-	//     INDICATOR_SETTINGS_LIMIT_REACHED.
+	//   - RESOURCE_EXHAUSTED: BACKTEST_LIMIT_REACHED, for the daily limit retry
+	//     after retry_after, for the limit on backtests at once retry when one
+	//     finishes; or INDICATOR_SETTINGS_LIMIT_REACHED.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original backtest stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
 	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
@@ -272,6 +355,20 @@ type StrategiesServiceClient interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	GetBacktest(context.Context, *connect.Request[v1.GetBacktestRequest]) (*connect.Response[v1.GetBacktestResponse], error)
+	// ListBacktestTrades lists every trade of one finished backtest of the
+	// caller, in trade_index order, a page at a time.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, or a page token from another
+	//     caller or backtest.
+	//   - NOT_FOUND: BACKTEST_NOT_FOUND, also once a backtest is past its
+	//     retention.
+	//   - FAILED_PRECONDITION: BACKTEST_NOT_DONE.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListBacktestTrades(context.Context, *connect.Request[v1.ListBacktestTradesRequest]) (*connect.Response[v1.ListBacktestTradesResponse], error)
 	// ExplainStrategy returns the review summary of a version: what a user
 	// approves when deploying it.
 	//
@@ -311,6 +408,38 @@ type StrategiesServiceClient interface {
 	//     subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ProposeDeploy(context.Context, *connect.Request[v1.ProposeDeployRequest]) (*connect.Response[v1.ProposeDeployResponse], error)
+	// DeployBot deploys one deploy proposal of the caller: it checks the
+	// version again, prepares the bot's subaccount, sets the bot's limits and
+	// its trading key, and starts the bot. The steps run in the call; once the
+	// bot's start is recorded, the bot starts without the user.
+	//
+	// Only the user's own session may deploy, and it must be a recently
+	// MFA-elevated session (MFA_RECENT). API keys and sessions a connected app
+	// holds on the user's behalf are refused.
+	//
+	// A proposal is deployed at most once. Calling again, after an error, a
+	// timeout or from another tab, continues the same deploy from where it
+	// is, and answers its status; it never starts a second bot. A step that
+	// fails ends the deploy as FAILED, answered as a status, not an error:
+	// failure says why and what to do.
+	//
+	// A deploy that creates a subaccount needs the user's signed
+	// authorization: request a challenge with CreateSubaccountChallenge, have
+	// the user sign it, and pass it as subaccount_authorization.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: PROPOSAL_NOT_FOUND, for another account's proposal as for
+	//     an unknown one.
+	//   - FAILED_PRECONDITION: PROPOSAL_EXPIRED, BOT_CAP_REACHED (nothing was
+	//     started), or SUBACCOUNT_AUTHORIZATION_REQUIRED (the deploy keeps its
+	//     progress).
+	//   - PERMISSION_DENIED: MFA_ELEVATION_REQUIRED; or
+	//     AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a session a connected
+	//     app holds on the user's behalf.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	DeployBot(context.Context, *connect.Request[v1.DeployBotRequest]) (*connect.Response[v1.DeployBotResponse], error)
 	// GetDeployStatus reads where one deploy proposal of the caller is.
 	//
 	// Errors:
@@ -344,9 +473,11 @@ type StrategiesServiceClient interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
-	// GetBot reads one bot of the caller: its money rules and settings, its
-	// subaccount's balances and open orders, and its recent decisions and
-	// errors. Only the caller's main account reads its bots.
+	// GetBot reads one bot of the caller: its money rules and settings, and
+	// its recent decisions and errors. Its subaccount's balances, open orders
+	// and profit and loss are read by the bot's subaccount_id, with
+	// LedgerReadService.GetBalances, OrdersReadService.GetOpenOrders and
+	// ProfitAndLossService. Only the caller's main account reads its bots.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
@@ -384,7 +515,10 @@ type StrategiesServiceClient interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	GetStrategyVersion(context.Context, *connect.Request[v1.GetStrategyVersionRequest]) (*connect.Response[v1.GetStrategyVersionResponse], error)
-	// ListBotLogs reads a bot's log lines, decisions and errors, oldest first.
+	// ListBotLogs reads a bot's recent activity, oldest first: the last 20
+	// decisions of its current deployment, each with the lines its call wrote,
+	// and its last 20 errors. Older entries are not kept. Each entry lags the
+	// bot by up to about a minute.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request or page token.
@@ -399,7 +533,8 @@ type StrategiesServiceClient interface {
 	// stay in the book as the subaccount's own orders, which the bot no longer
 	// manages. CANCEL_ORDERS cancels them all. Its holdings stay in its
 	// subaccount. It works in every state but STOPPED: a running or paused bot
-	// is stopped. The stop is recorded before the call answers; the bot then
+	// is stopped, and a bot still being deployed is stopped by ending its
+	// deploy before the bot starts. The stop is recorded before the call answers; the bot then
 	// reads STOPPING, with no deadline, until its stop is reported complete to
 	// the service, and STOPPED after. A KEEP_ORDERS stop is complete once the
 	// bot's in-flight orders are settled: the orders it hands over never hold
@@ -504,6 +639,34 @@ func NewStrategiesServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		getStrategyNotes: connect.NewClient[v1.GetStrategyNotesRequest, v1.GetStrategyNotesResponse](
+			httpClient,
+			baseURL+StrategiesServiceGetStrategyNotesProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("GetStrategyNotes")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		saveStrategyNotes: connect.NewClient[v1.SaveStrategyNotesRequest, v1.SaveStrategyNotesResponse](
+			httpClient,
+			baseURL+StrategiesServiceSaveStrategyNotesProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("SaveStrategyNotes")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		listStrategyNotesRevisions: connect.NewClient[v1.ListStrategyNotesRevisionsRequest, v1.ListStrategyNotesRevisionsResponse](
+			httpClient,
+			baseURL+StrategiesServiceListStrategyNotesRevisionsProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("ListStrategyNotesRevisions")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		listBacktests: connect.NewClient[v1.ListBacktestsRequest, v1.ListBacktestsResponse](
+			httpClient,
+			baseURL+StrategiesServiceListBacktestsProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("ListBacktests")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		runScenarios: connect.NewClient[v1.RunScenariosRequest, v1.RunScenariosResponse](
 			httpClient,
 			baseURL+StrategiesServiceRunScenariosProcedure,
@@ -525,6 +688,13 @@ func NewStrategiesServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		listBacktestTrades: connect.NewClient[v1.ListBacktestTradesRequest, v1.ListBacktestTradesResponse](
+			httpClient,
+			baseURL+StrategiesServiceListBacktestTradesProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("ListBacktestTrades")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		explainStrategy: connect.NewClient[v1.ExplainStrategyRequest, v1.ExplainStrategyResponse](
 			httpClient,
 			baseURL+StrategiesServiceExplainStrategyProcedure,
@@ -536,6 +706,13 @@ func NewStrategiesServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			httpClient,
 			baseURL+StrategiesServiceProposeDeployProcedure,
 			connect.WithSchema(strategiesServiceMethods.ByName("ProposeDeploy")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		deployBot: connect.NewClient[v1.DeployBotRequest, v1.DeployBotResponse](
+			httpClient,
+			baseURL+StrategiesServiceDeployBotProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("DeployBot")),
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
@@ -600,28 +777,34 @@ func NewStrategiesServiceClient(httpClient connect.HTTPClient, baseURL string, o
 
 // strategiesServiceClient implements StrategiesServiceClient.
 type strategiesServiceClient struct {
-	getStrategyReference  *connect.Client[v1.GetStrategyReferenceRequest, v1.GetStrategyReferenceResponse]
-	listStrategyTemplates *connect.Client[v1.ListStrategyTemplatesRequest, v1.ListStrategyTemplatesResponse]
-	createStrategy        *connect.Client[v1.CreateStrategyRequest, v1.CreateStrategyResponse]
-	saveDraftVersion      *connect.Client[v1.SaveDraftVersionRequest, v1.SaveDraftVersionResponse]
-	getStrategy           *connect.Client[v1.GetStrategyRequest, v1.GetStrategyResponse]
-	listStrategies        *connect.Client[v1.ListStrategiesRequest, v1.ListStrategiesResponse]
-	listStrategyRevisions *connect.Client[v1.ListStrategyRevisionsRequest, v1.ListStrategyRevisionsResponse]
-	renameStrategy        *connect.Client[v1.RenameStrategyRequest, v1.RenameStrategyResponse]
-	deleteStrategy        *connect.Client[v1.DeleteStrategyRequest, v1.DeleteStrategyResponse]
-	runScenarios          *connect.Client[v1.RunScenariosRequest, v1.RunScenariosResponse]
-	startBacktest         *connect.Client[v1.StartBacktestRequest, v1.StartBacktestResponse]
-	getBacktest           *connect.Client[v1.GetBacktestRequest, v1.GetBacktestResponse]
-	explainStrategy       *connect.Client[v1.ExplainStrategyRequest, v1.ExplainStrategyResponse]
-	proposeDeploy         *connect.Client[v1.ProposeDeployRequest, v1.ProposeDeployResponse]
-	getDeployStatus       *connect.Client[v1.GetDeployStatusRequest, v1.GetDeployStatusResponse]
-	getDeployProposal     *connect.Client[v1.GetDeployProposalRequest, v1.GetDeployProposalResponse]
-	listBots              *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	getBot                *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
-	listBotVersions       *connect.Client[v1.ListBotVersionsRequest, v1.ListBotVersionsResponse]
-	getStrategyVersion    *connect.Client[v1.GetStrategyVersionRequest, v1.GetStrategyVersionResponse]
-	listBotLogs           *connect.Client[v1.ListBotLogsRequest, v1.ListBotLogsResponse]
-	stopBot               *connect.Client[v1.StopBotRequest, v1.StopBotResponse]
+	getStrategyReference       *connect.Client[v1.GetStrategyReferenceRequest, v1.GetStrategyReferenceResponse]
+	listStrategyTemplates      *connect.Client[v1.ListStrategyTemplatesRequest, v1.ListStrategyTemplatesResponse]
+	createStrategy             *connect.Client[v1.CreateStrategyRequest, v1.CreateStrategyResponse]
+	saveDraftVersion           *connect.Client[v1.SaveDraftVersionRequest, v1.SaveDraftVersionResponse]
+	getStrategy                *connect.Client[v1.GetStrategyRequest, v1.GetStrategyResponse]
+	listStrategies             *connect.Client[v1.ListStrategiesRequest, v1.ListStrategiesResponse]
+	listStrategyRevisions      *connect.Client[v1.ListStrategyRevisionsRequest, v1.ListStrategyRevisionsResponse]
+	renameStrategy             *connect.Client[v1.RenameStrategyRequest, v1.RenameStrategyResponse]
+	deleteStrategy             *connect.Client[v1.DeleteStrategyRequest, v1.DeleteStrategyResponse]
+	getStrategyNotes           *connect.Client[v1.GetStrategyNotesRequest, v1.GetStrategyNotesResponse]
+	saveStrategyNotes          *connect.Client[v1.SaveStrategyNotesRequest, v1.SaveStrategyNotesResponse]
+	listStrategyNotesRevisions *connect.Client[v1.ListStrategyNotesRevisionsRequest, v1.ListStrategyNotesRevisionsResponse]
+	listBacktests              *connect.Client[v1.ListBacktestsRequest, v1.ListBacktestsResponse]
+	runScenarios               *connect.Client[v1.RunScenariosRequest, v1.RunScenariosResponse]
+	startBacktest              *connect.Client[v1.StartBacktestRequest, v1.StartBacktestResponse]
+	getBacktest                *connect.Client[v1.GetBacktestRequest, v1.GetBacktestResponse]
+	listBacktestTrades         *connect.Client[v1.ListBacktestTradesRequest, v1.ListBacktestTradesResponse]
+	explainStrategy            *connect.Client[v1.ExplainStrategyRequest, v1.ExplainStrategyResponse]
+	proposeDeploy              *connect.Client[v1.ProposeDeployRequest, v1.ProposeDeployResponse]
+	deployBot                  *connect.Client[v1.DeployBotRequest, v1.DeployBotResponse]
+	getDeployStatus            *connect.Client[v1.GetDeployStatusRequest, v1.GetDeployStatusResponse]
+	getDeployProposal          *connect.Client[v1.GetDeployProposalRequest, v1.GetDeployProposalResponse]
+	listBots                   *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	getBot                     *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
+	listBotVersions            *connect.Client[v1.ListBotVersionsRequest, v1.ListBotVersionsResponse]
+	getStrategyVersion         *connect.Client[v1.GetStrategyVersionRequest, v1.GetStrategyVersionResponse]
+	listBotLogs                *connect.Client[v1.ListBotLogsRequest, v1.ListBotLogsResponse]
+	stopBot                    *connect.Client[v1.StopBotRequest, v1.StopBotResponse]
 }
 
 // GetStrategyReference calls strategies.v1.StrategiesService.GetStrategyReference.
@@ -669,6 +852,26 @@ func (c *strategiesServiceClient) DeleteStrategy(ctx context.Context, req *conne
 	return c.deleteStrategy.CallUnary(ctx, req)
 }
 
+// GetStrategyNotes calls strategies.v1.StrategiesService.GetStrategyNotes.
+func (c *strategiesServiceClient) GetStrategyNotes(ctx context.Context, req *connect.Request[v1.GetStrategyNotesRequest]) (*connect.Response[v1.GetStrategyNotesResponse], error) {
+	return c.getStrategyNotes.CallUnary(ctx, req)
+}
+
+// SaveStrategyNotes calls strategies.v1.StrategiesService.SaveStrategyNotes.
+func (c *strategiesServiceClient) SaveStrategyNotes(ctx context.Context, req *connect.Request[v1.SaveStrategyNotesRequest]) (*connect.Response[v1.SaveStrategyNotesResponse], error) {
+	return c.saveStrategyNotes.CallUnary(ctx, req)
+}
+
+// ListStrategyNotesRevisions calls strategies.v1.StrategiesService.ListStrategyNotesRevisions.
+func (c *strategiesServiceClient) ListStrategyNotesRevisions(ctx context.Context, req *connect.Request[v1.ListStrategyNotesRevisionsRequest]) (*connect.Response[v1.ListStrategyNotesRevisionsResponse], error) {
+	return c.listStrategyNotesRevisions.CallUnary(ctx, req)
+}
+
+// ListBacktests calls strategies.v1.StrategiesService.ListBacktests.
+func (c *strategiesServiceClient) ListBacktests(ctx context.Context, req *connect.Request[v1.ListBacktestsRequest]) (*connect.Response[v1.ListBacktestsResponse], error) {
+	return c.listBacktests.CallUnary(ctx, req)
+}
+
 // RunScenarios calls strategies.v1.StrategiesService.RunScenarios.
 func (c *strategiesServiceClient) RunScenarios(ctx context.Context, req *connect.Request[v1.RunScenariosRequest]) (*connect.Response[v1.RunScenariosResponse], error) {
 	return c.runScenarios.CallUnary(ctx, req)
@@ -684,6 +887,11 @@ func (c *strategiesServiceClient) GetBacktest(ctx context.Context, req *connect.
 	return c.getBacktest.CallUnary(ctx, req)
 }
 
+// ListBacktestTrades calls strategies.v1.StrategiesService.ListBacktestTrades.
+func (c *strategiesServiceClient) ListBacktestTrades(ctx context.Context, req *connect.Request[v1.ListBacktestTradesRequest]) (*connect.Response[v1.ListBacktestTradesResponse], error) {
+	return c.listBacktestTrades.CallUnary(ctx, req)
+}
+
 // ExplainStrategy calls strategies.v1.StrategiesService.ExplainStrategy.
 func (c *strategiesServiceClient) ExplainStrategy(ctx context.Context, req *connect.Request[v1.ExplainStrategyRequest]) (*connect.Response[v1.ExplainStrategyResponse], error) {
 	return c.explainStrategy.CallUnary(ctx, req)
@@ -692,6 +900,11 @@ func (c *strategiesServiceClient) ExplainStrategy(ctx context.Context, req *conn
 // ProposeDeploy calls strategies.v1.StrategiesService.ProposeDeploy.
 func (c *strategiesServiceClient) ProposeDeploy(ctx context.Context, req *connect.Request[v1.ProposeDeployRequest]) (*connect.Response[v1.ProposeDeployResponse], error) {
 	return c.proposeDeploy.CallUnary(ctx, req)
+}
+
+// DeployBot calls strategies.v1.StrategiesService.DeployBot.
+func (c *strategiesServiceClient) DeployBot(ctx context.Context, req *connect.Request[v1.DeployBotRequest]) (*connect.Response[v1.DeployBotResponse], error) {
+	return c.deployBot.CallUnary(ctx, req)
 }
 
 // GetDeployStatus calls strategies.v1.StrategiesService.GetDeployStatus.
@@ -785,7 +998,9 @@ type StrategiesServiceHandler interface {
 	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
 	//     an unknown one.
 	//   - FAILED_PRECONDITION: DRAFT_REVISION_CONFLICT; revision_conflict gives
-	//     the current revision and its version.
+	//     the current revision and its version. NOTES_REVISION_CONFLICT when
+	//     expected_notes_revision is set and the notes moved past it;
+	//     notes_conflict gives their current revision.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original save stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
 	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
@@ -857,14 +1072,75 @@ type StrategiesServiceHandler interface {
 	//     does not grant DRAFT_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	DeleteStrategy(context.Context, *connect.Request[v1.DeleteStrategyRequest]) (*connect.Response[v1.DeleteStrategyResponse], error)
+	// GetStrategyNotes reads the notes of one strategy of the caller: its
+	// summary and body as last saved.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	GetStrategyNotes(context.Context, *connect.Request[v1.GetStrategyNotesRequest]) (*connect.Response[v1.GetStrategyNotesResponse], error)
+	// SaveStrategyNotes saves the notes of one strategy of the caller as their
+	// next revision. expected_notes_revision must be the notes' current
+	// revision; every revision is kept. Notes equal to the current ones add no
+	// revision.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, including a summary with a line
+	//     break or over 120 characters, or a body over 8192 bytes; its
+	//     buf.validate.Violations detail names the field and the rule.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - FAILED_PRECONDITION: NOTES_REVISION_CONFLICT; notes_conflict gives the
+	//     notes' current revision. DRAFT_REVISION_CONFLICT when
+	//     expected_revision is set and the strategy moved past it.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original save stands.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant DRAFT_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	SaveStrategyNotes(context.Context, *connect.Request[v1.SaveStrategyNotesRequest]) (*connect.Response[v1.SaveStrategyNotesResponse], error)
+	// ListStrategyNotesRevisions lists the saved notes of one strategy of the
+	// caller, newest first, with who saved each.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request or page token.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListStrategyNotesRevisions(context.Context, *connect.Request[v1.ListStrategyNotesRevisionsRequest]) (*connect.Response[v1.ListStrategyNotesRevisionsResponse], error)
+	// ListBacktests lists the backtests of one strategy of the caller, newest
+	// first: those of the versions its revisions saved, each as a headline. A
+	// backtest is kept 30 days after it finished; GetBacktest reads one whole.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request or page token.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListBacktests(context.Context, *connect.Request[v1.ListBacktestsRequest]) (*connect.Response[v1.ListBacktestsResponse], error)
 	// RunScenarios runs a version's behaviour examples against its code and
-	// records the results. The result is deterministic: a version always gets
-	// the same one.
+	// records the results. Each market's trading rules (tick, step, minimum
+	// quantity and minimum notional) are the exchange's when the version first
+	// runs, unless an example's `observe.markets` says otherwise, and the
+	// record keeps them: a version always gets the same result, and a new
+	// version runs on the rules current then.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: VERSION_NOT_FOUND.
-	//   - FAILED_PRECONDITION: VERSION_INVALID.
+	//   - FAILED_PRECONDITION: VERSION_INVALID, also when a market of the
+	//     version isn't listed on the exchange.
 	//   - RESOURCE_EXHAUSTED: SCENARIO_RUN_LIMIT_REACHED; retry after
 	//     retry_after.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
@@ -874,9 +1150,10 @@ type StrategiesServiceHandler interface {
 	RunScenarios(context.Context, *connect.Request[v1.RunScenariosRequest]) (*connect.Response[v1.RunScenariosResponse], error)
 	// StartBacktest starts a backtest of a version. A retry with the same
 	// idempotency_key and request returns the backtest the first call started.
-	// Across keys, a request with the same version, effective window, effective
-	// settings and effective initial balances returns the same backtest rather
-	// than running again; defaults count as their resolved values (see
+	// Across keys, a request with the same identity (version, effective window,
+	// settings and initial balances, and the fee rates, platform assumptions and
+	// simulation versions in force) returns the same backtest rather than
+	// running again; defaults count as their resolved values (see
 	// StartBacktestRequest). Every new backtest counts in the attempts of the
 	// bot's family of versions.
 	//
@@ -886,8 +1163,9 @@ type StrategiesServiceHandler interface {
 	//   - NOT_FOUND: VERSION_NOT_FOUND.
 	//   - FAILED_PRECONDITION: VERSION_INVALID, WINDOW_HAS_NO_DATA or
 	//     NOT_BACKTESTABLE.
-	//   - RESOURCE_EXHAUSTED: BACKTEST_LIMIT_REACHED, retry after retry_after; or
-	//     INDICATOR_SETTINGS_LIMIT_REACHED.
+	//   - RESOURCE_EXHAUSTED: BACKTEST_LIMIT_REACHED, for the daily limit retry
+	//     after retry_after, for the limit on backtests at once retry when one
+	//     finishes; or INDICATOR_SETTINGS_LIMIT_REACHED.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original backtest stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
 	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
@@ -905,6 +1183,20 @@ type StrategiesServiceHandler interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	GetBacktest(context.Context, *connect.Request[v1.GetBacktestRequest]) (*connect.Response[v1.GetBacktestResponse], error)
+	// ListBacktestTrades lists every trade of one finished backtest of the
+	// caller, in trade_index order, a page at a time.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, or a page token from another
+	//     caller or backtest.
+	//   - NOT_FOUND: BACKTEST_NOT_FOUND, also once a backtest is past its
+	//     retention.
+	//   - FAILED_PRECONDITION: BACKTEST_NOT_DONE.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListBacktestTrades(context.Context, *connect.Request[v1.ListBacktestTradesRequest]) (*connect.Response[v1.ListBacktestTradesResponse], error)
 	// ExplainStrategy returns the review summary of a version: what a user
 	// approves when deploying it.
 	//
@@ -944,6 +1236,38 @@ type StrategiesServiceHandler interface {
 	//     subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ProposeDeploy(context.Context, *connect.Request[v1.ProposeDeployRequest]) (*connect.Response[v1.ProposeDeployResponse], error)
+	// DeployBot deploys one deploy proposal of the caller: it checks the
+	// version again, prepares the bot's subaccount, sets the bot's limits and
+	// its trading key, and starts the bot. The steps run in the call; once the
+	// bot's start is recorded, the bot starts without the user.
+	//
+	// Only the user's own session may deploy, and it must be a recently
+	// MFA-elevated session (MFA_RECENT). API keys and sessions a connected app
+	// holds on the user's behalf are refused.
+	//
+	// A proposal is deployed at most once. Calling again, after an error, a
+	// timeout or from another tab, continues the same deploy from where it
+	// is, and answers its status; it never starts a second bot. A step that
+	// fails ends the deploy as FAILED, answered as a status, not an error:
+	// failure says why and what to do.
+	//
+	// A deploy that creates a subaccount needs the user's signed
+	// authorization: request a challenge with CreateSubaccountChallenge, have
+	// the user sign it, and pass it as subaccount_authorization.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: PROPOSAL_NOT_FOUND, for another account's proposal as for
+	//     an unknown one.
+	//   - FAILED_PRECONDITION: PROPOSAL_EXPIRED, BOT_CAP_REACHED (nothing was
+	//     started), or SUBACCOUNT_AUTHORIZATION_REQUIRED (the deploy keeps its
+	//     progress).
+	//   - PERMISSION_DENIED: MFA_ELEVATION_REQUIRED; or
+	//     AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a session a connected
+	//     app holds on the user's behalf.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	DeployBot(context.Context, *connect.Request[v1.DeployBotRequest]) (*connect.Response[v1.DeployBotResponse], error)
 	// GetDeployStatus reads where one deploy proposal of the caller is.
 	//
 	// Errors:
@@ -977,9 +1301,11 @@ type StrategiesServiceHandler interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ListBots(context.Context, *connect.Request[v1.ListBotsRequest]) (*connect.Response[v1.ListBotsResponse], error)
-	// GetBot reads one bot of the caller: its money rules and settings, its
-	// subaccount's balances and open orders, and its recent decisions and
-	// errors. Only the caller's main account reads its bots.
+	// GetBot reads one bot of the caller: its money rules and settings, and
+	// its recent decisions and errors. Its subaccount's balances, open orders
+	// and profit and loss are read by the bot's subaccount_id, with
+	// LedgerReadService.GetBalances, OrdersReadService.GetOpenOrders and
+	// ProfitAndLossService. Only the caller's main account reads its bots.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
@@ -1017,7 +1343,10 @@ type StrategiesServiceHandler interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	GetStrategyVersion(context.Context, *connect.Request[v1.GetStrategyVersionRequest]) (*connect.Response[v1.GetStrategyVersionResponse], error)
-	// ListBotLogs reads a bot's log lines, decisions and errors, oldest first.
+	// ListBotLogs reads a bot's recent activity, oldest first: the last 20
+	// decisions of its current deployment, each with the lines its call wrote,
+	// and its last 20 errors. Older entries are not kept. Each entry lags the
+	// bot by up to about a minute.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request or page token.
@@ -1032,7 +1361,8 @@ type StrategiesServiceHandler interface {
 	// stay in the book as the subaccount's own orders, which the bot no longer
 	// manages. CANCEL_ORDERS cancels them all. Its holdings stay in its
 	// subaccount. It works in every state but STOPPED: a running or paused bot
-	// is stopped. The stop is recorded before the call answers; the bot then
+	// is stopped, and a bot still being deployed is stopped by ending its
+	// deploy before the bot starts. The stop is recorded before the call answers; the bot then
 	// reads STOPPING, with no deadline, until its stop is reported complete to
 	// the service, and STOPPED after. A KEEP_ORDERS stop is complete once the
 	// bot's in-flight orders are settled: the orders it hands over never hold
@@ -1133,6 +1463,34 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	strategiesServiceGetStrategyNotesHandler := connect.NewUnaryHandler(
+		StrategiesServiceGetStrategyNotesProcedure,
+		svc.GetStrategyNotes,
+		connect.WithSchema(strategiesServiceMethods.ByName("GetStrategyNotes")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceSaveStrategyNotesHandler := connect.NewUnaryHandler(
+		StrategiesServiceSaveStrategyNotesProcedure,
+		svc.SaveStrategyNotes,
+		connect.WithSchema(strategiesServiceMethods.ByName("SaveStrategyNotes")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceListStrategyNotesRevisionsHandler := connect.NewUnaryHandler(
+		StrategiesServiceListStrategyNotesRevisionsProcedure,
+		svc.ListStrategyNotesRevisions,
+		connect.WithSchema(strategiesServiceMethods.ByName("ListStrategyNotesRevisions")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceListBacktestsHandler := connect.NewUnaryHandler(
+		StrategiesServiceListBacktestsProcedure,
+		svc.ListBacktests,
+		connect.WithSchema(strategiesServiceMethods.ByName("ListBacktests")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	strategiesServiceRunScenariosHandler := connect.NewUnaryHandler(
 		StrategiesServiceRunScenariosProcedure,
 		svc.RunScenarios,
@@ -1154,6 +1512,13 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	strategiesServiceListBacktestTradesHandler := connect.NewUnaryHandler(
+		StrategiesServiceListBacktestTradesProcedure,
+		svc.ListBacktestTrades,
+		connect.WithSchema(strategiesServiceMethods.ByName("ListBacktestTrades")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	strategiesServiceExplainStrategyHandler := connect.NewUnaryHandler(
 		StrategiesServiceExplainStrategyProcedure,
 		svc.ExplainStrategy,
@@ -1165,6 +1530,13 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 		StrategiesServiceProposeDeployProcedure,
 		svc.ProposeDeploy,
 		connect.WithSchema(strategiesServiceMethods.ByName("ProposeDeploy")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceDeployBotHandler := connect.NewUnaryHandler(
+		StrategiesServiceDeployBotProcedure,
+		svc.DeployBot,
+		connect.WithSchema(strategiesServiceMethods.ByName("DeployBot")),
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -1244,16 +1616,28 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 			strategiesServiceRenameStrategyHandler.ServeHTTP(w, r)
 		case StrategiesServiceDeleteStrategyProcedure:
 			strategiesServiceDeleteStrategyHandler.ServeHTTP(w, r)
+		case StrategiesServiceGetStrategyNotesProcedure:
+			strategiesServiceGetStrategyNotesHandler.ServeHTTP(w, r)
+		case StrategiesServiceSaveStrategyNotesProcedure:
+			strategiesServiceSaveStrategyNotesHandler.ServeHTTP(w, r)
+		case StrategiesServiceListStrategyNotesRevisionsProcedure:
+			strategiesServiceListStrategyNotesRevisionsHandler.ServeHTTP(w, r)
+		case StrategiesServiceListBacktestsProcedure:
+			strategiesServiceListBacktestsHandler.ServeHTTP(w, r)
 		case StrategiesServiceRunScenariosProcedure:
 			strategiesServiceRunScenariosHandler.ServeHTTP(w, r)
 		case StrategiesServiceStartBacktestProcedure:
 			strategiesServiceStartBacktestHandler.ServeHTTP(w, r)
 		case StrategiesServiceGetBacktestProcedure:
 			strategiesServiceGetBacktestHandler.ServeHTTP(w, r)
+		case StrategiesServiceListBacktestTradesProcedure:
+			strategiesServiceListBacktestTradesHandler.ServeHTTP(w, r)
 		case StrategiesServiceExplainStrategyProcedure:
 			strategiesServiceExplainStrategyHandler.ServeHTTP(w, r)
 		case StrategiesServiceProposeDeployProcedure:
 			strategiesServiceProposeDeployHandler.ServeHTTP(w, r)
+		case StrategiesServiceDeployBotProcedure:
+			strategiesServiceDeployBotHandler.ServeHTTP(w, r)
 		case StrategiesServiceGetDeployStatusProcedure:
 			strategiesServiceGetDeployStatusHandler.ServeHTTP(w, r)
 		case StrategiesServiceGetDeployProposalProcedure:
@@ -1315,6 +1699,22 @@ func (UnimplementedStrategiesServiceHandler) DeleteStrategy(context.Context, *co
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.DeleteStrategy is not implemented"))
 }
 
+func (UnimplementedStrategiesServiceHandler) GetStrategyNotes(context.Context, *connect.Request[v1.GetStrategyNotesRequest]) (*connect.Response[v1.GetStrategyNotesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.GetStrategyNotes is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) SaveStrategyNotes(context.Context, *connect.Request[v1.SaveStrategyNotesRequest]) (*connect.Response[v1.SaveStrategyNotesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.SaveStrategyNotes is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) ListStrategyNotesRevisions(context.Context, *connect.Request[v1.ListStrategyNotesRevisionsRequest]) (*connect.Response[v1.ListStrategyNotesRevisionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ListStrategyNotesRevisions is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) ListBacktests(context.Context, *connect.Request[v1.ListBacktestsRequest]) (*connect.Response[v1.ListBacktestsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ListBacktests is not implemented"))
+}
+
 func (UnimplementedStrategiesServiceHandler) RunScenarios(context.Context, *connect.Request[v1.RunScenariosRequest]) (*connect.Response[v1.RunScenariosResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.RunScenarios is not implemented"))
 }
@@ -1327,12 +1727,20 @@ func (UnimplementedStrategiesServiceHandler) GetBacktest(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.GetBacktest is not implemented"))
 }
 
+func (UnimplementedStrategiesServiceHandler) ListBacktestTrades(context.Context, *connect.Request[v1.ListBacktestTradesRequest]) (*connect.Response[v1.ListBacktestTradesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ListBacktestTrades is not implemented"))
+}
+
 func (UnimplementedStrategiesServiceHandler) ExplainStrategy(context.Context, *connect.Request[v1.ExplainStrategyRequest]) (*connect.Response[v1.ExplainStrategyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ExplainStrategy is not implemented"))
 }
 
 func (UnimplementedStrategiesServiceHandler) ProposeDeploy(context.Context, *connect.Request[v1.ProposeDeployRequest]) (*connect.Response[v1.ProposeDeployResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ProposeDeploy is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) DeployBot(context.Context, *connect.Request[v1.DeployBotRequest]) (*connect.Response[v1.DeployBotResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.DeployBot is not implemented"))
 }
 
 func (UnimplementedStrategiesServiceHandler) GetDeployStatus(context.Context, *connect.Request[v1.GetDeployStatusRequest]) (*connect.Response[v1.GetDeployStatusResponse], error) {
