@@ -488,8 +488,10 @@ type BatchReplaceAdmissionItem struct {
 	ExistingOrderID string `json:"existing_order_id,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
-	// Violations names the request fields a rejection asks to fix, in the
-	// order the server sent them; empty when it named none.
+	// Violations names the fields of this item a rejection asks to fix, in the
+	// order the server sent them, as the request item names them and without
+	// its index (for example new_attached_risk.stop_loss or order_id; REST:
+	// newAttachedRisk.stopLoss); the item is ItemIndex. Empty when it named none.
 	Violations []OrderFieldViolation `json:"violations,omitempty"`
 }
 
@@ -616,8 +618,11 @@ type BatchCreateResultItem struct {
 	ExistingOrderID string `json:"existing_order_id,omitempty"`
 	// RateLimit is set when ErrorDetail.rate_limit is present on rejection.
 	RateLimit *RateLimitDetail `json:"rate_limit,omitempty"`
-	// Violations names the request fields a rejection asks to fix, in the
-	// order the server sent them; empty when it named none.
+	// Violations names the fields of this item a rejection asks to fix, in the
+	// order the server sent them, as a CreateOrderRequest carrying the item
+	// would, under order and without the item's index (for example
+	// order.limit_gtc.price_ticks; REST: order.limitGtc.price); the item is
+	// this result's position in Results. Empty when it named none.
 	Violations []OrderFieldViolation `json:"violations,omitempty"`
 }
 

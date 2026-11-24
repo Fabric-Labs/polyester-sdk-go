@@ -642,6 +642,26 @@ func IsRouteSuspended(err error) bool {
 	return errors.As(err, &apiErr) && apiErr.Code == CodeRouteSuspended
 }
 
+// CodeDestinationSwapDepositAddress refuses a withdrawal, or an auto-withdraw
+// destination, whose destination address is a deposit address issued for a
+// Quick Swap (chain.withdraw.v1 ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS,
+// REST DESTINATION_SWAP_DEPOSIT_ADDRESS). Such an address is never a
+// withdrawal destination: a withdrawal could reach it after its swap stopped
+// accepting deposits, and could then be neither swapped nor returned. A
+// Polyester account's own deposit address is not affected. Nothing was
+// reserved. On an auto-withdraw destination, APIError.FieldPath names the
+// destination. It is final for that address and not retryable: choose another
+// destination.
+const CodeDestinationSwapDepositAddress = "ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS"
+
+// IsDestinationSwapDepositAddress reports whether err refuses a withdrawal
+// because its destination is a Quick Swap deposit address; see
+// CodeDestinationSwapDepositAddress.
+func IsDestinationSwapDepositAddress(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.Code == CodeDestinationSwapDepositAddress
+}
+
 // IsDestinationCoolingDown reports whether err refuses a broker-vault
 // withdrawal because its destination is still in its whitelist cool-down. It
 // is not retryable before APIError.PayableFrom.

@@ -41,6 +41,8 @@ func withdrawDestinationValidationCodeLabel(code chainwithdrawv1.WithdrawDestina
 		return "token_contract"
 	case chainwithdrawv1.WithdrawDestinationValidationCode_DENYLISTED_ADDRESS:
 		return "denylisted_address"
+	case chainwithdrawv1.WithdrawDestinationValidationCode_SWAP_DEPOSIT_ADDRESS:
+		return "swap_deposit_address"
 	default:
 		return fmt.Sprintf("unknown_code_%d", int32(code))
 	}

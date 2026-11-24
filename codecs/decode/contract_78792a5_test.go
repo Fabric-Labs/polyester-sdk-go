@@ -185,7 +185,8 @@ func TestChangelogReadsAssistantSurface(t *testing.T) {
 }
 
 // A batch replace answers a value refusal of one item at that item, with its
-// code and indexed violation, while the other items are judged on their own.
+// code and a violation naming the field in the item, without its index (the
+// item is ItemIndex), while the other items are judged on their own.
 func TestBatchReplaceRejectsOneItemForItsPrice(t *testing.T) {
 	got, err := BatchReplaceFromProto(&orderv1.BatchReplaceOrdersResponse{
 		BatchRequestId: 5,
@@ -198,7 +199,7 @@ func TestBatchReplaceRejectsOneItemForItsPrice(t *testing.T) {
 				Code: "PRICE_TICK_SIZE", Error: &orderv1.ErrorDetail{
 					Code: orderv1.ErrorCode_ERROR_CODE_PRICE_TICK_SIZE,
 					Violations: []*orderv1.FieldViolation{{
-						FieldPath: "items[1].new_attached_risk.take_profit.trigger_price_ticks", RuleId: "PRICE_TICK_SIZE",
+						FieldPath: "new_attached_risk.take_profit.trigger_price_ticks", RuleId: "PRICE_TICK_SIZE",
 					}},
 				}},
 		},
@@ -209,7 +210,7 @@ func TestBatchReplaceRejectsOneItemForItsPrice(t *testing.T) {
 	rejected := got.Results[1]
 	if got.Results[0].Status != "admitted" || rejected.Status != "rejected" || rejected.ItemIndex != 1 ||
 		rejected.Code != "PRICE_TICK_SIZE" || len(rejected.Violations) != 1 ||
-		rejected.Violations[0].FieldPath != "items[1].new_attached_risk.take_profit.trigger_price_ticks" {
+		rejected.Violations[0].FieldPath != "new_attached_risk.take_profit.trigger_price_ticks" {
 		t.Fatalf("results=%+v", got.Results)
 	}
 }
