@@ -237,6 +237,7 @@ ledger.read.v1.GetStatementExportDownloadUrlResponse.url	covered	models.Statemen
 ledger.read.v1.GetStatementExportDownloadUrlResponse.expires_at	covered	models.StatementExportDownloadURL.ExpiresAt
 ledger.read.v1.GetStatementExportDownloadUrlResponse.filename	covered	models.StatementExportDownloadURL.Filename
 transfer.v1.GetInternalTransferBatchRequest.request_id	covered	InternalTransfers.GetBatch requestID
+transfer.v1.GetInternalTransferBatchRequest.idempotency_key	omitted	reading a batch by the key CreateBatch sent is not wrapped: GetBatch reads it by request ID. Sending the same key and legs to CreateBatch again recovers the batch's stored outcome only while the caller may still move funds from every source account of the batch; a read by key needs instead the read permission on every source account
 transfer.v1.GetInternalTransferBatchResponse.request_id	covered	models.InternalTransferBatchResult.RequestID
 transfer.v1.GetInternalTransferBatchResponse.status	covered	models.InternalTransferBatchResult.Status
 transfer.v1.GetInternalTransferBatchResponse.legs	covered	models.InternalTransferBatchResult.Legs

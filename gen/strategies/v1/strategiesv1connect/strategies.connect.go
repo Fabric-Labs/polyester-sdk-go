@@ -117,6 +117,18 @@ const (
 	// StrategiesServiceStopBotProcedure is the fully-qualified name of the StrategiesService's StopBot
 	// RPC.
 	StrategiesServiceStopBotProcedure = "/strategies.v1.StrategiesService/StopBot"
+	// StrategiesServicePublishStrategyVersionProcedure is the fully-qualified name of the
+	// StrategiesService's PublishStrategyVersion RPC.
+	StrategiesServicePublishStrategyVersionProcedure = "/strategies.v1.StrategiesService/PublishStrategyVersion"
+	// StrategiesServiceUnpublishStrategyProcedure is the fully-qualified name of the
+	// StrategiesService's UnpublishStrategy RPC.
+	StrategiesServiceUnpublishStrategyProcedure = "/strategies.v1.StrategiesService/UnpublishStrategy"
+	// StrategiesServiceListCommunityStrategiesProcedure is the fully-qualified name of the
+	// StrategiesService's ListCommunityStrategies RPC.
+	StrategiesServiceListCommunityStrategiesProcedure = "/strategies.v1.StrategiesService/ListCommunityStrategies"
+	// StrategiesServiceGetCommunityStrategyProcedure is the fully-qualified name of the
+	// StrategiesService's GetCommunityStrategy RPC.
+	StrategiesServiceGetCommunityStrategyProcedure = "/strategies.v1.StrategiesService/GetCommunityStrategy"
 )
 
 // StrategiesServiceClient is a client for the strategies.v1.StrategiesService service.
@@ -229,10 +241,12 @@ type StrategiesServiceClient interface {
 	// DeleteStrategy deletes one strategy of the caller and its revisions. It
 	// is refused while the strategy is in use: while a bot deployed from it
 	// hasn't stopped, whether deployed from one of its proposals or running
-	// one of its revisions' versions, and while a deploy proposal of it has
-	// neither expired, failed nor been deployed. Deleting never stops a bot. Proposals
-	// of the strategy stay, and show no strategy once it is deleted. A version
-	// only the strategy's revisions kept then expires like any other.
+	// one of its revisions' versions, while a deploy proposal of it has
+	// neither expired, failed nor been deployed, and while its community
+	// listing is public. Deleting never stops a bot. Proposals of the strategy
+	// stay, and show no strategy once it is deleted. Its unpublished listing
+	// stays unpublished, with the versions it published. A version only the
+	// strategy's revisions kept then expires like any other.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
@@ -423,6 +437,10 @@ type StrategiesServiceClient interface {
 	// fails ends the deploy as FAILED, answered as a status, not an error:
 	// failure says why and what to do.
 	//
+	// Once the bot's limits are set, the call waits up to about 20 seconds for
+	// the exchange to apply the bot's limits, then answers SETTING_ACCESS:
+	// call again.
+	//
 	// A deploy that creates a subaccount needs the user's signed
 	// authorization: request a challenge with CreateSubaccountChallenge, have
 	// the user sign it, and pass it as subaccount_authorization.
@@ -563,6 +581,66 @@ type StrategiesServiceClient interface {
 	//     the user's behalf without the strategies:manage scope.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	StopBot(context.Context, *connect.Request[v1.StopBotRequest]) (*connect.Response[v1.StopBotResponse], error)
+	// PublishStrategyVersion publishes one version of one of the caller's
+	// strategies as the strategy's community listing, with its title,
+	// description and types: its code, manifest and settings form become
+	// readable by everyone, its settings shown at their defaults. A strategy
+	// has one listing; publishing again shows the new version and makes an
+	// unpublished listing public again. The version must be one of the
+	// strategy's revisions' versions, valid, with every behaviour example
+	// passing. Each publish starts the platform backtest of the version
+	// (CommunityBacktest), whose results the listing shows once it finishes;
+	// a bot that can't be backtested on candles is published without
+	// results. An account has at most 20 public listings and publishes at
+	// most 20 times per UTC day. Publishing shows the author by username.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one; VERSION_NOT_FOUND when no revision of the strategy
+	//     saved the version.
+	//   - FAILED_PRECONDITION: VERSION_INVALID; SCENARIOS_FAILING;
+	//     WINDOW_HAS_NO_DATA when the default window holds no market data;
+	//     USERNAME_REQUIRED; LISTING_CAP_REACHED, listing_cap gives the cap;
+	//     PUBLISH_LIMIT_REACHED, retry_after says when the day resets.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original publish stands.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
+	//     session a connected app holds on the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	PublishStrategyVersion(context.Context, *connect.Request[v1.PublishStrategyVersionRequest]) (*connect.Response[v1.PublishStrategyVersionResponse], error)
+	// UnpublishStrategy unpublishes one of the caller's community listings: it
+	// leaves the list, and GetCommunityStrategy answers LISTING_NOT_FOUND. The
+	// author's next publish makes it public again. Copies other users already
+	// made stay theirs. Unpublishing an unpublished listing changes nothing.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for another account's listing as for an
+	//     unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
+	//     session a connected app holds on the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	UnpublishStrategy(context.Context, *connect.Request[v1.UnpublishStrategyRequest]) (*connect.Response[v1.UnpublishStrategyResponse], error)
+	// ListCommunityStrategies lists the public community listings, most
+	// recently published first, optionally only those of some types or
+	// trading some markets.
+	//
+	// Errors:
+	// - INVALID_ARGUMENT: malformed request or page token.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	ListCommunityStrategies(context.Context, *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error)
+	// GetCommunityStrategy reads one public community listing: its title,
+	// description, types, markets and author, and its published version's
+	// code, manifest, settings form, money rules, flow and platform backtest.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for an unpublished listing as for an
+	//     unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	GetCommunityStrategy(context.Context, *connect.Request[v1.GetCommunityStrategyRequest]) (*connect.Response[v1.GetCommunityStrategyResponse], error)
 }
 
 // NewStrategiesServiceClient constructs a client for the strategies.v1.StrategiesService service.
@@ -772,6 +850,34 @@ func NewStrategiesServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		publishStrategyVersion: connect.NewClient[v1.PublishStrategyVersionRequest, v1.PublishStrategyVersionResponse](
+			httpClient,
+			baseURL+StrategiesServicePublishStrategyVersionProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("PublishStrategyVersion")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		unpublishStrategy: connect.NewClient[v1.UnpublishStrategyRequest, v1.UnpublishStrategyResponse](
+			httpClient,
+			baseURL+StrategiesServiceUnpublishStrategyProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("UnpublishStrategy")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		listCommunityStrategies: connect.NewClient[v1.ListCommunityStrategiesRequest, v1.ListCommunityStrategiesResponse](
+			httpClient,
+			baseURL+StrategiesServiceListCommunityStrategiesProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("ListCommunityStrategies")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		getCommunityStrategy: connect.NewClient[v1.GetCommunityStrategyRequest, v1.GetCommunityStrategyResponse](
+			httpClient,
+			baseURL+StrategiesServiceGetCommunityStrategyProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("GetCommunityStrategy")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -805,6 +911,10 @@ type strategiesServiceClient struct {
 	getStrategyVersion         *connect.Client[v1.GetStrategyVersionRequest, v1.GetStrategyVersionResponse]
 	listBotLogs                *connect.Client[v1.ListBotLogsRequest, v1.ListBotLogsResponse]
 	stopBot                    *connect.Client[v1.StopBotRequest, v1.StopBotResponse]
+	publishStrategyVersion     *connect.Client[v1.PublishStrategyVersionRequest, v1.PublishStrategyVersionResponse]
+	unpublishStrategy          *connect.Client[v1.UnpublishStrategyRequest, v1.UnpublishStrategyResponse]
+	listCommunityStrategies    *connect.Client[v1.ListCommunityStrategiesRequest, v1.ListCommunityStrategiesResponse]
+	getCommunityStrategy       *connect.Client[v1.GetCommunityStrategyRequest, v1.GetCommunityStrategyResponse]
 }
 
 // GetStrategyReference calls strategies.v1.StrategiesService.GetStrategyReference.
@@ -947,6 +1057,26 @@ func (c *strategiesServiceClient) StopBot(ctx context.Context, req *connect.Requ
 	return c.stopBot.CallUnary(ctx, req)
 }
 
+// PublishStrategyVersion calls strategies.v1.StrategiesService.PublishStrategyVersion.
+func (c *strategiesServiceClient) PublishStrategyVersion(ctx context.Context, req *connect.Request[v1.PublishStrategyVersionRequest]) (*connect.Response[v1.PublishStrategyVersionResponse], error) {
+	return c.publishStrategyVersion.CallUnary(ctx, req)
+}
+
+// UnpublishStrategy calls strategies.v1.StrategiesService.UnpublishStrategy.
+func (c *strategiesServiceClient) UnpublishStrategy(ctx context.Context, req *connect.Request[v1.UnpublishStrategyRequest]) (*connect.Response[v1.UnpublishStrategyResponse], error) {
+	return c.unpublishStrategy.CallUnary(ctx, req)
+}
+
+// ListCommunityStrategies calls strategies.v1.StrategiesService.ListCommunityStrategies.
+func (c *strategiesServiceClient) ListCommunityStrategies(ctx context.Context, req *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error) {
+	return c.listCommunityStrategies.CallUnary(ctx, req)
+}
+
+// GetCommunityStrategy calls strategies.v1.StrategiesService.GetCommunityStrategy.
+func (c *strategiesServiceClient) GetCommunityStrategy(ctx context.Context, req *connect.Request[v1.GetCommunityStrategyRequest]) (*connect.Response[v1.GetCommunityStrategyResponse], error) {
+	return c.getCommunityStrategy.CallUnary(ctx, req)
+}
+
 // StrategiesServiceHandler is an implementation of the strategies.v1.StrategiesService service.
 type StrategiesServiceHandler interface {
 	// GetStrategyReference returns what bot code is written against for one
@@ -1057,10 +1187,12 @@ type StrategiesServiceHandler interface {
 	// DeleteStrategy deletes one strategy of the caller and its revisions. It
 	// is refused while the strategy is in use: while a bot deployed from it
 	// hasn't stopped, whether deployed from one of its proposals or running
-	// one of its revisions' versions, and while a deploy proposal of it has
-	// neither expired, failed nor been deployed. Deleting never stops a bot. Proposals
-	// of the strategy stay, and show no strategy once it is deleted. A version
-	// only the strategy's revisions kept then expires like any other.
+	// one of its revisions' versions, while a deploy proposal of it has
+	// neither expired, failed nor been deployed, and while its community
+	// listing is public. Deleting never stops a bot. Proposals of the strategy
+	// stay, and show no strategy once it is deleted. Its unpublished listing
+	// stays unpublished, with the versions it published. A version only the
+	// strategy's revisions kept then expires like any other.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
@@ -1251,6 +1383,10 @@ type StrategiesServiceHandler interface {
 	// fails ends the deploy as FAILED, answered as a status, not an error:
 	// failure says why and what to do.
 	//
+	// Once the bot's limits are set, the call waits up to about 20 seconds for
+	// the exchange to apply the bot's limits, then answers SETTING_ACCESS:
+	// call again.
+	//
 	// A deploy that creates a subaccount needs the user's signed
 	// authorization: request a challenge with CreateSubaccountChallenge, have
 	// the user sign it, and pass it as subaccount_authorization.
@@ -1391,6 +1527,66 @@ type StrategiesServiceHandler interface {
 	//     the user's behalf without the strategies:manage scope.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	StopBot(context.Context, *connect.Request[v1.StopBotRequest]) (*connect.Response[v1.StopBotResponse], error)
+	// PublishStrategyVersion publishes one version of one of the caller's
+	// strategies as the strategy's community listing, with its title,
+	// description and types: its code, manifest and settings form become
+	// readable by everyone, its settings shown at their defaults. A strategy
+	// has one listing; publishing again shows the new version and makes an
+	// unpublished listing public again. The version must be one of the
+	// strategy's revisions' versions, valid, with every behaviour example
+	// passing. Each publish starts the platform backtest of the version
+	// (CommunityBacktest), whose results the listing shows once it finishes;
+	// a bot that can't be backtested on candles is published without
+	// results. An account has at most 20 public listings and publishes at
+	// most 20 times per UTC day. Publishing shows the author by username.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
+	//     an unknown one; VERSION_NOT_FOUND when no revision of the strategy
+	//     saved the version.
+	//   - FAILED_PRECONDITION: VERSION_INVALID; SCENARIOS_FAILING;
+	//     WINDOW_HAS_NO_DATA when the default window holds no market data;
+	//     USERNAME_REQUIRED; LISTING_CAP_REACHED, listing_cap gives the cap;
+	//     PUBLISH_LIMIT_REACHED, retry_after says when the day resets.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original publish stands.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
+	//     session a connected app holds on the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	PublishStrategyVersion(context.Context, *connect.Request[v1.PublishStrategyVersionRequest]) (*connect.Response[v1.PublishStrategyVersionResponse], error)
+	// UnpublishStrategy unpublishes one of the caller's community listings: it
+	// leaves the list, and GetCommunityStrategy answers LISTING_NOT_FOUND. The
+	// author's next publish makes it public again. Copies other users already
+	// made stay theirs. Unpublishing an unpublished listing changes nothing.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for another account's listing as for an
+	//     unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
+	//     session a connected app holds on the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	UnpublishStrategy(context.Context, *connect.Request[v1.UnpublishStrategyRequest]) (*connect.Response[v1.UnpublishStrategyResponse], error)
+	// ListCommunityStrategies lists the public community listings, most
+	// recently published first, optionally only those of some types or
+	// trading some markets.
+	//
+	// Errors:
+	// - INVALID_ARGUMENT: malformed request or page token.
+	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	ListCommunityStrategies(context.Context, *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error)
+	// GetCommunityStrategy reads one public community listing: its title,
+	// description, types, markets and author, and its published version's
+	// code, manifest, settings form, money rules, flow and platform backtest.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for an unpublished listing as for an
+	//     unknown one.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
+	GetCommunityStrategy(context.Context, *connect.Request[v1.GetCommunityStrategyRequest]) (*connect.Response[v1.GetCommunityStrategyResponse], error)
 }
 
 // NewStrategiesServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -1596,6 +1792,34 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	strategiesServicePublishStrategyVersionHandler := connect.NewUnaryHandler(
+		StrategiesServicePublishStrategyVersionProcedure,
+		svc.PublishStrategyVersion,
+		connect.WithSchema(strategiesServiceMethods.ByName("PublishStrategyVersion")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceUnpublishStrategyHandler := connect.NewUnaryHandler(
+		StrategiesServiceUnpublishStrategyProcedure,
+		svc.UnpublishStrategy,
+		connect.WithSchema(strategiesServiceMethods.ByName("UnpublishStrategy")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceListCommunityStrategiesHandler := connect.NewUnaryHandler(
+		StrategiesServiceListCommunityStrategiesProcedure,
+		svc.ListCommunityStrategies,
+		connect.WithSchema(strategiesServiceMethods.ByName("ListCommunityStrategies")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceGetCommunityStrategyHandler := connect.NewUnaryHandler(
+		StrategiesServiceGetCommunityStrategyProcedure,
+		svc.GetCommunityStrategy,
+		connect.WithSchema(strategiesServiceMethods.ByName("GetCommunityStrategy")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/strategies.v1.StrategiesService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case StrategiesServiceGetStrategyReferenceProcedure:
@@ -1654,6 +1878,14 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 			strategiesServiceListBotLogsHandler.ServeHTTP(w, r)
 		case StrategiesServiceStopBotProcedure:
 			strategiesServiceStopBotHandler.ServeHTTP(w, r)
+		case StrategiesServicePublishStrategyVersionProcedure:
+			strategiesServicePublishStrategyVersionHandler.ServeHTTP(w, r)
+		case StrategiesServiceUnpublishStrategyProcedure:
+			strategiesServiceUnpublishStrategyHandler.ServeHTTP(w, r)
+		case StrategiesServiceListCommunityStrategiesProcedure:
+			strategiesServiceListCommunityStrategiesHandler.ServeHTTP(w, r)
+		case StrategiesServiceGetCommunityStrategyProcedure:
+			strategiesServiceGetCommunityStrategyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1773,4 +2005,20 @@ func (UnimplementedStrategiesServiceHandler) ListBotLogs(context.Context, *conne
 
 func (UnimplementedStrategiesServiceHandler) StopBot(context.Context, *connect.Request[v1.StopBotRequest]) (*connect.Response[v1.StopBotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.StopBot is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) PublishStrategyVersion(context.Context, *connect.Request[v1.PublishStrategyVersionRequest]) (*connect.Response[v1.PublishStrategyVersionResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.PublishStrategyVersion is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) UnpublishStrategy(context.Context, *connect.Request[v1.UnpublishStrategyRequest]) (*connect.Response[v1.UnpublishStrategyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.UnpublishStrategy is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) ListCommunityStrategies(context.Context, *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ListCommunityStrategies is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) GetCommunityStrategy(context.Context, *connect.Request[v1.GetCommunityStrategyRequest]) (*connect.Response[v1.GetCommunityStrategyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.GetCommunityStrategy is not implemented"))
 }

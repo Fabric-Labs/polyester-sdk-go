@@ -47,6 +47,37 @@ func TestWithdrawRouteSuspendedIsFinalAndNotRetryable(t *testing.T) {
 	}
 }
 
+// A withdrawal or auto-withdraw destination refused because it is a Quick Swap
+// deposit address is final for that address: nothing was reserved, it is not
+// retryable, its outcome is known, and the field path naming an auto-withdraw
+// destination is kept.
+func TestWithdrawDestinationSwapDepositAddressIsFinal(t *testing.T) {
+	for _, status := range []connect.Code{connect.CodeFailedPrecondition, connect.CodeInvalidArgument} {
+		mapped := MapConnectError(connectErrWith(status, &withdrawv1.ErrorDetail{
+			Code: withdrawv1.ErrorCode_ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS, FieldPath: "destinations[0]",
+		}))
+		var apiErr *sdkerrors.APIError
+		if !errors.As(mapped, &apiErr) || apiErr.Code != sdkerrors.CodeDestinationSwapDepositAddress ||
+			apiErr.FieldPath != "destinations[0]" || !sdkerrors.IsDestinationSwapDepositAddress(mapped) {
+			t.Fatalf("%s: mapped = %T %#v", status, mapped, mapped)
+		}
+		if sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {
+			t.Fatalf("%s: retryable=%v unknown=%v", status, sdkerrors.IsRetryable(mapped), sdkerrors.MutationOutcomeUnknown(mapped))
+		}
+	}
+	if !IsRecognisedRESTCode("DESTINATION_SWAP_DEPOSIT_ADDRESS") ||
+		ErrorCodeFromREST("DESTINATION_SWAP_DEPOSIT_ADDRESS") != sdkerrors.CodeDestinationSwapDepositAddress {
+		t.Fatal("REST DESTINATION_SWAP_DEPOSIT_ADDRESS is not recognised as the withdraw code")
+	}
+	for _, other := range []withdrawv1.ErrorCode{
+		withdrawv1.ErrorCode_ERROR_CODE_DESTINATION_INVALID, withdrawv1.ErrorCode_ERROR_CODE_INVALID_DESTINATION_ADDRESS,
+	} {
+		if sdkerrors.IsDestinationSwapDepositAddress(MapConnectError(connectErrWith(connect.CodeInvalidArgument, &withdrawv1.ErrorDetail{Code: other}))) {
+			t.Fatalf("%s reads as a Quick Swap deposit address", other)
+		}
+	}
+}
+
 // Dust and statement export refusals: only a busy dust conversion is
 // retryable. The 6-hour window, the daily limit and the export limit last
 // too long for an automatic retry, though they are resource_exhausted.

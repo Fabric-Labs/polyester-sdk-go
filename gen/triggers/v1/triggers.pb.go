@@ -2030,7 +2030,28 @@ func (*TwapTrigger_MarketIoc) isTwapTrigger_Execution() {}
 func (*TwapTrigger_LimitGtc) isTwapTrigger_Execution() {}
 
 // LadderTrigger configures the supported LINEAR limit-GTC ladder. All levels
-// are admitted immediately and may rest concurrently.
+// are admitted immediately as limit GTC orders and may rest concurrently.
+//
+// Quantity: with N levels and the total quantity Q (qty_scaled), every level
+// but the last gets Q / N rounded down to a multiple of the pair's step_size
+// from GetSpotConfig, and the last level gets the rest, Q minus N - 1 times
+// that share. All quantities are scaled by the pair's base_quantity_scale.
+// For example, Q = 1000 over 3 levels with a step of 10 places 330, 330 and
+// 340. Each level must be a valid order on its own: on the step size, at
+// least min_qty_base, and at least min_notional_quote at its price; so Q
+// must itself be a multiple of the step size. A share that rounds down to
+// zero, or a level that is not a valid order, rejects the create with
+// ERROR_CODE_LADDER_LEVEL_REJECTED, naming that level in level_index (0 for
+// a share of zero) and why in cause_code. Nothing is created.
+//
+// Prices: with S the number of tick_size steps from price_min_ticks to
+// price_max_ticks, level i, counted from 0, is priced floor(i * S / (N - 1))
+// steps above price_min_ticks. The first level is at price_min_ticks and the
+// last at price_max_ticks, for either side. A range of fewer than N - 1 steps
+// rejects the create with ERROR_CODE_LADDER_RANGE_TOO_NARROW.
+//
+// To size a ladder from a quote amount, convert it to Q at these level
+// prices and quantities before creating it.
 type LadderTrigger struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Child side. Required.
@@ -2135,9 +2156,10 @@ type TriggerIntent struct {
 	// returns the same trigger, and a different intent with the same ID returns
 	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID. After those 60 seconds the ID is
 	// free: a create that uses it is a new intent and creates a new trigger. To
-	// learn the outcome of an earlier create after that window, read the
-	// triggers with ListTriggers, which return each trigger's
-	// client_trigger_id, instead of retrying the create. After a create fails
+	// learn the outcome of an earlier create after that window, find it with
+	// the ListTriggers client_trigger_id filter instead of retrying the create.
+	// Use a new client trigger ID for every create, so a lookup never finds an
+	// older trigger that used the same ID. After a create fails
 	// with INTERNAL_ERROR, the ID may already be used: a retry then returns
 	// CONFLICT_DUPLICATE_CLIENT_TRIGGER_ID and needs a new client trigger ID.
 	// 1 to 36 bytes in UTF-8 (up to 36 ASCII characters); empty or longer IDs
@@ -2326,8 +2348,9 @@ func (*TriggerIntent_Ladder) isTriggerIntent_Strategy() {}
 
 // CreateTriggerRequest submits one standalone trigger intent for admission.
 // A create sent but not confirmed in time fails with
-// TRIGGER_CREATE_OUTCOME_UNKNOWN: the trigger may have been created, so read
-// the triggers for its client_trigger_id before retrying. UNAVAILABLE means
+// TRIGGER_CREATE_OUTCOME_UNKNOWN: the trigger may have been created, so find
+// it with the ListTriggers client_trigger_id filter before retrying.
+// UNAVAILABLE means
 // the trigger was not created.
 type CreateTriggerRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -3071,6 +3094,26 @@ type ListTriggersRequest struct {
 	// ERROR_CODE_CLIENT_LIST_ID_INVALID. Use it to find an OCO whose create
 	// failed with TRIGGER_CREATE_OUTCOME_UNKNOWN.
 	ClientListId *string `protobuf:"bytes,7,opt,name=client_list_id,json=clientListId,proto3,oneof" json:"client_list_id,omitempty"`
+	// Optional filter by client trigger ID: the triggers created with this
+	// client_trigger_id, running or ended. Use it to find a trigger whose
+	// create failed with TRIGGER_CREATE_OUTCOME_UNKNOWN. An ID is unique per
+	// sub-account, pair and trigger type only while its trigger is active and
+	// for 60 seconds after it ends; then a new create can use it again. So the
+	// filter can match several triggers, newest first: add symbol_id and
+	// trigger_type to keep one ID's scope. The newest of them is the latest
+	// create with the ID, not necessarily the create being resolved, which may
+	// not have taken effect: compare its created_at with when that create was
+	// sent, or use a new client trigger ID for every create. An empty result
+	// says only that no trigger of the filters' scope was created with the ID
+	// before the read, or that it ended more than 24 hours ago: a create still
+	// in flight can take effect after the read. To settle a create of unknown
+	// outcome, retry the identical create with the same client trigger ID
+	// within its window, which returns the trigger it created, if any, instead
+	// of creating a second. An OCO's take-profit and stop-loss have no client
+	// trigger ID: find them by client_list_id. 1 to 36 bytes in UTF-8, as
+	// TriggerIntent.client_trigger_id: empty or longer IDs are rejected with
+	// INVALID_ARGUMENT and ERROR_CODE_CLIENT_TRIGGER_ID_INVALID.
+	ClientTriggerId *string `protobuf:"bytes,8,opt,name=client_trigger_id,json=clientTriggerId,proto3,oneof" json:"client_trigger_id,omitempty"`
 	// Maximum number of triggers to return. Defaults to 100 when omitted;
 	// maximum is 1000.
 	Limit uint32 `protobuf:"varint,10,opt,name=limit,proto3" json:"limit,omitempty"`
@@ -3157,6 +3200,13 @@ func (x *ListTriggersRequest) GetOrderListId() uint64 {
 func (x *ListTriggersRequest) GetClientListId() string {
 	if x != nil && x.ClientListId != nil {
 		return *x.ClientListId
+	}
+	return ""
+}
+
+func (x *ListTriggersRequest) GetClientTriggerId() string {
+	if x != nil && x.ClientTriggerId != nil {
+		return *x.ClientTriggerId
 	}
 	return ""
 }
@@ -4209,13 +4259,18 @@ type ModifyTriggerRequest struct {
 	// accepted, including while paused. Before tracking begins, the activation
 	// price remains editable.
 	ActivationPriceTicks *int64 `protobuf:"varint,14,opt,name=activation_price_ticks,json=activationPriceTicks,proto3,oneof" json:"activation_price_ticks,omitempty"`
-	// For a trailing stop, or a stop-loss or take-profit with a market child:
-	// Optional price protection. Select either field with a zero value to clear
-	// an existing max-slippage cap; omit the oneof to leave it unchanged. A
-	// cleared cap on a market child falls back to the pair's default market
-	// slippage. Changing the trigger price or the cap of a buy with a market
-	// child re-sizes its reserved funds; a change that needs more funds than
-	// are available is rejected and leaves the trigger unchanged.
+	// For a trailing stop, or a standalone stop-loss or take-profit with a
+	// market child: Optional price protection. Select either field with a zero
+	// value to clear an existing max-slippage cap; omit the oneof to leave it
+	// unchanged. A cleared cap on a market child falls back to the pair's
+	// default market slippage. Changing the trigger price or the cap of a buy
+	// with a market child re-sizes its reserved funds; a change that needs more
+	// funds than are available is rejected and leaves the trigger unchanged.
+	// A take-profit or stop-loss attached to an order, and either leg of an
+	// OCO, takes no cap: its market child always uses the pair's default
+	// market slippage. Setting either field for such a trigger rejects the
+	// whole request with ERROR_CODE_TRIGGER_NOT_MODIFIABLE and leaves the
+	// trigger unchanged; its trigger_price_ticks remains modifiable.
 	//
 	// Types that are valid to be assigned to MaxSlippage:
 	//
@@ -5768,7 +5823,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"D\n" +
 	"\x12GetTriggerResponse\x12.\n" +
-	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\xa7\x04\n" +
+	"\atrigger\x18\x01 \x01(\v2\x14.triggers.v1.TriggerR\atrigger\"\xf9\x04\n" +
 	"\x13ListTriggersRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x12'\n" +
 	"\tsymbol_id\x18\x02 \x01(\rB\n" +
@@ -5778,7 +5833,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\ftrigger_type\x18\x04 \x01(\x0e2\x18.triggers.v1.TriggerTypeB\b\xbaH\x05\x82\x01\x02\x10\x01R\vtriggerType\x12+\n" +
 	"\x0fparent_order_id\x18\x05 \x01(\x06H\x01R\rparentOrderId\x88\x01\x01\x12'\n" +
 	"\rorder_list_id\x18\x06 \x01(\x06H\x02R\vorderListId\x88\x01\x01\x12I\n" +
-	"\x0eclient_list_id\x18\a \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18$2\x13^[A-Za-z0-9._:/-]+$H\x03R\fclientListId\x88\x01\x01\x12\x1e\n" +
+	"\x0eclient_list_id\x18\a \x01(\tB\x1e\xbaH\x1br\x19\x10\x01\x18$2\x13^[A-Za-z0-9._:/-]+$H\x03R\fclientListId\x88\x01\x01\x12:\n" +
+	"\x11client_trigger_id\x18\b \x01(\tB\t\xbaH\x06r\x04\x10\x01($H\x04R\x0fclientTriggerId\x88\x01\x01\x12\x1e\n" +
 	"\x05limit\x18\n" +
 	" \x01(\rB\b\xbaH\x05*\x03\x18\xe8\aR\x05limit\x12'\n" +
 	"\n" +
@@ -5786,7 +5842,8 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x0e_subaccount_idB\x12\n" +
 	"\x10_parent_order_idB\x10\n" +
 	"\x0e_order_list_idB\x11\n" +
-	"\x0f_client_list_id\"z\n" +
+	"\x0f_client_list_idB\x14\n" +
+	"\x12_client_trigger_id\"z\n" +
 	"\x14ListTriggersResponse\x120\n" +
 	"\btriggers\x18\x01 \x03(\v2\x14.triggers.v1.TriggerR\btriggers\x120\n" +
 	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x96\x02\n" +
@@ -6155,7 +6212,7 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"\x1aLADDER_OUTCOME_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fALL_ADMITTED\x10\x01\x12\x14\n" +
 	"\x10MIXED_REJECTIONS\x10\x02\x12\x19\n" +
-	"\x15ALL_CHILDREN_REJECTED\x10\x032\xf3.\n" +
+	"\x15ALL_CHILDREN_REJECTED\x10\x032\x920\n" +
 	"\x0fTriggersService\x12\x82\x02\n" +
 	"\rCreateTrigger\x12!.triggers.v1.CreateTriggerRequest\x1a\".triggers.v1.CreateTriggerResponse\"\xa9\x01\xbaG\x88\x01\n" +
 	"\x10Triggers Service\x12\x0eCreate Trigger\x1adCreate a standalone trigger order. Supports stop, trailing, TWAP, and ladder trigger configurations.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x11:\x01*\"\f/v1/triggers\x12\x81\x05\n" +
@@ -6167,9 +6224,9 @@ const file_triggers_v1_triggers_proto_rawDesc = "" +
 	"Cancel OCO\x1a\x83\x02Cancel an OCO by its ID: both legs end CANCELED and the reserved quantity is released. Cancelling either leg with Cancel Trigger does the same. An ID that is not an OCO, such as a trigger ID or a leg's ID, is refused TRIGGER_NOT_FOUND and nothing is canceled.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"* /v1/triggers/oco/{order_list_id}\x12\xb1\x02\n" +
 	"\n" +
 	"GetTrigger\x12\x1e.triggers.v1.GetTriggerRequest\x1a\x1f.triggers.v1.GetTriggerResponse\"\xe1\x01\xbaG\xb6\x01\n" +
-	"\x10Triggers Service\x12\vGet Trigger\x1a\x94\x01Retrieve a single trigger by trigger ID, including lifecycle state and strategy-specific fields. Costs one unit of the account's trading read limit.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/triggers/{trigger_id}\x12\xcc\x02\n" +
-	"\fListTriggers\x12 .triggers.v1.ListTriggersRequest\x1a!.triggers.v1.ListTriggersResponse\"\xf6\x01\xbaG\xd8\x01\n" +
-	"\x10Triggers Service\x12\rList Triggers\x1a\xb4\x01List triggers for an account with optional symbol, status, and trigger-type filters. Costs one unit of the account's trading read limit per 100 rows the limit asks for, rounded up.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xb3\x03\n" +
+	"\x10Triggers Service\x12\vGet Trigger\x1a\x94\x01Retrieve a single trigger by trigger ID, including lifecycle state and strategy-specific fields. Costs one unit of the account's trading read limit.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/triggers/{trigger_id}\x12\xeb\x03\n" +
+	"\fListTriggers\x12 .triggers.v1.ListTriggersRequest\x1a!.triggers.v1.ListTriggersResponse\"\x95\x03\xbaG\xf7\x02\n" +
+	"\x10Triggers Service\x12\rList Triggers\x1a\xd3\x02List triggers for an account with optional symbol, status, trigger-type and client trigger ID filters. Ended triggers stay listable for at least 24 hours. Follow realtime trigger updates and use this list to recover and reconcile, not to poll. Costs one unit of the account's trading read limit per 100 rows the limit asks for, rounded up.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x0e\x12\f/v1/triggers\x12\xb3\x03\n" +
 	"\x11ListTriggerEvents\x12%.triggers.v1.ListTriggerEventsRequest\x1a&.triggers.v1.ListTriggerEventsResponse\"\xce\x02\xbaG\x9c\x02\n" +
 	"\x10Triggers Service\x12\x13List Trigger Events\x1a\xf2\x01List append-only trigger events for a trigger, including child-order actions, with optional event-category filtering and reverse-time pagination. Costs two units of the account's trading read limit per 100 rows the limit asks for, rounded up.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\"\x12 /v1/triggers/{trigger_id}/events\x12\xcc\x04\n" +
 	"\rCancelTrigger\x12!.triggers.v1.CancelTriggerRequest\x1a\".triggers.v1.CancelTriggerResponse\"\xf3\x03\xbaG\xc8\x03\n" +

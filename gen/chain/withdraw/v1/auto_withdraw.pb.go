@@ -10,6 +10,7 @@ import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	_ "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/api"
 	v1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
+	v11 "github.com/Fabric-Labs/polyester-sdk-go/gen/swap/v1"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
@@ -192,6 +193,8 @@ const (
 	// Nothing was paid: every asset was below its minimum, no current price
 	// valued it, or the rule was no longer current.
 	AutoWithdrawRunState_RUN_SKIPPED AutoWithdrawRunState = 6
+	// The run's conversions into the payout asset are executing; payouts start once every conversion is final and settled.
+	AutoWithdrawRunState_RUN_CONVERTING AutoWithdrawRunState = 7
 )
 
 // Enum value maps for AutoWithdrawRunState.
@@ -204,6 +207,7 @@ var (
 		4: "RUN_PARTIALLY_FAILED",
 		5: "RUN_FAILED",
 		6: "RUN_SKIPPED",
+		7: "RUN_CONVERTING",
 	}
 	AutoWithdrawRunState_value = map[string]int32{
 		"RUN_STATE_UNSPECIFIED": 0,
@@ -213,6 +217,7 @@ var (
 		"RUN_PARTIALLY_FAILED":  4,
 		"RUN_FAILED":            5,
 		"RUN_SKIPPED":           6,
+		"RUN_CONVERTING":        7,
 	}
 )
 
@@ -695,8 +700,18 @@ type AutoWithdrawRule struct {
 	MinUsdValueE18 *v1.U128 `protobuf:"bytes,8,opt,name=min_usd_value_e18,json=minUsdValueE18,proto3" json:"min_usd_value_e18,omitempty"`
 	// Public account ID of the person who created this version.
 	CreatedByAccountId uint64 `protobuf:"fixed64,9,opt,name=created_by_account_id,json=createdByAccountId,proto3" json:"created_by_account_id,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Ledger asset every other asset with a balance is converted into, through
+	// a Swap placed from the account, before the run pays it; zero pays every
+	// asset in kind. When set, destinations has exactly one entry, for this
+	// asset.
+	PayoutAssetId uint32 `protobuf:"varint,10,opt,name=payout_asset_id,json=payoutAssetId,proto3" json:"payout_asset_id,omitempty"`
+	// Duration of a conversion that runs as TWAP, in milliseconds, 60000 to
+	// 3600000; zero means 300000. A conversion runs as TWAP when its USD value
+	// exceeds 10,000 or its quoted price impact exceeds 0.5%, otherwise at
+	// market.
+	ConversionTwapDurationMs uint64 `protobuf:"varint,11,opt,name=conversion_twap_duration_ms,json=conversionTwapDurationMs,proto3" json:"conversion_twap_duration_ms,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *AutoWithdrawRule) Reset() {
@@ -792,6 +807,20 @@ func (x *AutoWithdrawRule) GetCreatedByAccountId() uint64 {
 	return 0
 }
 
+func (x *AutoWithdrawRule) GetPayoutAssetId() uint32 {
+	if x != nil {
+		return x.PayoutAssetId
+	}
+	return 0
+}
+
+func (x *AutoWithdrawRule) GetConversionTwapDurationMs() uint64 {
+	if x != nil {
+		return x.ConversionTwapDurationMs
+	}
+	return 0
+}
+
 // SetAutoWithdrawRuleRequest creates or replaces the rule of the root
 // account or one subaccount.
 type SetAutoWithdrawRuleRequest struct {
@@ -813,8 +842,22 @@ type SetAutoWithdrawRuleRequest struct {
 	// current price is available. A payout never goes below its destination's
 	// min_amount_e18 or the route's withdrawal minimum.
 	MinUsdValueE18 *v1.U128 `protobuf:"bytes,5,opt,name=min_usd_value_e18,json=minUsdValueE18,proto3" json:"min_usd_value_e18,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Ledger asset every other asset with a balance is converted into, through
+	// a Swap placed from the account, before the run pays it; zero pays every
+	// asset in kind. When set, destinations has exactly one entry, for this
+	// asset. Creating or resuming a rule with a payout asset also needs the
+	// permission to swap on the account; on a broker vault that is the
+	// permission to manage its payouts (the Owner and Finance roles). Pausing
+	// it does not, and a run whose author lost it leaves the assets in kind
+	// (policy_denied).
+	PayoutAssetId uint32 `protobuf:"varint,6,opt,name=payout_asset_id,json=payoutAssetId,proto3" json:"payout_asset_id,omitempty"`
+	// Duration of a conversion that runs as TWAP, in milliseconds, 60000 to
+	// 3600000; zero means 300000. A conversion runs as TWAP when its USD value
+	// exceeds 10,000 or its quoted price impact exceeds 0.5%, otherwise at
+	// market.
+	ConversionTwapDurationMs uint64 `protobuf:"varint,7,opt,name=conversion_twap_duration_ms,json=conversionTwapDurationMs,proto3" json:"conversion_twap_duration_ms,omitempty"`
+	unknownFields            protoimpl.UnknownFields
+	sizeCache                protoimpl.SizeCache
 }
 
 func (x *SetAutoWithdrawRuleRequest) Reset() {
@@ -880,6 +923,20 @@ func (x *SetAutoWithdrawRuleRequest) GetMinUsdValueE18() *v1.U128 {
 		return x.MinUsdValueE18
 	}
 	return nil
+}
+
+func (x *SetAutoWithdrawRuleRequest) GetPayoutAssetId() uint32 {
+	if x != nil {
+		return x.PayoutAssetId
+	}
+	return 0
+}
+
+func (x *SetAutoWithdrawRuleRequest) GetConversionTwapDurationMs() uint64 {
+	if x != nil {
+		return x.ConversionTwapDurationMs
+	}
+	return 0
 }
 
 // SetAutoWithdrawRuleResponse returns the new rule version.
@@ -1163,7 +1220,9 @@ type AutoWithdrawStep struct {
 	// route's supply_status in the deposit and withdraw config is MISSING or
 	// STALE; the funds stay for a later run), authority_revoked,
 	// gateway_capacity_insufficient (the funds stay for a later run),
-	// withdrawal_released or withdrawal_failed; empty otherwise.
+	// withdrawals_disabled (the environment does not allow withdrawals; the
+	// funds stay on the account), withdrawal_released or withdrawal_failed;
+	// empty otherwise.
 	Reason string `protobuf:"bytes,7,opt,name=reason,proto3" json:"reason,omitempty"`
 	// Withdraw intent identifier once the withdrawal is accepted; follows the
 	// same lifecycle as a user withdrawal.
@@ -1318,7 +1377,9 @@ type AutoWithdrawRun struct {
 	// When the run started.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the run ended; unset while it is in progress.
-	FinishedAt    *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	// Conversions into the rule's payout asset, ordered by source_asset_id; empty for an in-kind rule.
+	Conversions   []*AutoWithdrawConversion `protobuf:"bytes,9,rep,name=conversions,proto3" json:"conversions,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1409,6 +1470,163 @@ func (x *AutoWithdrawRun) GetFinishedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AutoWithdrawRun) GetConversions() []*AutoWithdrawConversion {
+	if x != nil {
+		return x.Conversions
+	}
+	return nil
+}
+
+// AutoWithdrawConversion is one asset a run converts into its rule's payout
+// asset through a Swap placed from the account, before it pays.
+type AutoWithdrawConversion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Ledger asset converted.
+	SourceAssetId uint32 `protobuf:"varint,1,opt,name=source_asset_id,json=sourceAssetId,proto3" json:"source_asset_id,omitempty"`
+	// Amount the conversion spends.
+	AmountE18 *v1.U128 `protobuf:"bytes,2,opt,name=amount_e18,json=amountE18,proto3" json:"amount_e18,omitempty"`
+	// The Swap (swap.v1 GetSwap); zero when the asset was not converted.
+	SwapId uint64 `protobuf:"fixed64,3,opt,name=swap_id,json=swapId,proto3" json:"swap_id,omitempty"`
+	// Market or TWAP; unset when the asset was not converted.
+	Execution *v11.Execution `protobuf:"bytes,4,opt,name=execution,proto3" json:"execution,omitempty"`
+	// Where the Swap stands; unset when the asset was not converted.
+	Status v11.SwapStatus `protobuf:"varint,5,opt,name=status,proto3,enum=swap.v1.SwapStatus" json:"status,omitempty"`
+	// Why a terminal Swap did not trade its whole amount; unset when it did or
+	// when the asset was not converted.
+	Reason v11.SwapReason `protobuf:"varint,6,opt,name=reason,proto3,enum=swap.v1.SwapReason" json:"reason,omitempty"`
+	// Whether the conversion is over: its Swap is terminal, or it was skipped.
+	IsTerminal bool `protobuf:"varint,7,opt,name=is_terminal,json=isTerminal,proto3" json:"is_terminal,omitempty"`
+	// Source spent, settled.
+	ExecutedAmountE18 *v1.U128 `protobuf:"bytes,8,opt,name=executed_amount_e18,json=executedAmountE18,proto3" json:"executed_amount_e18,omitempty"`
+	// Stays on the account.
+	UnspentAmountE18 *v1.U128 `protobuf:"bytes,9,opt,name=unspent_amount_e18,json=unspentAmountE18,proto3" json:"unspent_amount_e18,omitempty"`
+	// Payout asset after fees.
+	ReceivedAmountE18 *v1.U128 `protobuf:"bytes,10,opt,name=received_amount_e18,json=receivedAmountE18,proto3" json:"received_amount_e18,omitempty"`
+	// Per-leg spent, received and fee.
+	Legs []*v11.SwapLeg `protobuf:"bytes,11,rep,name=legs,proto3" json:"legs,omitempty"`
+	// Why the asset was not converted (route_unsupported, below_minimum,
+	// above_maximum, conversion_unavailable, price_unavailable,
+	// conversion_refused, rule_superseded or policy_denied); empty otherwise.
+	// Its balance stays on the account.
+	SkipReason    string `protobuf:"bytes,12,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AutoWithdrawConversion) Reset() {
+	*x = AutoWithdrawConversion{}
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AutoWithdrawConversion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AutoWithdrawConversion) ProtoMessage() {}
+
+func (x *AutoWithdrawConversion) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AutoWithdrawConversion.ProtoReflect.Descriptor instead.
+func (*AutoWithdrawConversion) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *AutoWithdrawConversion) GetSourceAssetId() uint32 {
+	if x != nil {
+		return x.SourceAssetId
+	}
+	return 0
+}
+
+func (x *AutoWithdrawConversion) GetAmountE18() *v1.U128 {
+	if x != nil {
+		return x.AmountE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawConversion) GetSwapId() uint64 {
+	if x != nil {
+		return x.SwapId
+	}
+	return 0
+}
+
+func (x *AutoWithdrawConversion) GetExecution() *v11.Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *AutoWithdrawConversion) GetStatus() v11.SwapStatus {
+	if x != nil {
+		return x.Status
+	}
+	return v11.SwapStatus(0)
+}
+
+func (x *AutoWithdrawConversion) GetReason() v11.SwapReason {
+	if x != nil {
+		return x.Reason
+	}
+	return v11.SwapReason(0)
+}
+
+func (x *AutoWithdrawConversion) GetIsTerminal() bool {
+	if x != nil {
+		return x.IsTerminal
+	}
+	return false
+}
+
+func (x *AutoWithdrawConversion) GetExecutedAmountE18() *v1.U128 {
+	if x != nil {
+		return x.ExecutedAmountE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawConversion) GetUnspentAmountE18() *v1.U128 {
+	if x != nil {
+		return x.UnspentAmountE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawConversion) GetReceivedAmountE18() *v1.U128 {
+	if x != nil {
+		return x.ReceivedAmountE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawConversion) GetLegs() []*v11.SwapLeg {
+	if x != nil {
+		return x.Legs
+	}
+	return nil
+}
+
+func (x *AutoWithdrawConversion) GetSkipReason() string {
+	if x != nil {
+		return x.SkipReason
+	}
+	return ""
+}
+
 // ListAutoWithdrawRunsRequest pages through an account's runs, newest first.
 type ListAutoWithdrawRunsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1426,7 +1644,7 @@ type ListAutoWithdrawRunsRequest struct {
 
 func (x *ListAutoWithdrawRunsRequest) Reset() {
 	*x = ListAutoWithdrawRunsRequest{}
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[12]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1438,7 +1656,7 @@ func (x *ListAutoWithdrawRunsRequest) String() string {
 func (*ListAutoWithdrawRunsRequest) ProtoMessage() {}
 
 func (x *ListAutoWithdrawRunsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[12]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1451,7 +1669,7 @@ func (x *ListAutoWithdrawRunsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAutoWithdrawRunsRequest.ProtoReflect.Descriptor instead.
 func (*ListAutoWithdrawRunsRequest) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{12}
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *ListAutoWithdrawRunsRequest) GetSubaccountId() uint64 {
@@ -1488,7 +1706,7 @@ type ListAutoWithdrawRunsResponse struct {
 
 func (x *ListAutoWithdrawRunsResponse) Reset() {
 	*x = ListAutoWithdrawRunsResponse{}
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[13]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1500,7 +1718,7 @@ func (x *ListAutoWithdrawRunsResponse) String() string {
 func (*ListAutoWithdrawRunsResponse) ProtoMessage() {}
 
 func (x *ListAutoWithdrawRunsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[13]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1513,7 +1731,7 @@ func (x *ListAutoWithdrawRunsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListAutoWithdrawRunsResponse.ProtoReflect.Descriptor instead.
 func (*ListAutoWithdrawRunsResponse) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{13}
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *ListAutoWithdrawRunsResponse) GetRuns() []*AutoWithdrawRun {
@@ -1542,7 +1760,7 @@ type PreviewAutoWithdrawRunRequest struct {
 
 func (x *PreviewAutoWithdrawRunRequest) Reset() {
 	*x = PreviewAutoWithdrawRunRequest{}
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[14]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1554,7 +1772,7 @@ func (x *PreviewAutoWithdrawRunRequest) String() string {
 func (*PreviewAutoWithdrawRunRequest) ProtoMessage() {}
 
 func (x *PreviewAutoWithdrawRunRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[14]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1567,7 +1785,7 @@ func (x *PreviewAutoWithdrawRunRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewAutoWithdrawRunRequest.ProtoReflect.Descriptor instead.
 func (*PreviewAutoWithdrawRunRequest) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{14}
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *PreviewAutoWithdrawRunRequest) GetSubaccountId() uint64 {
@@ -1605,9 +1823,11 @@ type AutoWithdrawPreviewAsset struct {
 	// no_destination (the rule pays no destination for the asset),
 	// destination_cooling_down (a broker vault pays a destination only once
 	// it has been on the vault's external withdraw whitelist for 24 hours;
-	// see payable_from), above_max (the balance above max_amount_e18 stays)
-	// or dust (less than one whole on-chain unit stays); empty when the whole
-	// balance pays.
+	// see payable_from), above_max (the balance above max_amount_e18 stays),
+	// dust (less than one whole on-chain unit stays) or, on a rule with a
+	// payout asset, converts (the asset is converted into the payout asset
+	// instead; see conversion) or why it would not be converted (see
+	// conversion.skip_reason); empty when the whole balance pays.
 	HoldReason string `protobuf:"bytes,7,opt,name=hold_reason,json=holdReason,proto3" json:"hold_reason,omitempty"`
 	// The least one payout of the asset pays, in 18-decimal asset units: the
 	// destination's min_amount_e18, or its min_floor_e18 when that is higher
@@ -1634,14 +1854,19 @@ type AutoWithdrawPreviewAsset struct {
 	// it can be paid, 24 hours after it was added to the vault's external
 	// withdraw whitelist. Unset with hold_reason destination_cooling_down
 	// when that time is not known yet.
-	PayableFrom   *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=payable_from,json=payableFrom,proto3" json:"payable_from,omitempty"`
+	PayableFrom *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=payable_from,json=payableFrom,proto3" json:"payable_from,omitempty"`
+	// Set on an asset the rule converts into its payout asset: what converting
+	// its whole available balance is quoted to deliver now. Such an asset pays
+	// nothing in kind (payable_e18 zero); its hold_reason is converts, or why
+	// it would stay on the account.
+	Conversion    *AutoWithdrawPreviewConversion `protobuf:"bytes,14,opt,name=conversion,proto3" json:"conversion,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *AutoWithdrawPreviewAsset) Reset() {
 	*x = AutoWithdrawPreviewAsset{}
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[15]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1653,7 +1878,7 @@ func (x *AutoWithdrawPreviewAsset) String() string {
 func (*AutoWithdrawPreviewAsset) ProtoMessage() {}
 
 func (x *AutoWithdrawPreviewAsset) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[15]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1666,7 +1891,7 @@ func (x *AutoWithdrawPreviewAsset) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AutoWithdrawPreviewAsset.ProtoReflect.Descriptor instead.
 func (*AutoWithdrawPreviewAsset) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{15}
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *AutoWithdrawPreviewAsset) GetAssetId() uint32 {
@@ -1760,6 +1985,112 @@ func (x *AutoWithdrawPreviewAsset) GetPayableFrom() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *AutoWithdrawPreviewAsset) GetConversion() *AutoWithdrawPreviewConversion {
+	if x != nil {
+		return x.Conversion
+	}
+	return nil
+}
+
+// AutoWithdrawPreviewConversion is the current quote for converting one
+// asset into the rule's payout asset through a Swap placed from the account.
+type AutoWithdrawPreviewConversion struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Payout asset the conversion delivers.
+	PayoutAssetId uint32 `protobuf:"varint,1,opt,name=payout_asset_id,json=payoutAssetId,proto3" json:"payout_asset_id,omitempty"`
+	// Expected payout asset after every leg's fee, estimated from the whole
+	// amount at the current book depth; a TWAP's slices execute at the prices
+	// of their own time.
+	ExpectedAmountOutE18 *v1.U128 `protobuf:"bytes,2,opt,name=expected_amount_out_e18,json=expectedAmountOutE18,proto3" json:"expected_amount_out_e18,omitempty"`
+	// Least payout asset the conversion accepts: the expected amount less the
+	// 1% slippage protection, estimated the same way.
+	MinAmountOutE18 *v1.U128 `protobuf:"bytes,3,opt,name=min_amount_out_e18,json=minAmountOutE18,proto3" json:"min_amount_out_e18,omitempty"`
+	// Quoted price impact of the whole amount, in basis points.
+	PriceImpactBps uint32 `protobuf:"varint,4,opt,name=price_impact_bps,json=priceImpactBps,proto3" json:"price_impact_bps,omitempty"`
+	// How the run would execute the conversion: market, or TWAP over the
+	// rule's conversion duration when its USD value exceeds 10,000 or its
+	// price impact exceeds 0.5%. A TWAP whose slices would fall below the
+	// route's minimum runs in fewer, longer slices, never fewer than two;
+	// otherwise the asset is skipped with below_minimum.
+	Execution *v11.Execution `protobuf:"bytes,5,opt,name=execution,proto3" json:"execution,omitempty"`
+	// Why the asset would not be converted now (route_unsupported, below_minimum, above_maximum, conversion_unavailable, price_unavailable); empty when it would. Its balance stays on the account.
+	SkipReason    string `protobuf:"bytes,6,opt,name=skip_reason,json=skipReason,proto3" json:"skip_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AutoWithdrawPreviewConversion) Reset() {
+	*x = AutoWithdrawPreviewConversion{}
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[17]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AutoWithdrawPreviewConversion) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AutoWithdrawPreviewConversion) ProtoMessage() {}
+
+func (x *AutoWithdrawPreviewConversion) ProtoReflect() protoreflect.Message {
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[17]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AutoWithdrawPreviewConversion.ProtoReflect.Descriptor instead.
+func (*AutoWithdrawPreviewConversion) Descriptor() ([]byte, []int) {
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{17}
+}
+
+func (x *AutoWithdrawPreviewConversion) GetPayoutAssetId() uint32 {
+	if x != nil {
+		return x.PayoutAssetId
+	}
+	return 0
+}
+
+func (x *AutoWithdrawPreviewConversion) GetExpectedAmountOutE18() *v1.U128 {
+	if x != nil {
+		return x.ExpectedAmountOutE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewConversion) GetMinAmountOutE18() *v1.U128 {
+	if x != nil {
+		return x.MinAmountOutE18
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewConversion) GetPriceImpactBps() uint32 {
+	if x != nil {
+		return x.PriceImpactBps
+	}
+	return 0
+}
+
+func (x *AutoWithdrawPreviewConversion) GetExecution() *v11.Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *AutoWithdrawPreviewConversion) GetSkipReason() string {
+	if x != nil {
+		return x.SkipReason
+	}
+	return ""
+}
+
 // PreviewAutoWithdrawRunResponse previews the next run.
 type PreviewAutoWithdrawRunResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1788,7 +2119,7 @@ type PreviewAutoWithdrawRunResponse struct {
 
 func (x *PreviewAutoWithdrawRunResponse) Reset() {
 	*x = PreviewAutoWithdrawRunResponse{}
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[16]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1800,7 +2131,7 @@ func (x *PreviewAutoWithdrawRunResponse) String() string {
 func (*PreviewAutoWithdrawRunResponse) ProtoMessage() {}
 
 func (x *PreviewAutoWithdrawRunResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[16]
+	mi := &file_chain_withdraw_v1_auto_withdraw_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1813,7 +2144,7 @@ func (x *PreviewAutoWithdrawRunResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PreviewAutoWithdrawRunResponse.ProtoReflect.Descriptor instead.
 func (*PreviewAutoWithdrawRunResponse) Descriptor() ([]byte, []int) {
-	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{16}
+	return file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *PreviewAutoWithdrawRunResponse) GetStatus() AutoWithdrawPreviewStatus {
@@ -1869,7 +2200,7 @@ var File_chain_withdraw_v1_auto_withdraw_proto protoreflect.FileDescriptor
 
 const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\n" +
-	"%chain/withdraw/v1/auto_withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"\x84\x03\n" +
+	"%chain/withdraw/v1/auto_withdraw.proto\x12\x11chain.withdraw.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\x1a\x12swap/v1/swap.proto\"\x84\x03\n" +
 	"\x14AutoWithdrawSchedule\x12M\n" +
 	"\acadence\x18\x01 \x01(\x0e2&.chain.withdraw.v1.AutoWithdrawCadenceB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\acadence\x12J\n" +
 	"\aweekday\x18\x02 \x01(\x0e2&.chain.withdraw.v1.AutoWithdrawWeekdayB\b\xbaH\x05\x82\x01\x02\x10\x01R\aweekday\x12,\n" +
@@ -1891,7 +2222,7 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\x11AutoWithdrawPause\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x127\n" +
-	"\tpaused_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bpausedAt\"\xee\x03\n" +
+	"\tpaused_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\bpausedAt\"\xd5\x04\n" +
 	"\x10AutoWithdrawRule\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12\x18\n" +
 	"\aversion\x18\x02 \x01(\rR\aversion\x12\x18\n" +
@@ -1902,14 +2233,19 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"created_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12:\n" +
 	"\x05pause\x18\a \x01(\v2$.chain.withdraw.v1.AutoWithdrawPauseR\x05pause\x12B\n" +
 	"\x11min_usd_value_e18\x18\b \x01(\v2\x17.polyester.type.v1.U128R\x0eminUsdValueE18\x121\n" +
-	"\x15created_by_account_id\x18\t \x01(\x06R\x12createdByAccountId\"\xd9\x02\n" +
+	"\x15created_by_account_id\x18\t \x01(\x06R\x12createdByAccountId\x12&\n" +
+	"\x0fpayout_asset_id\x18\n" +
+	" \x01(\rR\rpayoutAssetId\x12=\n" +
+	"\x1bconversion_twap_duration_ms\x18\v \x01(\x04R\x18conversionTwapDurationMs\"\xd3\x03\n" +
 	"\x1aSetAutoWithdrawRuleRequest\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12)\n" +
 	"\x10expected_version\x18\x02 \x01(\rR\x0fexpectedVersion\x12K\n" +
 	"\bschedule\x18\x03 \x01(\v2'.chain.withdraw.v1.AutoWithdrawScheduleB\x06\xbaH\x03\xc8\x01\x01R\bschedule\x12Z\n" +
 	"\fdestinations\x18\x04 \x03(\v2*.chain.withdraw.v1.AutoWithdrawDestinationB\n" +
 	"\xbaH\a\x92\x01\x04\b\x01\x10 R\fdestinations\x12B\n" +
-	"\x11min_usd_value_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\x0eminUsdValueE18\"V\n" +
+	"\x11min_usd_value_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\x0eminUsdValueE18\x12&\n" +
+	"\x0fpayout_asset_id\x18\x06 \x01(\rR\rpayoutAssetId\x12P\n" +
+	"\x1bconversion_twap_duration_ms\x18\a \x01(\x04B\x11\xbaH\x0e\xd8\x01\x012\t\x18\x80\xdd\xdb\x01(\xe0\xd4\x03R\x18conversionTwapDurationMs\"V\n" +
 	"\x1bSetAutoWithdrawRuleResponse\x127\n" +
 	"\x04rule\x18\x01 \x01(\v2#.chain.withdraw.v1.AutoWithdrawRuleR\x04rule\"\x96\x01\n" +
 	"!SetAutoWithdrawRuleEnabledRequest\x12#\n" +
@@ -1935,7 +2271,7 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\atx_hash\x18\t \x01(\tR\x06txHash\x12;\n" +
 	"\rvalue_usd_e18\x18\n" +
 	" \x01(\v2\x17.polyester.type.v1.U128R\vvalueUsdE18\x12?\n" +
-	"\x0fnetwork_fee_e18\x18\v \x01(\v2\x17.polyester.type.v1.U128R\rnetworkFeeE18\"\x98\x03\n" +
+	"\x0fnetwork_fee_e18\x18\v \x01(\v2\x17.polyester.type.v1.U128R\rnetworkFeeE18\"\xe5\x03\n" +
 	"\x0fAutoWithdrawRun\x12\x17\n" +
 	"\arun_seq\x18\x01 \x01(\x04R\x06runSeq\x12!\n" +
 	"\frule_version\x18\x02 \x01(\rR\vruleVersion\x12?\n" +
@@ -1946,7 +2282,25 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12;\n" +
 	"\vfinished_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"finishedAt\"\x8a\x01\n" +
+	"finishedAt\x12K\n" +
+	"\vconversions\x18\t \x03(\v2).chain.withdraw.v1.AutoWithdrawConversionR\vconversions\"\xde\x04\n" +
+	"\x16AutoWithdrawConversion\x12&\n" +
+	"\x0fsource_asset_id\x18\x01 \x01(\rR\rsourceAssetId\x126\n" +
+	"\n" +
+	"amount_e18\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\tamountE18\x12\x17\n" +
+	"\aswap_id\x18\x03 \x01(\x06R\x06swapId\x120\n" +
+	"\texecution\x18\x04 \x01(\v2\x12.swap.v1.ExecutionR\texecution\x12+\n" +
+	"\x06status\x18\x05 \x01(\x0e2\x13.swap.v1.SwapStatusR\x06status\x12+\n" +
+	"\x06reason\x18\x06 \x01(\x0e2\x13.swap.v1.SwapReasonR\x06reason\x12\x1f\n" +
+	"\vis_terminal\x18\a \x01(\bR\n" +
+	"isTerminal\x12G\n" +
+	"\x13executed_amount_e18\x18\b \x01(\v2\x17.polyester.type.v1.U128R\x11executedAmountE18\x12E\n" +
+	"\x12unspent_amount_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\x10unspentAmountE18\x12G\n" +
+	"\x13received_amount_e18\x18\n" +
+	" \x01(\v2\x17.polyester.type.v1.U128R\x11receivedAmountE18\x12$\n" +
+	"\x04legs\x18\v \x03(\v2\x10.swap.v1.SwapLegR\x04legs\x12\x1f\n" +
+	"\vskip_reason\x18\f \x01(\tR\n" +
+	"skipReason\"\x8a\x01\n" +
 	"\x1bListAutoWithdrawRunsRequest\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12\x1d\n" +
 	"\x05limit\x18\x02 \x01(\rB\a\xbaH\x04*\x02\x18dR\x05limit\x12'\n" +
@@ -1956,7 +2310,7 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\x04runs\x18\x01 \x03(\v2\".chain.withdraw.v1.AutoWithdrawRunR\x04runs\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"D\n" +
 	"\x1dPreviewAutoWithdrawRunRequest\x12#\n" +
-	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\"\xef\x05\n" +
+	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\"\xc1\x06\n" +
 	"\x18AutoWithdrawPreviewAsset\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\rR\aassetId\x120\n" +
 	"\x14destination_chain_id\x18\x02 \x01(\x04R\x12destinationChainId\x12/\n" +
@@ -1974,7 +2328,18 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\bpricedAt\x12?\n" +
 	"\x0fnetwork_fee_e18\x18\v \x01(\v2\x17.polyester.type.v1.U128R\rnetworkFeeE18\x12O\n" +
 	"\x16network_fee_sampled_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x13networkFeeSampledAt\x12=\n" +
-	"\fpayable_from\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vpayableFrom\"\xc7\x03\n" +
+	"\fpayable_from\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\vpayableFrom\x12P\n" +
+	"\n" +
+	"conversion\x18\x0e \x01(\v20.chain.withdraw.v1.AutoWithdrawPreviewConversionR\n" +
+	"conversion\"\xda\x02\n" +
+	"\x1dAutoWithdrawPreviewConversion\x12&\n" +
+	"\x0fpayout_asset_id\x18\x01 \x01(\rR\rpayoutAssetId\x12N\n" +
+	"\x17expected_amount_out_e18\x18\x02 \x01(\v2\x17.polyester.type.v1.U128R\x14expectedAmountOutE18\x12D\n" +
+	"\x12min_amount_out_e18\x18\x03 \x01(\v2\x17.polyester.type.v1.U128R\x0fminAmountOutE18\x12(\n" +
+	"\x10price_impact_bps\x18\x04 \x01(\rR\x0epriceImpactBps\x120\n" +
+	"\texecution\x18\x05 \x01(\v2\x12.swap.v1.ExecutionR\texecution\x12\x1f\n" +
+	"\vskip_reason\x18\x06 \x01(\tR\n" +
+	"skipReason\"\xc7\x03\n" +
 	"\x1ePreviewAutoWithdrawRunResponse\x12D\n" +
 	"\x06status\x18\x01 \x01(\x0e2,.chain.withdraw.v1.AutoWithdrawPreviewStatusR\x06status\x12:\n" +
 	"\vnext_run_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tnextRunAt\x12!\n" +
@@ -2004,7 +2369,7 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\x06FRIDAY\x10\x05\x12\f\n" +
 	"\bSATURDAY\x10\x06\x12\n" +
 	"\n" +
-	"\x06SUNDAY\x10\a*\xa0\x01\n" +
+	"\x06SUNDAY\x10\a*\xb4\x01\n" +
 	"\x14AutoWithdrawRunState\x12\x19\n" +
 	"\x15RUN_STATE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vRUN_PLANNED\x10\x01\x12\x0e\n" +
@@ -2014,7 +2379,8 @@ const file_chain_withdraw_v1_auto_withdraw_proto_rawDesc = "" +
 	"\x14RUN_PARTIALLY_FAILED\x10\x04\x12\x0e\n" +
 	"\n" +
 	"RUN_FAILED\x10\x05\x12\x0f\n" +
-	"\vRUN_SKIPPED\x10\x06*\xa5\x01\n" +
+	"\vRUN_SKIPPED\x10\x06\x12\x12\n" +
+	"\x0eRUN_CONVERTING\x10\a*\xa5\x01\n" +
 	"\x15AutoWithdrawStepState\x12\x1a\n" +
 	"\x16STEP_STATE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fSTEP_PENDING\x10\x01\x12\x13\n" +
@@ -2052,7 +2418,7 @@ func file_chain_withdraw_v1_auto_withdraw_proto_rawDescGZIP() []byte {
 }
 
 var file_chain_withdraw_v1_auto_withdraw_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_chain_withdraw_v1_auto_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_chain_withdraw_v1_auto_withdraw_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chain_withdraw_v1_auto_withdraw_proto_goTypes = []any{
 	(AutoWithdrawCadence)(0),                   // 0: chain.withdraw.v1.AutoWithdrawCadence
 	(AutoWithdrawWeekday)(0),                   // 1: chain.withdraw.v1.AutoWithdrawWeekday
@@ -2071,73 +2437,92 @@ var file_chain_withdraw_v1_auto_withdraw_proto_goTypes = []any{
 	(*GetAutoWithdrawRuleResponse)(nil),        // 14: chain.withdraw.v1.GetAutoWithdrawRuleResponse
 	(*AutoWithdrawStep)(nil),                   // 15: chain.withdraw.v1.AutoWithdrawStep
 	(*AutoWithdrawRun)(nil),                    // 16: chain.withdraw.v1.AutoWithdrawRun
-	(*ListAutoWithdrawRunsRequest)(nil),        // 17: chain.withdraw.v1.ListAutoWithdrawRunsRequest
-	(*ListAutoWithdrawRunsResponse)(nil),       // 18: chain.withdraw.v1.ListAutoWithdrawRunsResponse
-	(*PreviewAutoWithdrawRunRequest)(nil),      // 19: chain.withdraw.v1.PreviewAutoWithdrawRunRequest
-	(*AutoWithdrawPreviewAsset)(nil),           // 20: chain.withdraw.v1.AutoWithdrawPreviewAsset
-	(*PreviewAutoWithdrawRunResponse)(nil),     // 21: chain.withdraw.v1.PreviewAutoWithdrawRunResponse
-	(*v1.U128)(nil),                            // 22: polyester.type.v1.U128
-	(*timestamppb.Timestamp)(nil),              // 23: google.protobuf.Timestamp
+	(*AutoWithdrawConversion)(nil),             // 17: chain.withdraw.v1.AutoWithdrawConversion
+	(*ListAutoWithdrawRunsRequest)(nil),        // 18: chain.withdraw.v1.ListAutoWithdrawRunsRequest
+	(*ListAutoWithdrawRunsResponse)(nil),       // 19: chain.withdraw.v1.ListAutoWithdrawRunsResponse
+	(*PreviewAutoWithdrawRunRequest)(nil),      // 20: chain.withdraw.v1.PreviewAutoWithdrawRunRequest
+	(*AutoWithdrawPreviewAsset)(nil),           // 21: chain.withdraw.v1.AutoWithdrawPreviewAsset
+	(*AutoWithdrawPreviewConversion)(nil),      // 22: chain.withdraw.v1.AutoWithdrawPreviewConversion
+	(*PreviewAutoWithdrawRunResponse)(nil),     // 23: chain.withdraw.v1.PreviewAutoWithdrawRunResponse
+	(*v1.U128)(nil),                            // 24: polyester.type.v1.U128
+	(*timestamppb.Timestamp)(nil),              // 25: google.protobuf.Timestamp
+	(*v11.Execution)(nil),                      // 26: swap.v1.Execution
+	(v11.SwapStatus)(0),                        // 27: swap.v1.SwapStatus
+	(v11.SwapReason)(0),                        // 28: swap.v1.SwapReason
+	(*v11.SwapLeg)(nil),                        // 29: swap.v1.SwapLeg
 }
 var file_chain_withdraw_v1_auto_withdraw_proto_depIdxs = []int32{
 	0,  // 0: chain.withdraw.v1.AutoWithdrawSchedule.cadence:type_name -> chain.withdraw.v1.AutoWithdrawCadence
 	1,  // 1: chain.withdraw.v1.AutoWithdrawSchedule.weekday:type_name -> chain.withdraw.v1.AutoWithdrawWeekday
-	22, // 2: chain.withdraw.v1.AutoWithdrawDestination.min_amount_e18:type_name -> polyester.type.v1.U128
-	22, // 3: chain.withdraw.v1.AutoWithdrawDestination.max_amount_e18:type_name -> polyester.type.v1.U128
-	22, // 4: chain.withdraw.v1.AutoWithdrawDestination.min_floor_e18:type_name -> polyester.type.v1.U128
-	23, // 5: chain.withdraw.v1.AutoWithdrawPause.paused_at:type_name -> google.protobuf.Timestamp
+	24, // 2: chain.withdraw.v1.AutoWithdrawDestination.min_amount_e18:type_name -> polyester.type.v1.U128
+	24, // 3: chain.withdraw.v1.AutoWithdrawDestination.max_amount_e18:type_name -> polyester.type.v1.U128
+	24, // 4: chain.withdraw.v1.AutoWithdrawDestination.min_floor_e18:type_name -> polyester.type.v1.U128
+	25, // 5: chain.withdraw.v1.AutoWithdrawPause.paused_at:type_name -> google.protobuf.Timestamp
 	5,  // 6: chain.withdraw.v1.AutoWithdrawRule.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
 	6,  // 7: chain.withdraw.v1.AutoWithdrawRule.destinations:type_name -> chain.withdraw.v1.AutoWithdrawDestination
-	23, // 8: chain.withdraw.v1.AutoWithdrawRule.created_at:type_name -> google.protobuf.Timestamp
+	25, // 8: chain.withdraw.v1.AutoWithdrawRule.created_at:type_name -> google.protobuf.Timestamp
 	7,  // 9: chain.withdraw.v1.AutoWithdrawRule.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
-	22, // 10: chain.withdraw.v1.AutoWithdrawRule.min_usd_value_e18:type_name -> polyester.type.v1.U128
+	24, // 10: chain.withdraw.v1.AutoWithdrawRule.min_usd_value_e18:type_name -> polyester.type.v1.U128
 	5,  // 11: chain.withdraw.v1.SetAutoWithdrawRuleRequest.schedule:type_name -> chain.withdraw.v1.AutoWithdrawSchedule
 	6,  // 12: chain.withdraw.v1.SetAutoWithdrawRuleRequest.destinations:type_name -> chain.withdraw.v1.AutoWithdrawDestination
-	22, // 13: chain.withdraw.v1.SetAutoWithdrawRuleRequest.min_usd_value_e18:type_name -> polyester.type.v1.U128
+	24, // 13: chain.withdraw.v1.SetAutoWithdrawRuleRequest.min_usd_value_e18:type_name -> polyester.type.v1.U128
 	8,  // 14: chain.withdraw.v1.SetAutoWithdrawRuleResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
 	8,  // 15: chain.withdraw.v1.SetAutoWithdrawRuleEnabledResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
 	8,  // 16: chain.withdraw.v1.GetAutoWithdrawRuleResponse.rule:type_name -> chain.withdraw.v1.AutoWithdrawRule
-	22, // 17: chain.withdraw.v1.AutoWithdrawStep.available_e18:type_name -> polyester.type.v1.U128
-	22, // 18: chain.withdraw.v1.AutoWithdrawStep.amount_e18:type_name -> polyester.type.v1.U128
+	24, // 17: chain.withdraw.v1.AutoWithdrawStep.available_e18:type_name -> polyester.type.v1.U128
+	24, // 18: chain.withdraw.v1.AutoWithdrawStep.amount_e18:type_name -> polyester.type.v1.U128
 	3,  // 19: chain.withdraw.v1.AutoWithdrawStep.state:type_name -> chain.withdraw.v1.AutoWithdrawStepState
-	22, // 20: chain.withdraw.v1.AutoWithdrawStep.value_usd_e18:type_name -> polyester.type.v1.U128
-	22, // 21: chain.withdraw.v1.AutoWithdrawStep.network_fee_e18:type_name -> polyester.type.v1.U128
-	23, // 22: chain.withdraw.v1.AutoWithdrawRun.scheduled_for:type_name -> google.protobuf.Timestamp
+	24, // 20: chain.withdraw.v1.AutoWithdrawStep.value_usd_e18:type_name -> polyester.type.v1.U128
+	24, // 21: chain.withdraw.v1.AutoWithdrawStep.network_fee_e18:type_name -> polyester.type.v1.U128
+	25, // 22: chain.withdraw.v1.AutoWithdrawRun.scheduled_for:type_name -> google.protobuf.Timestamp
 	2,  // 23: chain.withdraw.v1.AutoWithdrawRun.state:type_name -> chain.withdraw.v1.AutoWithdrawRunState
 	15, // 24: chain.withdraw.v1.AutoWithdrawRun.steps:type_name -> chain.withdraw.v1.AutoWithdrawStep
-	23, // 25: chain.withdraw.v1.AutoWithdrawRun.created_at:type_name -> google.protobuf.Timestamp
-	23, // 26: chain.withdraw.v1.AutoWithdrawRun.finished_at:type_name -> google.protobuf.Timestamp
-	16, // 27: chain.withdraw.v1.ListAutoWithdrawRunsResponse.runs:type_name -> chain.withdraw.v1.AutoWithdrawRun
-	22, // 28: chain.withdraw.v1.AutoWithdrawPreviewAsset.available_e18:type_name -> polyester.type.v1.U128
-	22, // 29: chain.withdraw.v1.AutoWithdrawPreviewAsset.payable_e18:type_name -> polyester.type.v1.U128
-	22, // 30: chain.withdraw.v1.AutoWithdrawPreviewAsset.held_back_e18:type_name -> polyester.type.v1.U128
-	22, // 31: chain.withdraw.v1.AutoWithdrawPreviewAsset.minimum_e18:type_name -> polyester.type.v1.U128
-	22, // 32: chain.withdraw.v1.AutoWithdrawPreviewAsset.value_usd_e18:type_name -> polyester.type.v1.U128
-	23, // 33: chain.withdraw.v1.AutoWithdrawPreviewAsset.priced_at:type_name -> google.protobuf.Timestamp
-	22, // 34: chain.withdraw.v1.AutoWithdrawPreviewAsset.network_fee_e18:type_name -> polyester.type.v1.U128
-	23, // 35: chain.withdraw.v1.AutoWithdrawPreviewAsset.network_fee_sampled_at:type_name -> google.protobuf.Timestamp
-	23, // 36: chain.withdraw.v1.AutoWithdrawPreviewAsset.payable_from:type_name -> google.protobuf.Timestamp
-	4,  // 37: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.status:type_name -> chain.withdraw.v1.AutoWithdrawPreviewStatus
-	23, // 38: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.next_run_at:type_name -> google.protobuf.Timestamp
-	7,  // 39: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
-	22, // 40: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.min_usd_value_e18:type_name -> polyester.type.v1.U128
-	20, // 41: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.assets:type_name -> chain.withdraw.v1.AutoWithdrawPreviewAsset
-	23, // 42: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.computed_at:type_name -> google.protobuf.Timestamp
-	9,  // 43: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:input_type -> chain.withdraw.v1.SetAutoWithdrawRuleRequest
-	11, // 44: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled:input_type -> chain.withdraw.v1.SetAutoWithdrawRuleEnabledRequest
-	13, // 45: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:input_type -> chain.withdraw.v1.GetAutoWithdrawRuleRequest
-	17, // 46: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:input_type -> chain.withdraw.v1.ListAutoWithdrawRunsRequest
-	19, // 47: chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun:input_type -> chain.withdraw.v1.PreviewAutoWithdrawRunRequest
-	10, // 48: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:output_type -> chain.withdraw.v1.SetAutoWithdrawRuleResponse
-	12, // 49: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled:output_type -> chain.withdraw.v1.SetAutoWithdrawRuleEnabledResponse
-	14, // 50: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:output_type -> chain.withdraw.v1.GetAutoWithdrawRuleResponse
-	18, // 51: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:output_type -> chain.withdraw.v1.ListAutoWithdrawRunsResponse
-	21, // 52: chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun:output_type -> chain.withdraw.v1.PreviewAutoWithdrawRunResponse
-	48, // [48:53] is the sub-list for method output_type
-	43, // [43:48] is the sub-list for method input_type
-	43, // [43:43] is the sub-list for extension type_name
-	43, // [43:43] is the sub-list for extension extendee
-	0,  // [0:43] is the sub-list for field type_name
+	25, // 25: chain.withdraw.v1.AutoWithdrawRun.created_at:type_name -> google.protobuf.Timestamp
+	25, // 26: chain.withdraw.v1.AutoWithdrawRun.finished_at:type_name -> google.protobuf.Timestamp
+	17, // 27: chain.withdraw.v1.AutoWithdrawRun.conversions:type_name -> chain.withdraw.v1.AutoWithdrawConversion
+	24, // 28: chain.withdraw.v1.AutoWithdrawConversion.amount_e18:type_name -> polyester.type.v1.U128
+	26, // 29: chain.withdraw.v1.AutoWithdrawConversion.execution:type_name -> swap.v1.Execution
+	27, // 30: chain.withdraw.v1.AutoWithdrawConversion.status:type_name -> swap.v1.SwapStatus
+	28, // 31: chain.withdraw.v1.AutoWithdrawConversion.reason:type_name -> swap.v1.SwapReason
+	24, // 32: chain.withdraw.v1.AutoWithdrawConversion.executed_amount_e18:type_name -> polyester.type.v1.U128
+	24, // 33: chain.withdraw.v1.AutoWithdrawConversion.unspent_amount_e18:type_name -> polyester.type.v1.U128
+	24, // 34: chain.withdraw.v1.AutoWithdrawConversion.received_amount_e18:type_name -> polyester.type.v1.U128
+	29, // 35: chain.withdraw.v1.AutoWithdrawConversion.legs:type_name -> swap.v1.SwapLeg
+	16, // 36: chain.withdraw.v1.ListAutoWithdrawRunsResponse.runs:type_name -> chain.withdraw.v1.AutoWithdrawRun
+	24, // 37: chain.withdraw.v1.AutoWithdrawPreviewAsset.available_e18:type_name -> polyester.type.v1.U128
+	24, // 38: chain.withdraw.v1.AutoWithdrawPreviewAsset.payable_e18:type_name -> polyester.type.v1.U128
+	24, // 39: chain.withdraw.v1.AutoWithdrawPreviewAsset.held_back_e18:type_name -> polyester.type.v1.U128
+	24, // 40: chain.withdraw.v1.AutoWithdrawPreviewAsset.minimum_e18:type_name -> polyester.type.v1.U128
+	24, // 41: chain.withdraw.v1.AutoWithdrawPreviewAsset.value_usd_e18:type_name -> polyester.type.v1.U128
+	25, // 42: chain.withdraw.v1.AutoWithdrawPreviewAsset.priced_at:type_name -> google.protobuf.Timestamp
+	24, // 43: chain.withdraw.v1.AutoWithdrawPreviewAsset.network_fee_e18:type_name -> polyester.type.v1.U128
+	25, // 44: chain.withdraw.v1.AutoWithdrawPreviewAsset.network_fee_sampled_at:type_name -> google.protobuf.Timestamp
+	25, // 45: chain.withdraw.v1.AutoWithdrawPreviewAsset.payable_from:type_name -> google.protobuf.Timestamp
+	22, // 46: chain.withdraw.v1.AutoWithdrawPreviewAsset.conversion:type_name -> chain.withdraw.v1.AutoWithdrawPreviewConversion
+	24, // 47: chain.withdraw.v1.AutoWithdrawPreviewConversion.expected_amount_out_e18:type_name -> polyester.type.v1.U128
+	24, // 48: chain.withdraw.v1.AutoWithdrawPreviewConversion.min_amount_out_e18:type_name -> polyester.type.v1.U128
+	26, // 49: chain.withdraw.v1.AutoWithdrawPreviewConversion.execution:type_name -> swap.v1.Execution
+	4,  // 50: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.status:type_name -> chain.withdraw.v1.AutoWithdrawPreviewStatus
+	25, // 51: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.next_run_at:type_name -> google.protobuf.Timestamp
+	7,  // 52: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.pause:type_name -> chain.withdraw.v1.AutoWithdrawPause
+	24, // 53: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.min_usd_value_e18:type_name -> polyester.type.v1.U128
+	21, // 54: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.assets:type_name -> chain.withdraw.v1.AutoWithdrawPreviewAsset
+	25, // 55: chain.withdraw.v1.PreviewAutoWithdrawRunResponse.computed_at:type_name -> google.protobuf.Timestamp
+	9,  // 56: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:input_type -> chain.withdraw.v1.SetAutoWithdrawRuleRequest
+	11, // 57: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled:input_type -> chain.withdraw.v1.SetAutoWithdrawRuleEnabledRequest
+	13, // 58: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:input_type -> chain.withdraw.v1.GetAutoWithdrawRuleRequest
+	18, // 59: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:input_type -> chain.withdraw.v1.ListAutoWithdrawRunsRequest
+	20, // 60: chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun:input_type -> chain.withdraw.v1.PreviewAutoWithdrawRunRequest
+	10, // 61: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRule:output_type -> chain.withdraw.v1.SetAutoWithdrawRuleResponse
+	12, // 62: chain.withdraw.v1.AutoWithdrawService.SetAutoWithdrawRuleEnabled:output_type -> chain.withdraw.v1.SetAutoWithdrawRuleEnabledResponse
+	14, // 63: chain.withdraw.v1.AutoWithdrawService.GetAutoWithdrawRule:output_type -> chain.withdraw.v1.GetAutoWithdrawRuleResponse
+	19, // 64: chain.withdraw.v1.AutoWithdrawService.ListAutoWithdrawRuns:output_type -> chain.withdraw.v1.ListAutoWithdrawRunsResponse
+	23, // 65: chain.withdraw.v1.AutoWithdrawService.PreviewAutoWithdrawRun:output_type -> chain.withdraw.v1.PreviewAutoWithdrawRunResponse
+	61, // [61:66] is the sub-list for method output_type
+	56, // [56:61] is the sub-list for method input_type
+	56, // [56:56] is the sub-list for extension type_name
+	56, // [56:56] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_chain_withdraw_v1_auto_withdraw_proto_init() }
@@ -2151,7 +2536,7 @@ func file_chain_withdraw_v1_auto_withdraw_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chain_withdraw_v1_auto_withdraw_proto_rawDesc), len(file_chain_withdraw_v1_auto_withdraw_proto_rawDesc)),
 			NumEnums:      5,
-			NumMessages:   17,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

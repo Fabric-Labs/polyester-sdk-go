@@ -50,10 +50,11 @@ type StatementExport struct {
 	// with it.
 	ReadyAt   *time.Time `json:"ready_at,omitempty"`
 	ExpiresAt *time.Time `json:"expires_at,omitempty"`
-	// FailureReason is why a failed export failed: "too_large" (more than
-	// 4,000,000 movements: split the period) or "unavailable" (create a new
-	// export); empty otherwise, and "unknown(n)" for a reason newer than this
-	// SDK.
+	// FailureReason is why a failed export failed: "too_large" (the period
+	// holds more than 4,000,000 ledger movements of the account, counting
+	// every asset's even when the export keeps one: split the period) or
+	// "unavailable" (create a new export); empty otherwise, and "unknown(n)"
+	// for a reason newer than this SDK.
 	FailureReason string `json:"failure_reason,omitempty"`
 }
 
@@ -98,9 +99,13 @@ type StatementExportDownloadURL struct {
 type StatementRow struct {
 	// Time of the entry, in UTC with microseconds.
 	Time time.Time `json:"time"`
-	// EntryID is the entry's stable identifier, an unsigned 128-bit decimal:
-	// the TransferID of the entry's first transfer leg on the account, as
-	// Transfers.List returns it.
+	// EntryID identifies the entry, an unsigned 128-bit decimal: the
+	// TransferID of the entry's first transfer leg on the account within the
+	// export's period, as Transfers.List returns it. It is the same whichever
+	// asset the export keeps. A period boundary can fall between the legs of
+	// one entry: each export then holds its own part of it, under the
+	// TransferID of that part's first leg, so do not join rows of different
+	// periods on EntryID alone.
 	EntryID string `json:"entry_id"`
 	// Type is "trade" for a trade's settlement and its fees; otherwise the
 	// entry's transfer reason, such as "deposit", "withdraw",

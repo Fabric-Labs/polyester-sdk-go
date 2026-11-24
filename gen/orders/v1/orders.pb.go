@@ -525,7 +525,9 @@ const (
 	// The trigger price is invalid: for example not positive, an attached
 	// take-profit or stop-loss at or past its limit parent's price (for a buy
 	// parent, a take-profit at or below it or a stop-loss at or above it), or
-	// a one-cancels-the-other take-profit that crosses its stop-loss.
+	// a one-cancels-the-other take-profit that crosses its stop-loss. An
+	// attached leg past its parent's price is named by a field violation on
+	// its trigger price, as RiskPolicy describes.
 	ErrorCode_ERROR_CODE_TRIGGER_PRICE_INVALID ErrorCode = 40
 	// Trigger price source not supported (e.g., INDEX_PRICE before it's
 	// available).
@@ -760,6 +762,8 @@ const (
 	// The trigger modify named no field to change.
 	ErrorCode_ERROR_CODE_TRIGGER_PATCH_EMPTY ErrorCode = 248
 	// The client trigger ID is empty, longer than 36 bytes or otherwise not valid.
+	// Answered by CreateTrigger and by the ListTriggers client_trigger_id
+	// filter.
 	ErrorCode_ERROR_CODE_CLIENT_TRIGGER_ID_INVALID ErrorCode = 249
 	// The trailing trigger's activation price is not positive or not on the pair's
 	// tick.
@@ -916,12 +920,13 @@ const (
 	// market order is created or previewed with an attached take-profit or
 	// stop-loss on the last price that its own fill would trigger, at or past
 	// the best price the order takes (the best ask for a buy, the best bid for
-	// a sell); the order is not placed. A market order with an attached
-	// take-profit or stop-loss on the index price that the index has already
-	// reached is accepted, then rejected with this reason before it trades,
-	// and so is one whose last-price leg the market reaches before the order
-	// reaches the book; nothing is placed. Choose a price the market has not
-	// reached.
+	// a sell); the order is not placed, and a field violation on the leg's
+	// trigger price names it, as RiskPolicy describes. A market order with an
+	// attached take-profit or stop-loss on the index price that the index has
+	// already reached is accepted, then rejected with this reason before it
+	// trades, and so is one whose last-price leg the market reaches before the
+	// order reaches the book; nothing is placed. Choose a price the market has
+	// not reached.
 	ErrorCode_ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY ErrorCode = 302
 	// The order was sent but not confirmed in time. Its outcome is unknown and
 	// it may have been accepted; read the order by its client order ID, or read
@@ -3387,7 +3392,21 @@ func (x *CancelOrderResponse) GetTsNs() uint64 {
 // FieldViolation describes one actionable request validation failure.
 type FieldViolation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Protobuf field path relative to the request, using canonical field names.
+	// Protobuf field path, using canonical field names, relative to the message
+	// the error answers. An error that refuses a whole request names the field
+	// in that request, a batch item's field under its index (items[i]). A batch
+	// item's own result answers that item alone and names the field in the
+	// item, without its index. A BatchCreateOrders item's rejection
+	// (BatchCreateRejected) names it as a CreateOrderRequest carrying the item
+	// would, under order, for example
+	// order.attached_risk.take_profit.trigger_price_ticks; the item is the
+	// result's position in the response. A BatchReplaceOrders item's error
+	// (BatchReplaceAdmissionItem) names it as the request item does, for
+	// example new_attached_risk.stop_loss or order_id; the item is the result's
+	// item_index. REST names the same fields by REST field names: a
+	// BatchCreateOrders item's as a REST create carrying it would, for example
+	// order.attachedRisk.takeProfit.triggerPrice, and a BatchReplaceOrders
+	// item's as the REST request item does, for example newPrice.
 	FieldPath string `protobuf:"bytes,1,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
 	// Stable validation rule identifier suitable for programmatic matching.
 	RuleId string `protobuf:"bytes,2,opt,name=rule_id,json=ruleId,proto3" json:"rule_id,omitempty"`
@@ -3564,7 +3583,13 @@ func (x *ErrorDetail) GetPriceBandLimitTicks() int64 {
 }
 
 // RiskMarketIoc configures an attached risk leg that submits a market child
-// with implicit immediate-or-cancel behavior.
+// with implicit immediate-or-cancel behavior. It takes no max-slippage cap:
+// the child always uses the pair's default market slippage for its side, or
+// 200 basis points if no positive default is configured. A cap cannot be
+// added later either: ModifyTrigger with max_slippage on a take-profit or
+// stop-loss leg that uses it is rejected with
+// ERROR_CODE_TRIGGER_NOT_MODIFIABLE and leaves the leg unchanged, while its
+// trigger price remains modifiable.
 type RiskMarketIoc struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -4093,6 +4118,22 @@ func (*TrailingStopPolicy_MaxSlippageBps) isTrailingStopPolicy_MaxSlippage() {}
 // itself, and its ErrorDetail names the leg with a field violation on its
 // attached-risk field (take_profit, stop_loss or trailing_stop) whose rule is
 // that code. Nothing is placed or changed.
+//
+// A buy's take-profit trigger price must be above its parent's price and its
+// stop-loss trigger price below it, so the take-profit is above the stop-loss;
+// a sell's the other way round. The parent's price is a limit order's limit
+// price, or for a market order the best price it takes (the best ask for a
+// buy, the best bid for a sell), against which only a leg on the last price
+// is checked. A leg at or past that price is rejected with
+// ERROR_CODE_TRIGGER_PRICE_INVALID for a limit order and
+// ERROR_CODE_TRIGGER_WOULD_TRIGGER_IMMEDIATELY for a market order, and its
+// ErrorDetail names the leg with a field violation on its trigger price (for
+// example order.attached_risk.take_profit.trigger_price_ticks) whose rule is
+// that code and whose message states the order the prices must take for the
+// order's side. When both legs are past it, the take-profit is named. A
+// ModifyOrder's new_attached_risk is checked against the order's price the
+// same way; its message states the order for both sides. Nothing is placed
+// or changed.
 //
 // The legs of one parent share that position, whether or not oco is set, and
 // only one exit works at a time. The first leg whose condition is met submits
@@ -4951,7 +4992,11 @@ func (x *BatchCreateAccepted) GetSubmittedQuoteProceedsScaled() int64 {
 // BatchCreateRejected contains the typed reason an item was not admitted.
 type BatchCreateRejected struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Structured rejection detail.
+	// Structured rejection detail. Its violations name the item's fields as a
+	// CreateOrderRequest carrying the item would, under order (for example
+	// order.limit_gtc.price_ticks), not under items; the item is this result's
+	// position in the response. REST names them as a REST create carrying the
+	// item would (for example order.limitGtc.price).
 	Error         *ErrorDetail `protobuf:"bytes,1,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -5708,6 +5753,10 @@ type BatchReplaceAdmissionItem struct {
 	// Stable rejection code. Empty for admitted items.
 	Code string `protobuf:"bytes,6,opt,name=code,proto3" json:"code,omitempty"`
 	// Structured rejection details. Present for rate-limit guidance and other typed failures.
+	// Its violations name this item's own fields, as the request item names
+	// them, without its index (for example new_attached_risk.stop_loss or
+	// order_id); the item is item_index. REST names them by the REST request
+	// item's field names (for example newAttachedRisk.stopLoss).
 	Error *ErrorDetail `protobuf:"bytes,7,opt,name=error,proto3" json:"error,omitempty"`
 	// REPLACED admits a successor under replacement_order_id, with queue priority
 	// reset. AMENDED keeps the order under old_order_id with no successor: the

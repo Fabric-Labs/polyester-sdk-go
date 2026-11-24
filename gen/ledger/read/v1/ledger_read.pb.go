@@ -2548,11 +2548,11 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"#ERROR_CODE_STATEMENT_EXPORT_EXPIRED\x10\x0f\x12&\n" +
 	"\"ERROR_CODE_STATEMENT_EXPORT_FAILED\x10\x10\x12.\n" +
 	"*ERROR_CODE_STATEMENT_EXPORT_NOT_CANCELABLE\x10\x11\x12(\n" +
-	"$ERROR_CODE_STATEMENT_EXPORT_CANCELED\x10\x122\x83\x06\n" +
+	"$ERROR_CODE_STATEMENT_EXPORT_CANCELED\x10\x122\x84\x06\n" +
 	"\x11LedgerReadService\x12p\n" +
 	"\x11GetBalanceHistory\x12(.ledger.read.v1.GetBalanceHistoryRequest\x1a).ledger.read.v1.GetBalanceHistoryResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x7f\n" +
-	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x99\x01\n" +
-	"\x1fGetPortfolioEquityHistorySeries\x126.ledger.read.v1.GetPortfolioEquityHistorySeriesRequest\x1a7.ledger.read.v1.GetPortfolioEquityHistorySeriesResponse\"\x05\xa2\xb5\x18\x01\x01\x12\x8b\x01\n" +
+	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x9a\x01\n" +
+	"\x1fGetPortfolioEquityHistorySeries\x126.ledger.read.v1.GetPortfolioEquityHistorySeriesRequest\x1a7.ledger.read.v1.GetPortfolioEquityHistorySeriesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x8b\x01\n" +
 	"\x1aGetPortfolioEquitySnapshot\x121.ledger.read.v1.GetPortfolioEquitySnapshotRequest\x1a2.ledger.read.v1.GetPortfolioEquitySnapshotResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12d\n" +
 	"\rListTransfers\x12$.ledger.read.v1.ListTransfersRequest\x1a%.ledger.read.v1.ListTransfersResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12^\n" +
 	"\vGetBalances\x12\".ledger.read.v1.GetBalancesRequest\x1a#.ledger.read.v1.GetBalancesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x1a\v\x8a\xb5\x18\aaccountB\x85\x01\xbaG;:9\n" +

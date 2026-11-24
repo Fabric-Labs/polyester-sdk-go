@@ -1196,13 +1196,19 @@ func (x *BatchCreateInternalTransfersResponse) GetLegs() []*InternalTransferBatc
 }
 
 // GetInternalTransferBatchRequest selects a batch by the request ID
-// BatchCreateInternalTransfers returned.
+// BatchCreateInternalTransfers returned, or by the idempotency key the caller
+// sent it.
 type GetInternalTransferBatchRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Batch request ID returned by BatchCreateInternalTransfers.
-	RequestId     string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Idempotency key the caller sent to BatchCreateInternalTransfers, scoped
+	// to the authenticated caller as that request scoped it: the session's
+	// account, or the API key. Reads the batch's stored outcome when its answer
+	// was lost.
+	IdempotencyKey string `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *GetInternalTransferBatchRequest) Reset() {
@@ -1238,6 +1244,13 @@ func (*GetInternalTransferBatchRequest) Descriptor() ([]byte, []int) {
 func (x *GetInternalTransferBatchRequest) GetRequestId() string {
 	if x != nil {
 		return x.RequestId
+	}
+	return ""
+}
+
+func (x *GetInternalTransferBatchRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
 	}
 	return ""
 }
@@ -1551,10 +1564,14 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12@\n" +
 	"\x06status\x18\x02 \x01(\x0e2(.transfer.v1.InternalTransferBatchStatusR\x06status\x12?\n" +
-	"\x04legs\x18\x03 \x03(\v2+.transfer.v1.InternalTransferBatchLegResultR\x04legs\"Z\n" +
-	"\x1fGetInternalTransferBatchRequest\x127\n" +
+	"\x04legs\x18\x03 \x03(\v2+.transfer.v1.InternalTransferBatchLegResultR\x04legs\"\xb1\x01\n" +
+	"\x1fGetInternalTransferBatchRequest\x125\n" +
 	"\n" +
-	"request_id\x18\x01 \x01(\tB\x18\xbaH\x15r\x13\x10\x01\x18'2\r^[1-9][0-9]*$R\trequestId\"\xc4\x01\n" +
+	"request_id\x18\x01 \x01(\tB\x16\xbaH\x13r\x11\x18'2\r^[1-9][0-9]*$R\trequestId\x121\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0eidempotencyKey:$\xbaH!\"\x1f\n" +
+	"\n" +
+	"request_id\n" +
+	"\x0fidempotency_key\x10\x01\"\xc4\x01\n" +
 	" GetInternalTransferBatchResponse\x12\x1d\n" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12@\n" +
@@ -1631,16 +1648,16 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\x16LEG_STATUS_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eLEG_PROCESSING\x10\x05\x12\x10\n" +
 	"\fLEG_CREDITED\x10\x06\x12\x11\n" +
-	"\rLEG_NOT_MOVED\x10\a2\x8e\x10\n" +
+	"\rLEG_NOT_MOVED\x10\a2\xbc\x10\n" +
 	"\x17InternalTransferService\x12\xc0\x02\n" +
 	"\x13GetInternalTransfer\x12'.transfer.v1.GetInternalTransferRequest\x1a(.transfer.v1.GetInternalTransferResponse\"\xd5\x01\xbaG\xa6\x01\n" +
 	"\x12Internal Transfers\x12\x15Get Internal Transfer\x1ayRead an accepted transfer by request ID or transfer ID for an authorized source account. JWT session authentication only.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02 \x12\x1e/v1/trading/internal-transfers\x12\xfa\x04\n" +
 	"\x16CreateInternalTransfer\x12*.transfer.v1.CreateInternalTransferRequest\x1a+.transfer.v1.CreateInternalTransferResponse\"\x86\x04\xbaG\xcf\x03\n" +
 	"\x12Internal Transfers\x12\x18Create Internal Transfer\x1a\x9e\x03Create or return one authenticated Trading to Trading internal transfer. Root-owner same-owner transfers and root-owner transfers to explicitly whitelisted destinations accept an MFA-elevated session (MFA completed in the last 30 minutes); delegated and other interactive transfers require fresh step-up. Without them the transfer is refused HTTP 403 with code AUTH_MFA_ELEVATION_REQUIRED or AUTH_STEP_UP_REQUIRED.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02#:\x01*\"\x1e/v1/trading/internal-transfers\x12\xed\x04\n" +
 	"\x1cBatchCreateInternalTransfers\x120.transfer.v1.BatchCreateInternalTransfersRequest\x1a1.transfer.v1.BatchCreateInternalTransfersResponse\"\xe7\x03\xbaG\xaa\x03\n" +
-	"\x12Internal Transfers\x12\x1fBatch Create Internal Transfers\x1a\xf2\x02Move up to 500 Trading to Trading transfers together, authorized by one MFA check: every leg is credited, or none moves. A batch debits at most 50 distinct source account and asset pairs from at most 10 source accounts. A batch without the MFA-elevated session or fresh step-up it needs is refused HTTP 403 with code AUTH_MFA_ELEVATION_REQUIRED or AUTH_STEP_UP_REQUIRED.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02):\x01*\"$/v1/trading/internal-transfers/batch\x12\xb5\x03\n" +
-	"\x18GetInternalTransferBatch\x12,.transfer.v1.GetInternalTransferBatchRequest\x1a-.transfer.v1.GetInternalTransferBatchResponse\"\xbb\x02\xbaG\x85\x02\n" +
-	"\x12Internal Transfers\x12\x1bGet Internal Transfer Batch\x1a\xd1\x01Read a batch's current outcome and the state of every leg by the request ID that Batch Create Internal Transfers returned. The caller must be allowed to read the transfers of every source account of the batch.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/trading/internal-transfers/batch\x1a\v\x8a\xb5\x18\aaccountB\x99\x01\xbaGR:P\n" +
+	"\x12Internal Transfers\x12\x1fBatch Create Internal Transfers\x1a\xf2\x02Move up to 500 Trading to Trading transfers together, authorized by one MFA check: every leg is credited, or none moves. A batch debits at most 50 distinct source account and asset pairs from at most 10 source accounts. A batch without the MFA-elevated session or fresh step-up it needs is refused HTTP 403 with code AUTH_MFA_ELEVATION_REQUIRED or AUTH_STEP_UP_REQUIRED.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02):\x01*\"$/v1/trading/internal-transfers/batch\x12\xe3\x03\n" +
+	"\x18GetInternalTransferBatch\x12,.transfer.v1.GetInternalTransferBatchRequest\x1a-.transfer.v1.GetInternalTransferBatchResponse\"\xe9\x02\xbaG\xb3\x02\n" +
+	"\x12Internal Transfers\x12\x1bGet Internal Transfer Batch\x1a\xff\x01Read a batch's current outcome and the state of every leg by the request ID that Batch Create Internal Transfers returned, or by the idempotency key the caller sent it. The caller must be allowed to read the transfers of every source account of the batch.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/trading/internal-transfers/batch\x1a\v\x8a\xb5\x18\aaccountB\x99\x01\xbaGR:P\n" +
 	"\x12Internal Transfers\x12:Authenticated Trading to Trading internal transfer intake.ZBgithub.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1;transferv1b\x06proto3"
 
 var (

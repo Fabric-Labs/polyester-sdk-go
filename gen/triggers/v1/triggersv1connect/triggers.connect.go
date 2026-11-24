@@ -82,9 +82,17 @@ type TriggersServiceClient interface {
 	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
 	// Get a trigger by ID. Costs one unit of the account's trading read limit.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
-	// List triggers for a sub-account with optional filters. Costs one unit of
-	// the account's trading read limit per 100 rows the limit asks for,
-	// rounded up.
+	// List triggers for a sub-account with optional filters. A list shows every
+	// trigger request acknowledged before it, including a trigger that ended
+	// right after its create. While one of them is temporarily unreadable, the
+	// call fails with a retryable UNAVAILABLE rather than omitting the trigger
+	// or returning a stale state; retry the same request. An ended trigger
+	// stays listable for at least 24 hours after it ends. A list whose status
+	// filter names live statuses only (CREATED, ARMED, RUNNING, PAUSED) never
+	// reads ended-trigger history and is the cheapest to serve. To track
+	// triggers, follow realtime trigger updates and use ListTriggers to
+	// recover and reconcile, not to poll. Costs one unit of the account's
+	// trading read limit per 100 rows the limit asks for, rounded up.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history). A trigger the caller cannot
 	// read (no such trigger, another account's, or one outside the selected
@@ -333,9 +341,17 @@ type TriggersServiceHandler interface {
 	CancelOco(context.Context, *connect.Request[v1.CancelOcoRequest]) (*connect.Response[v1.CancelOcoResponse], error)
 	// Get a trigger by ID. Costs one unit of the account's trading read limit.
 	GetTrigger(context.Context, *connect.Request[v1.GetTriggerRequest]) (*connect.Response[v1.GetTriggerResponse], error)
-	// List triggers for a sub-account with optional filters. Costs one unit of
-	// the account's trading read limit per 100 rows the limit asks for,
-	// rounded up.
+	// List triggers for a sub-account with optional filters. A list shows every
+	// trigger request acknowledged before it, including a trigger that ended
+	// right after its create. While one of them is temporarily unreadable, the
+	// call fails with a retryable UNAVAILABLE rather than omitting the trigger
+	// or returning a stale state; retry the same request. An ended trigger
+	// stays listable for at least 24 hours after it ends. A list whose status
+	// filter names live statuses only (CREATED, ARMED, RUNNING, PAUSED) never
+	// reads ended-trigger history and is the cheapest to serve. To track
+	// triggers, follow realtime trigger updates and use ListTriggers to
+	// recover and reconcile, not to poll. Costs one unit of the account's
+	// trading read limit per 100 rows the limit asks for, rounded up.
 	ListTriggers(context.Context, *connect.Request[v1.ListTriggersRequest]) (*connect.Response[v1.ListTriggersResponse], error)
 	// List trigger events (append-only history). A trigger the caller cannot
 	// read (no such trigger, another account's, or one outside the selected

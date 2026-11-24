@@ -168,7 +168,8 @@ const (
 	SwapReason_RATE_LIMITED SwapReason = 5
 	// The order was refused, for example by the sub-account's trading policy.
 	SwapReason_ORDER_REJECTED SwapReason = 6
-	// The execution window ended before the order could be placed.
+	// The execution window ended before the order could be placed, or a
+	// TWAP's deadline ended it with slots left untraded.
 	SwapReason_EXPIRED SwapReason = 7
 	// A fill netted less than the accepted minimum rate. The Swap failed closed:
 	// the amounts show exactly what was traded and received.
@@ -177,33 +178,39 @@ const (
 	// the rest of the amount stays on the account, unspent. The market's depth
 	// or maximum changed after the quote, which never quotes past it.
 	SwapReason_MAX_ORDER_QUANTITY SwapReason = 9
+	// On a two-leg route, intermediate asset below the second market's minimum
+	// order, with later slices' intermediate added where a TWAP had slices
+	// left, stays on the account, unconverted (intermediate_remainder_e18).
+	SwapReason_INTERMEDIATE_BELOW_MINIMUM SwapReason = 10
 )
 
 // Enum value maps for SwapReason.
 var (
 	SwapReason_name = map[int32]string{
-		0: "REASON_UNSPECIFIED",
-		1: "INSUFFICIENT_BALANCE",
-		2: "PRICE_PROTECTION",
-		3: "MARKET_UNAVAILABLE",
-		4: "ORDER_SIZE_OUT_OF_RANGE",
-		5: "RATE_LIMITED",
-		6: "ORDER_REJECTED",
-		7: "EXPIRED",
-		8: "MINIMUM_NOT_MET",
-		9: "MAX_ORDER_QUANTITY",
+		0:  "REASON_UNSPECIFIED",
+		1:  "INSUFFICIENT_BALANCE",
+		2:  "PRICE_PROTECTION",
+		3:  "MARKET_UNAVAILABLE",
+		4:  "ORDER_SIZE_OUT_OF_RANGE",
+		5:  "RATE_LIMITED",
+		6:  "ORDER_REJECTED",
+		7:  "EXPIRED",
+		8:  "MINIMUM_NOT_MET",
+		9:  "MAX_ORDER_QUANTITY",
+		10: "INTERMEDIATE_BELOW_MINIMUM",
 	}
 	SwapReason_value = map[string]int32{
-		"REASON_UNSPECIFIED":      0,
-		"INSUFFICIENT_BALANCE":    1,
-		"PRICE_PROTECTION":        2,
-		"MARKET_UNAVAILABLE":      3,
-		"ORDER_SIZE_OUT_OF_RANGE": 4,
-		"RATE_LIMITED":            5,
-		"ORDER_REJECTED":          6,
-		"EXPIRED":                 7,
-		"MINIMUM_NOT_MET":         8,
-		"MAX_ORDER_QUANTITY":      9,
+		"REASON_UNSPECIFIED":         0,
+		"INSUFFICIENT_BALANCE":       1,
+		"PRICE_PROTECTION":           2,
+		"MARKET_UNAVAILABLE":         3,
+		"ORDER_SIZE_OUT_OF_RANGE":    4,
+		"RATE_LIMITED":               5,
+		"ORDER_REJECTED":             6,
+		"EXPIRED":                    7,
+		"MINIMUM_NOT_MET":            8,
+		"MAX_ORDER_QUANTITY":         9,
+		"INTERMEDIATE_BELOW_MINIMUM": 10,
 	}
 )
 
@@ -305,8 +312,8 @@ type ErrorCode int32
 const (
 	// No code.
 	ErrorCode_ERROR_UNSPECIFIED ErrorCode = 0
-	// No spot market trades the source asset directly against the destination
-	// asset.
+	// No spot market trades the source asset against the destination asset,
+	// directly or through USDT or USDC.
 	ErrorCode_ROUTE_UNSUPPORTED ErrorCode = 1
 	// The amount is outside the market's current limits. The error carries the
 	// limits (min_amount_e18, max_amount_e18) when known.
@@ -335,8 +342,8 @@ const (
 	ErrorCode_SWAP_NOT_PERMITTED ErrorCode = 11
 	// A required service is temporarily unavailable; retry the same request.
 	ErrorCode_SERVICE_UNAVAILABLE ErrorCode = 12
-	// The market trades the two assets but cannot execute a Swap in this
-	// direction: a buy there would pay its fee in the asset it spends.
+	// A market of the route trades its two assets but cannot execute a Swap in
+	// this direction: a buy there would pay its fee in the asset it spends.
 	ErrorCode_DIRECTION_UNSUPPORTED ErrorCode = 13
 )
 
@@ -403,10 +410,162 @@ func (ErrorCode) EnumDescriptor() ([]byte, []int) {
 	return file_swap_v1_swap_proto_rawDescGZIP(), []int{4}
 }
 
+// State distinguishes pending work from a final slice outcome.
+type SwapSlice_State int32
+
+const (
+	// No state; never returned.
+	SwapSlice_STATE_UNSPECIFIED SwapSlice_State = 0
+	// Scheduled; no order has been sent yet.
+	SwapSlice_PLANNED SwapSlice_State = 1
+	// An order has been sent and the outcome is not final.
+	SwapSlice_EXECUTING SwapSlice_State = 2
+	// The slice traded its planned orders in full.
+	SwapSlice_TRADED SwapSlice_State = 3
+	// The slice traded some input but left an order partly unfilled or
+	// intermediate asset unconverted.
+	SwapSlice_PARTLY_TRADED SwapSlice_State = 4
+	// No input traded because the slot was not used or no order could fill.
+	SwapSlice_SKIPPED SwapSlice_State = 5
+	// No input traded because an order or its execution failed.
+	SwapSlice_FAILED SwapSlice_State = 6
+)
+
+// Enum value maps for SwapSlice_State.
+var (
+	SwapSlice_State_name = map[int32]string{
+		0: "STATE_UNSPECIFIED",
+		1: "PLANNED",
+		2: "EXECUTING",
+		3: "TRADED",
+		4: "PARTLY_TRADED",
+		5: "SKIPPED",
+		6: "FAILED",
+	}
+	SwapSlice_State_value = map[string]int32{
+		"STATE_UNSPECIFIED": 0,
+		"PLANNED":           1,
+		"EXECUTING":         2,
+		"TRADED":            3,
+		"PARTLY_TRADED":     4,
+		"SKIPPED":           5,
+		"FAILED":            6,
+	}
+)
+
+func (x SwapSlice_State) Enum() *SwapSlice_State {
+	p := new(SwapSlice_State)
+	*p = x
+	return p
+}
+
+func (x SwapSlice_State) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SwapSlice_State) Descriptor() protoreflect.EnumDescriptor {
+	return file_swap_v1_swap_proto_enumTypes[5].Descriptor()
+}
+
+func (SwapSlice_State) Type() protoreflect.EnumType {
+	return &file_swap_v1_swap_proto_enumTypes[5]
+}
+
+func (x SwapSlice_State) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SwapSlice_State.Descriptor instead.
+func (SwapSlice_State) EnumDescriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{8, 0}
+}
+
+// Reason explains a slice outcome or why intermediate asset was carried.
+type SwapSlice_Reason int32
+
+const (
+	// No reason is needed while pending or after a fully traded slice.
+	SwapSlice_SLICE_REASON_UNSPECIFIED SwapSlice_Reason = 0
+	// The slot ended before an order could be sent.
+	SwapSlice_SLOT_MISSED SwapSlice_Reason = 1
+	// The execution deadline ended this slice.
+	SwapSlice_DEADLINE_REACHED SwapSlice_Reason = 2
+	// The required market was closed.
+	SwapSlice_MARKET_CLOSED SwapSlice_Reason = 3
+	// The amount was below the market's minimum order size.
+	SwapSlice_BELOW_MINIMUM SwapSlice_Reason = 4
+	// The amount exceeded the market's maximum order size.
+	SwapSlice_ABOVE_MAXIMUM SwapSlice_Reason = 5
+	// No order could satisfy the Swap's price protection.
+	SwapSlice_PROTECTION_NOT_MET SwapSlice_Reason = 6
+	// An order was refused.
+	SwapSlice_REFUSED SwapSlice_Reason = 7
+	// Available liquidity did not fill the whole order at its protected price.
+	SwapSlice_INSUFFICIENT_LIQUIDITY SwapSlice_Reason = 8
+	// The execution ended before this slot was used.
+	SwapSlice_EXECUTION_ENDED SwapSlice_Reason = 9
+)
+
+// Enum value maps for SwapSlice_Reason.
+var (
+	SwapSlice_Reason_name = map[int32]string{
+		0: "SLICE_REASON_UNSPECIFIED",
+		1: "SLOT_MISSED",
+		2: "DEADLINE_REACHED",
+		3: "MARKET_CLOSED",
+		4: "BELOW_MINIMUM",
+		5: "ABOVE_MAXIMUM",
+		6: "PROTECTION_NOT_MET",
+		7: "REFUSED",
+		8: "INSUFFICIENT_LIQUIDITY",
+		9: "EXECUTION_ENDED",
+	}
+	SwapSlice_Reason_value = map[string]int32{
+		"SLICE_REASON_UNSPECIFIED": 0,
+		"SLOT_MISSED":              1,
+		"DEADLINE_REACHED":         2,
+		"MARKET_CLOSED":            3,
+		"BELOW_MINIMUM":            4,
+		"ABOVE_MAXIMUM":            5,
+		"PROTECTION_NOT_MET":       6,
+		"REFUSED":                  7,
+		"INSUFFICIENT_LIQUIDITY":   8,
+		"EXECUTION_ENDED":          9,
+	}
+)
+
+func (x SwapSlice_Reason) Enum() *SwapSlice_Reason {
+	p := new(SwapSlice_Reason)
+	*p = x
+	return p
+}
+
+func (x SwapSlice_Reason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (SwapSlice_Reason) Descriptor() protoreflect.EnumDescriptor {
+	return file_swap_v1_swap_proto_enumTypes[6].Descriptor()
+}
+
+func (SwapSlice_Reason) Type() protoreflect.EnumType {
+	return &file_swap_v1_swap_proto_enumTypes[6]
+}
+
+func (x SwapSlice_Reason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use SwapSlice_Reason.Descriptor instead.
+func (SwapSlice_Reason) EnumDescriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{8, 1}
+}
+
 // SwapTerms are the economic terms of one Swap: spend amount_e18 of the
 // source asset from the account's Trading balance and receive the destination
-// asset there. The same terms are quoted and created. A Swap executes as spot
-// orders at the account's own spot taker fee; no other fee is charged.
+// asset there, at market or over time. The same terms are quoted and created.
+// A Swap executes as spot orders at the account's own spot taker fee on each
+// market it trades; no other fee is charged.
 type SwapTerms struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional sub-account public ID whose Trading balance funds the Swap. When
@@ -424,7 +583,9 @@ type SwapTerms struct {
 	// Types that are valid to be assigned to Amount:
 	//
 	//	*SwapTerms_AmountE18
-	Amount        isSwapTerms_Amount `protobuf_oneof:"amount"`
+	Amount isSwapTerms_Amount `protobuf_oneof:"amount"`
+	// How the Swap executes; unset executes at market.
+	Execution     *Execution `protobuf:"bytes,5,opt,name=execution,proto3" json:"execution,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -496,6 +657,13 @@ func (x *SwapTerms) GetAmountE18() *v1.U128 {
 	return nil
 }
 
+func (x *SwapTerms) GetExecution() *Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
 type isSwapTerms_Amount interface {
 	isSwapTerms_Amount()
 }
@@ -509,7 +677,214 @@ type SwapTerms_AmountE18 struct {
 
 func (*SwapTerms_AmountE18) isSwapTerms_Amount() {}
 
-// SwapQuoteLeg is one spot market a quote trades on.
+// MarketExecution executes the Swap at once, in immediate orders.
+type MarketExecution struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *MarketExecution) Reset() {
+	*x = MarketExecution{}
+	mi := &file_swap_v1_swap_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *MarketExecution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*MarketExecution) ProtoMessage() {}
+
+func (x *MarketExecution) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_v1_swap_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use MarketExecution.ProtoReflect.Descriptor instead.
+func (*MarketExecution) Descriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{1}
+}
+
+// TwapExecution spreads the Swap evenly over a duration, one slice per slot.
+// Slot k starts k slice intervals after execution starts. Each slice trades
+// what is left of the amount over the slots left, and each slice nets at
+// least the Swap's minimum rate (min_amount_out_e18 over amount_e18) on what
+// it converts, judged slice by slice; slices whose intermediate one later
+// second leg converts together (below) are judged together. Each order's
+// price limit allows for the taker fee in force when the order can match
+// within its window, the highest rate scheduled from when the order is
+// prepared until it can last be accepted, some minutes after its sending
+// window since a resent copy of it can still be accepted then. An order the
+// exchange first accepts after that window (only under severe delay) may pay
+// a later scheduled fee, and a slice it takes below the minimum fails the
+// Swap closed (MINIMUM_NOT_MET). A slice's first order is sent only within
+// its slot: a slot missed is skipped, never sent late. On a two-leg route, a
+// slice's second leg is sent once its first leg has settled, at any time
+// before the deadline, even after the slice's slot, and the next slice
+// starts only once it is over. When no second-leg order can meet the
+// protection or the second market's order limits, the slice's intermediate
+// asset is added to the next slice's second leg. What a second-leg order
+// leaves unfilled, and what is still unconverted when execution ends, stays
+// on the account (intermediate_remainder_e18), and the Swap then ends
+// PARTIALLY_COMPLETED; a rest smaller than one order step of the second
+// market is ordinary residue and the Swap can still end COMPLETED. A TWAP
+// needs a larger amount than a market execution, since every slice must be a
+// valid order.
+type TwapExecution struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Total execution duration in milliseconds, from 60000 (1 minute) to
+	// 3600000 (60 minutes). The duration starts when execution starts.
+	DurationMs uint64 `protobuf:"varint,1,opt,name=duration_ms,json=durationMs,proto3" json:"duration_ms,omitempty"`
+	// Interval between slices in milliseconds, from 10000 (10 seconds) up to
+	// duration_ms. The slice count is duration_ms / slice_interval_ms, rounded
+	// up.
+	SliceIntervalMs uint64 `protobuf:"varint,2,opt,name=slice_interval_ms,json=sliceIntervalMs,proto3" json:"slice_interval_ms,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *TwapExecution) Reset() {
+	*x = TwapExecution{}
+	mi := &file_swap_v1_swap_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *TwapExecution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*TwapExecution) ProtoMessage() {}
+
+func (x *TwapExecution) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_v1_swap_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use TwapExecution.ProtoReflect.Descriptor instead.
+func (*TwapExecution) Descriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *TwapExecution) GetDurationMs() uint64 {
+	if x != nil {
+		return x.DurationMs
+	}
+	return 0
+}
+
+func (x *TwapExecution) GetSliceIntervalMs() uint64 {
+	if x != nil {
+		return x.SliceIntervalMs
+	}
+	return 0
+}
+
+// Execution selects how a Swap is traded.
+type Execution struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Exactly one strategy.
+	//
+	// Types that are valid to be assigned to Strategy:
+	//
+	//	*Execution_Market
+	//	*Execution_Twap
+	Strategy      isExecution_Strategy `protobuf_oneof:"strategy"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *Execution) Reset() {
+	*x = Execution{}
+	mi := &file_swap_v1_swap_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *Execution) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*Execution) ProtoMessage() {}
+
+func (x *Execution) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_v1_swap_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use Execution.ProtoReflect.Descriptor instead.
+func (*Execution) Descriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *Execution) GetStrategy() isExecution_Strategy {
+	if x != nil {
+		return x.Strategy
+	}
+	return nil
+}
+
+func (x *Execution) GetMarket() *MarketExecution {
+	if x != nil {
+		if x, ok := x.Strategy.(*Execution_Market); ok {
+			return x.Market
+		}
+	}
+	return nil
+}
+
+func (x *Execution) GetTwap() *TwapExecution {
+	if x != nil {
+		if x, ok := x.Strategy.(*Execution_Twap); ok {
+			return x.Twap
+		}
+	}
+	return nil
+}
+
+type isExecution_Strategy interface {
+	isExecution_Strategy()
+}
+
+type Execution_Market struct {
+	// Execute immediately.
+	Market *MarketExecution `protobuf:"bytes,1,opt,name=market,proto3,oneof"`
+}
+
+type Execution_Twap struct {
+	// Execute in equal time slices.
+	Twap *TwapExecution `protobuf:"bytes,2,opt,name=twap,proto3,oneof"`
+}
+
+func (*Execution_Market) isExecution_Strategy() {}
+
+func (*Execution_Twap) isExecution_Strategy() {}
+
+// SwapQuoteLeg is one spot market a quote trades on. The first leg of a
+// two-leg route receives the intermediate asset and the second spends it.
 type SwapQuoteLeg struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable numeric pair ID from GetSpotConfig.
@@ -526,7 +901,8 @@ type SwapQuoteLeg struct {
 	// "0.1" for 0.1%), as a decimal string.
 	TakerFeeRatePercent string `protobuf:"bytes,5,opt,name=taker_fee_rate_percent,json=takerFeeRatePercent,proto3" json:"taker_fee_rate_percent,omitempty"`
 	// Estimated fee, in 18-decimal units of the asset the leg receives
-	// (fee_asset_id).
+	// (fee_asset_id): the leg's received amount times its taker fee rate. A
+	// second leg is priced on what the first leg receives after its fee.
 	FeeE18 *v1.U128 `protobuf:"bytes,6,opt,name=fee_e18,json=feeE18,proto3" json:"fee_e18,omitempty"`
 	// Asset the fee is charged in: the asset the leg receives.
 	FeeAssetId    uint32 `protobuf:"varint,7,opt,name=fee_asset_id,json=feeAssetId,proto3" json:"fee_asset_id,omitempty"`
@@ -536,7 +912,7 @@ type SwapQuoteLeg struct {
 
 func (x *SwapQuoteLeg) Reset() {
 	*x = SwapQuoteLeg{}
-	mi := &file_swap_v1_swap_proto_msgTypes[1]
+	mi := &file_swap_v1_swap_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -548,7 +924,7 @@ func (x *SwapQuoteLeg) String() string {
 func (*SwapQuoteLeg) ProtoMessage() {}
 
 func (x *SwapQuoteLeg) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[1]
+	mi := &file_swap_v1_swap_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -561,7 +937,7 @@ func (x *SwapQuoteLeg) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwapQuoteLeg.ProtoReflect.Descriptor instead.
 func (*SwapQuoteLeg) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{1}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *SwapQuoteLeg) GetSymbolId() uint32 {
@@ -620,7 +996,10 @@ type SwapQuote struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The quoted terms.
 	Terms *SwapTerms `protobuf:"bytes,1,opt,name=terms,proto3" json:"terms,omitempty"`
-	// Markets the Swap would trade on, in order. A direct Swap has one.
+	// Markets the Swap would trade on, in order: the direct market between the
+	// two assets when one exists, otherwise two markets through
+	// intermediate_asset_id (USDT or USDC), the route with the largest
+	// expected output.
 	Legs []*SwapQuoteLeg `protobuf:"bytes,2,rep,name=legs,proto3" json:"legs,omitempty"`
 	// Estimated destination amount after fees, in 18-decimal units, at current
 	// order-book depth. A buy spends the whole source amount at the prices
@@ -636,14 +1015,25 @@ type SwapQuote struct {
 	QuotedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=quoted_at,json=quotedAt,proto3" json:"quoted_at,omitempty"`
 	// Last moment the quote may be accepted, 30 seconds after quoted_at. Pass it
 	// as quote_expires_at when creating the Swap.
-	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	// Unified asset ID of a two-leg route's intermediate asset (for example
+	// USDT for BTC to SOL); zero for a direct route.
+	IntermediateAssetId uint32 `protobuf:"varint,7,opt,name=intermediate_asset_id,json=intermediateAssetId,proto3" json:"intermediate_asset_id,omitempty"`
+	// Distance of the whole amount's average execution from the best prices
+	// of the books, across every leg, in basis points, rounded up:
+	// 1 - (1 - impact of leg 1) x (1 - impact of leg 2).
+	PriceImpactBps uint32 `protobuf:"varint,8,opt,name=price_impact_bps,json=priceImpactBps,proto3" json:"price_impact_bps,omitempty"`
+	// Slices the Swap executes in: 1 at market; for a TWAP, duration_ms over
+	// slice_interval_ms, rounded up. A TWAP is quoted as the whole amount at
+	// current depth, an estimate of every slice.
+	TotalSlices   uint32 `protobuf:"varint,9,opt,name=total_slices,json=totalSlices,proto3" json:"total_slices,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SwapQuote) Reset() {
 	*x = SwapQuote{}
-	mi := &file_swap_v1_swap_proto_msgTypes[2]
+	mi := &file_swap_v1_swap_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -655,7 +1045,7 @@ func (x *SwapQuote) String() string {
 func (*SwapQuote) ProtoMessage() {}
 
 func (x *SwapQuote) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[2]
+	mi := &file_swap_v1_swap_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -668,7 +1058,7 @@ func (x *SwapQuote) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwapQuote.ProtoReflect.Descriptor instead.
 func (*SwapQuote) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{2}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SwapQuote) GetTerms() *SwapTerms {
@@ -713,8 +1103,29 @@ func (x *SwapQuote) GetExpiresAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *SwapQuote) GetIntermediateAssetId() uint32 {
+	if x != nil {
+		return x.IntermediateAssetId
+	}
+	return 0
+}
+
+func (x *SwapQuote) GetPriceImpactBps() uint32 {
+	if x != nil {
+		return x.PriceImpactBps
+	}
+	return 0
+}
+
+func (x *SwapQuote) GetTotalSlices() uint32 {
+	if x != nil {
+		return x.TotalSlices
+	}
+	return 0
+}
+
 // SwapOrder is one spot order of a Swap: an immediate-or-cancel limit order
-// at the Swap's protection price.
+// at the Swap's protection price, on one leg of one slice.
 type SwapOrder struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Spot order ID, once the market accepted the order; 0 before.
@@ -738,14 +1149,17 @@ type SwapOrder struct {
 	ReceivedE18 *v1.U128 `protobuf:"bytes,8,opt,name=received_e18,json=receivedE18,proto3" json:"received_e18,omitempty"`
 	// Fee charged on settled fills, in 18-decimal units of the asset the order
 	// receives.
-	FeeE18        *v1.U128 `protobuf:"bytes,9,opt,name=fee_e18,json=feeE18,proto3" json:"fee_e18,omitempty"`
+	FeeE18 *v1.U128 `protobuf:"bytes,9,opt,name=fee_e18,json=feeE18,proto3" json:"fee_e18,omitempty"`
+	// Zero-based slice of the Swap's schedule the order belongs to; 0 at
+	// market.
+	Slice         uint32 `protobuf:"varint,10,opt,name=slice,proto3" json:"slice,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SwapOrder) Reset() {
 	*x = SwapOrder{}
-	mi := &file_swap_v1_swap_proto_msgTypes[3]
+	mi := &file_swap_v1_swap_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -757,7 +1171,7 @@ func (x *SwapOrder) String() string {
 func (*SwapOrder) ProtoMessage() {}
 
 func (x *SwapOrder) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[3]
+	mi := &file_swap_v1_swap_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -770,7 +1184,7 @@ func (x *SwapOrder) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SwapOrder.ProtoReflect.Descriptor instead.
 func (*SwapOrder) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{3}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *SwapOrder) GetOrderId() uint64 {
@@ -836,6 +1250,370 @@ func (x *SwapOrder) GetFeeE18() *v1.U128 {
 	return nil
 }
 
+func (x *SwapOrder) GetSlice() uint32 {
+	if x != nil {
+		return x.Slice
+	}
+	return 0
+}
+
+// SwapLeg is one market of a Swap's route and its settled totals.
+type SwapLeg struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based position of the market in the route.
+	Leg uint32 `protobuf:"varint,1,opt,name=leg,proto3" json:"leg,omitempty"`
+	// Stable numeric pair ID from GetSpotConfig.
+	SymbolId uint32 `protobuf:"varint,2,opt,name=symbol_id,json=symbolId,proto3" json:"symbol_id,omitempty"`
+	// Side of the leg's orders.
+	Side Side `protobuf:"varint,3,opt,name=side,proto3,enum=swap.v1.Side" json:"side,omitempty"`
+	// Amount the leg spent in settled fills, fees in the spent asset included,
+	// in 18-decimal units of the asset it spends.
+	SpentE18 *v1.U128 `protobuf:"bytes,4,opt,name=spent_e18,json=spentE18,proto3" json:"spent_e18,omitempty"`
+	// Amount the leg received in settled fills after fees, in 18-decimal units
+	// of the asset it receives.
+	ReceivedE18 *v1.U128 `protobuf:"bytes,5,opt,name=received_e18,json=receivedE18,proto3" json:"received_e18,omitempty"`
+	// Fee charged on the leg's settled fills, in 18-decimal units of
+	// fee_asset_id.
+	FeeE18 *v1.U128 `protobuf:"bytes,6,opt,name=fee_e18,json=feeE18,proto3" json:"fee_e18,omitempty"`
+	// Asset the leg's fee is charged in: the asset it receives.
+	FeeAssetId    uint32 `protobuf:"varint,7,opt,name=fee_asset_id,json=feeAssetId,proto3" json:"fee_asset_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapLeg) Reset() {
+	*x = SwapLeg{}
+	mi := &file_swap_v1_swap_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapLeg) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapLeg) ProtoMessage() {}
+
+func (x *SwapLeg) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_v1_swap_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapLeg.ProtoReflect.Descriptor instead.
+func (*SwapLeg) Descriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *SwapLeg) GetLeg() uint32 {
+	if x != nil {
+		return x.Leg
+	}
+	return 0
+}
+
+func (x *SwapLeg) GetSymbolId() uint32 {
+	if x != nil {
+		return x.SymbolId
+	}
+	return 0
+}
+
+func (x *SwapLeg) GetSide() Side {
+	if x != nil {
+		return x.Side
+	}
+	return Side_SIDE_UNSPECIFIED
+}
+
+func (x *SwapLeg) GetSpentE18() *v1.U128 {
+	if x != nil {
+		return x.SpentE18
+	}
+	return nil
+}
+
+func (x *SwapLeg) GetReceivedE18() *v1.U128 {
+	if x != nil {
+		return x.ReceivedE18
+	}
+	return nil
+}
+
+func (x *SwapLeg) GetFeeE18() *v1.U128 {
+	if x != nil {
+		return x.FeeE18
+	}
+	return nil
+}
+
+func (x *SwapLeg) GetFeeAssetId() uint32 {
+	if x != nil {
+		return x.FeeAssetId
+	}
+	return 0
+}
+
+// SwapSlice is one slot of a TWAP Swap's schedule, including a slot that
+// traded nothing. Its index and planned_at never change.
+type SwapSlice struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Zero-based position in the Swap's frozen schedule.
+	Index uint32 `protobuf:"varint,1,opt,name=index,proto3" json:"index,omitempty"`
+	// Frozen scheduled start of the slot.
+	PlannedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=planned_at,json=plannedAt,proto3" json:"planned_at,omitempty"`
+	// When its first order was sent; unset for an unsent slice.
+	ExecutedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=executed_at,json=executedAt,proto3" json:"executed_at,omitempty"`
+	// When its outcome became final; unset while planned or executing.
+	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	// Current slice state.
+	State SwapSlice_State `protobuf:"varint,5,opt,name=state,proto3,enum=swap.v1.SwapSlice_State" json:"state,omitempty"`
+	// Why a final slice did not trade in full; unspecified after full trading.
+	Reason SwapSlice_Reason `protobuf:"varint,6,opt,name=reason,proto3,enum=swap.v1.SwapSlice_Reason" json:"reason,omitempty"`
+	// Whether the slice traded source amount and is over.
+	Completed bool `protobuf:"varint,7,opt,name=completed,proto3" json:"completed,omitempty"`
+	// Source amount the slice's first leg spent in settled fills, in
+	// 18-decimal units.
+	InputTradedE18 *v1.U128 `protobuf:"bytes,8,opt,name=input_traded_e18,json=inputTradedE18,proto3" json:"input_traded_e18,omitempty"`
+	// Destination amount received in the slice after fees, in 18-decimal
+	// units. On a two-leg route this is its second leg's output, which can
+	// include intermediate carried from earlier slices.
+	OutputReceivedE18 *v1.U128 `protobuf:"bytes,9,opt,name=output_received_e18,json=outputReceivedE18,proto3" json:"output_received_e18,omitempty"`
+	// On a two-leg route, intermediate amount the slice's second leg spent, in
+	// 18-decimal units; zero on a direct route.
+	SecondLegInputE18 *v1.U128 `protobuf:"bytes,10,opt,name=second_leg_input_e18,json=secondLegInputE18,proto3" json:"second_leg_input_e18,omitempty"`
+	// On a two-leg route, intermediate acquired through this slice, from it and
+	// earlier slices, that no second leg had converted by its end, in
+	// 18-decimal units: added to a later slice's second leg when none could be
+	// ordered (carry_reason), otherwise left on the account. Zero on a direct
+	// route.
+	IntermediateCarriedE18 *v1.U128 `protobuf:"bytes,11,opt,name=intermediate_carried_e18,json=intermediateCarriedE18,proto3" json:"intermediate_carried_e18,omitempty"`
+	// Why intermediate asset could not be converted in this slice;
+	// unspecified when no conversion was refused.
+	CarryReason   SwapSlice_Reason `protobuf:"varint,12,opt,name=carry_reason,json=carryReason,proto3,enum=swap.v1.SwapSlice_Reason" json:"carry_reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *SwapSlice) Reset() {
+	*x = SwapSlice{}
+	mi := &file_swap_v1_swap_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapSlice) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapSlice) ProtoMessage() {}
+
+func (x *SwapSlice) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_v1_swap_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapSlice.ProtoReflect.Descriptor instead.
+func (*SwapSlice) Descriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *SwapSlice) GetIndex() uint32 {
+	if x != nil {
+		return x.Index
+	}
+	return 0
+}
+
+func (x *SwapSlice) GetPlannedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.PlannedAt
+	}
+	return nil
+}
+
+func (x *SwapSlice) GetExecutedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ExecutedAt
+	}
+	return nil
+}
+
+func (x *SwapSlice) GetFinishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return nil
+}
+
+func (x *SwapSlice) GetState() SwapSlice_State {
+	if x != nil {
+		return x.State
+	}
+	return SwapSlice_STATE_UNSPECIFIED
+}
+
+func (x *SwapSlice) GetReason() SwapSlice_Reason {
+	if x != nil {
+		return x.Reason
+	}
+	return SwapSlice_SLICE_REASON_UNSPECIFIED
+}
+
+func (x *SwapSlice) GetCompleted() bool {
+	if x != nil {
+		return x.Completed
+	}
+	return false
+}
+
+func (x *SwapSlice) GetInputTradedE18() *v1.U128 {
+	if x != nil {
+		return x.InputTradedE18
+	}
+	return nil
+}
+
+func (x *SwapSlice) GetOutputReceivedE18() *v1.U128 {
+	if x != nil {
+		return x.OutputReceivedE18
+	}
+	return nil
+}
+
+func (x *SwapSlice) GetSecondLegInputE18() *v1.U128 {
+	if x != nil {
+		return x.SecondLegInputE18
+	}
+	return nil
+}
+
+func (x *SwapSlice) GetIntermediateCarriedE18() *v1.U128 {
+	if x != nil {
+		return x.IntermediateCarriedE18
+	}
+	return nil
+}
+
+func (x *SwapSlice) GetCarryReason() SwapSlice_Reason {
+	if x != nil {
+		return x.CarryReason
+	}
+	return SwapSlice_SLICE_REASON_UNSPECIFIED
+}
+
+// SwapProgress is a Swap's execution schedule and slices.
+type SwapProgress struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Slices that traded source amount and are over.
+	CompletedSlices uint32 `protobuf:"varint,1,opt,name=completed_slices,json=completedSlices,proto3" json:"completed_slices,omitempty"`
+	// Slices of the schedule: 1 at market, duration_ms over slice_interval_ms
+	// rounded up for a TWAP; zero until execution is planned.
+	TotalSlices uint32 `protobuf:"varint,2,opt,name=total_slices,json=totalSlices,proto3" json:"total_slices,omitempty"`
+	// When a TWAP's schedule started, its first slot; unset at market and
+	// until the TWAP is planned.
+	StartedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
+	// The last moment an order of the Swap may be sent: the TWAP's start plus
+	// its duration, or the end of the market execution window. Unset until
+	// execution is planned. An order sent before it may settle, and an order's
+	// outcome be confirmed (RECONCILING), after it; the Swap is terminal only
+	// then.
+	Deadline *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=deadline,proto3" json:"deadline,omitempty"`
+	// A TWAP's slices in index order, at most 50, including future slices.
+	// Empty at market.
+	Slices []*SwapSlice `protobuf:"bytes,5,rep,name=slices,proto3" json:"slices,omitempty"`
+	// True when the TWAP has more than 50 slices; only the first 50 are
+	// listed, and completed_slices still counts them all.
+	SlicesTruncated bool `protobuf:"varint,6,opt,name=slices_truncated,json=slicesTruncated,proto3" json:"slices_truncated,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *SwapProgress) Reset() {
+	*x = SwapProgress{}
+	mi := &file_swap_v1_swap_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *SwapProgress) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*SwapProgress) ProtoMessage() {}
+
+func (x *SwapProgress) ProtoReflect() protoreflect.Message {
+	mi := &file_swap_v1_swap_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use SwapProgress.ProtoReflect.Descriptor instead.
+func (*SwapProgress) Descriptor() ([]byte, []int) {
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *SwapProgress) GetCompletedSlices() uint32 {
+	if x != nil {
+		return x.CompletedSlices
+	}
+	return 0
+}
+
+func (x *SwapProgress) GetTotalSlices() uint32 {
+	if x != nil {
+		return x.TotalSlices
+	}
+	return 0
+}
+
+func (x *SwapProgress) GetStartedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.StartedAt
+	}
+	return nil
+}
+
+func (x *SwapProgress) GetDeadline() *timestamppb.Timestamp {
+	if x != nil {
+		return x.Deadline
+	}
+	return nil
+}
+
+func (x *SwapProgress) GetSlices() []*SwapSlice {
+	if x != nil {
+		return x.Slices
+	}
+	return nil
+}
+
+func (x *SwapProgress) GetSlicesTruncated() bool {
+	if x != nil {
+		return x.SlicesTruncated
+	}
+	return false
+}
+
 // Swap is one signed-in Swap and its outcome. Amounts count settled fills
 // only.
 type Swap struct {
@@ -869,19 +1647,30 @@ type Swap struct {
 	UnspentAmountE18 *v1.U128 `protobuf:"bytes,12,opt,name=unspent_amount_e18,json=unspentAmountE18,proto3" json:"unspent_amount_e18,omitempty"`
 	// Destination amount received after fees, in 18-decimal units.
 	ReceivedAmountE18 *v1.U128 `protobuf:"bytes,13,opt,name=received_amount_e18,json=receivedAmountE18,proto3" json:"received_amount_e18,omitempty"`
-	// Total fee charged, in 18-decimal units of the destination asset.
-	FeeE18 *v1.U128 `protobuf:"bytes,14,opt,name=fee_e18,json=feeE18,proto3" json:"fee_e18,omitempty"`
 	// The Swap's spot orders, in placement order.
 	Orders []*SwapOrder `protobuf:"bytes,15,rep,name=orders,proto3" json:"orders,omitempty"`
 	// When the Swap was created.
-	CreatedAt     *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// How the Swap executes.
+	Execution *Execution `protobuf:"bytes,17,opt,name=execution,proto3" json:"execution,omitempty"`
+	// Unified asset ID of a two-leg route's intermediate asset; zero for a
+	// direct route.
+	IntermediateAssetId uint32 `protobuf:"varint,18,opt,name=intermediate_asset_id,json=intermediateAssetId,proto3" json:"intermediate_asset_id,omitempty"`
+	// On a two-leg route, intermediate asset received and not converted, in
+	// 18-decimal units; it is on the account. Final once is_terminal is true.
+	// Zero for a direct route.
+	IntermediateRemainderE18 *v1.U128 `protobuf:"bytes,19,opt,name=intermediate_remainder_e18,json=intermediateRemainderE18,proto3" json:"intermediate_remainder_e18,omitempty"`
+	// The route's markets in order, with each leg's settled totals and fee.
+	Legs []*SwapLeg `protobuf:"bytes,20,rep,name=legs,proto3" json:"legs,omitempty"`
+	// Execution schedule and slices; unset before execution is planned.
+	Progress      *SwapProgress `protobuf:"bytes,21,opt,name=progress,proto3" json:"progress,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Swap) Reset() {
 	*x = Swap{}
-	mi := &file_swap_v1_swap_proto_msgTypes[4]
+	mi := &file_swap_v1_swap_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -893,7 +1682,7 @@ func (x *Swap) String() string {
 func (*Swap) ProtoMessage() {}
 
 func (x *Swap) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[4]
+	mi := &file_swap_v1_swap_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -906,7 +1695,7 @@ func (x *Swap) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Swap.ProtoReflect.Descriptor instead.
 func (*Swap) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{4}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *Swap) GetSwapId() uint64 {
@@ -1000,13 +1789,6 @@ func (x *Swap) GetReceivedAmountE18() *v1.U128 {
 	return nil
 }
 
-func (x *Swap) GetFeeE18() *v1.U128 {
-	if x != nil {
-		return x.FeeE18
-	}
-	return nil
-}
-
 func (x *Swap) GetOrders() []*SwapOrder {
 	if x != nil {
 		return x.Orders
@@ -1017,6 +1799,41 @@ func (x *Swap) GetOrders() []*SwapOrder {
 func (x *Swap) GetCreatedAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.CreatedAt
+	}
+	return nil
+}
+
+func (x *Swap) GetExecution() *Execution {
+	if x != nil {
+		return x.Execution
+	}
+	return nil
+}
+
+func (x *Swap) GetIntermediateAssetId() uint32 {
+	if x != nil {
+		return x.IntermediateAssetId
+	}
+	return 0
+}
+
+func (x *Swap) GetIntermediateRemainderE18() *v1.U128 {
+	if x != nil {
+		return x.IntermediateRemainderE18
+	}
+	return nil
+}
+
+func (x *Swap) GetLegs() []*SwapLeg {
+	if x != nil {
+		return x.Legs
+	}
+	return nil
+}
+
+func (x *Swap) GetProgress() *SwapProgress {
+	if x != nil {
+		return x.Progress
 	}
 	return nil
 }
@@ -1035,7 +1852,7 @@ type QuoteSwapRequest struct {
 
 func (x *QuoteSwapRequest) Reset() {
 	*x = QuoteSwapRequest{}
-	mi := &file_swap_v1_swap_proto_msgTypes[5]
+	mi := &file_swap_v1_swap_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1047,7 +1864,7 @@ func (x *QuoteSwapRequest) String() string {
 func (*QuoteSwapRequest) ProtoMessage() {}
 
 func (x *QuoteSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[5]
+	mi := &file_swap_v1_swap_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1060,7 +1877,7 @@ func (x *QuoteSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuoteSwapRequest.ProtoReflect.Descriptor instead.
 func (*QuoteSwapRequest) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{5}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *QuoteSwapRequest) GetTerms() *SwapTerms {
@@ -1088,7 +1905,7 @@ type QuoteSwapResponse struct {
 
 func (x *QuoteSwapResponse) Reset() {
 	*x = QuoteSwapResponse{}
-	mi := &file_swap_v1_swap_proto_msgTypes[6]
+	mi := &file_swap_v1_swap_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1100,7 +1917,7 @@ func (x *QuoteSwapResponse) String() string {
 func (*QuoteSwapResponse) ProtoMessage() {}
 
 func (x *QuoteSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[6]
+	mi := &file_swap_v1_swap_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1113,7 +1930,7 @@ func (x *QuoteSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use QuoteSwapResponse.ProtoReflect.Descriptor instead.
 func (*QuoteSwapResponse) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{6}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *QuoteSwapResponse) GetQuote() *SwapQuote {
@@ -1128,13 +1945,18 @@ type CreateSwapRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Client-chosen key, unique per caller, that makes creation idempotent: the
 	// same key and request return the same Swap; another request with the same
-	// key is IDEMPOTENCY_CONFLICT.
+	// key is IDEMPOTENCY_CONFLICT. Keys starting "aw:" are reserved for
+	// auto-withdraw's conversions and refused (INVALID_ARGUMENT).
 	IdempotencyKey string `protobuf:"bytes,1,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	// Terms to execute.
 	Terms *SwapTerms `protobuf:"bytes,2,opt,name=terms,proto3" json:"terms,omitempty"`
 	// Positive minimum destination amount after fees for the whole amount, in
-	// 18-decimal units, usually the quote's min_amount_out_e18. Execution never
-	// nets a lower rate; what cannot be traded at it stays on the account.
+	// 18-decimal units, usually the quote's min_amount_out_e18. An order that
+	// matches within its window never nets a lower rate: its price limit allows
+	// for the taker fee in force then. What cannot be traded at that rate stays
+	// on the account. An order the exchange first accepts after its window
+	// (only under severe delay) may pay a later scheduled fee; if that takes a
+	// fill below the minimum rate, the Swap fails closed with MINIMUM_NOT_MET.
 	MinAmountOutE18 *v1.U128 `protobuf:"bytes,3,opt,name=min_amount_out_e18,json=minAmountOutE18,proto3" json:"min_amount_out_e18,omitempty"`
 	// The accepted quote's expires_at. The Swap is refused with QUOTE_EXPIRED
 	// once it has passed.
@@ -1145,7 +1967,7 @@ type CreateSwapRequest struct {
 
 func (x *CreateSwapRequest) Reset() {
 	*x = CreateSwapRequest{}
-	mi := &file_swap_v1_swap_proto_msgTypes[7]
+	mi := &file_swap_v1_swap_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1157,7 +1979,7 @@ func (x *CreateSwapRequest) String() string {
 func (*CreateSwapRequest) ProtoMessage() {}
 
 func (x *CreateSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[7]
+	mi := &file_swap_v1_swap_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1170,7 +1992,7 @@ func (x *CreateSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSwapRequest.ProtoReflect.Descriptor instead.
 func (*CreateSwapRequest) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{7}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CreateSwapRequest) GetIdempotencyKey() string {
@@ -1212,7 +2034,7 @@ type CreateSwapResponse struct {
 
 func (x *CreateSwapResponse) Reset() {
 	*x = CreateSwapResponse{}
-	mi := &file_swap_v1_swap_proto_msgTypes[8]
+	mi := &file_swap_v1_swap_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1224,7 +2046,7 @@ func (x *CreateSwapResponse) String() string {
 func (*CreateSwapResponse) ProtoMessage() {}
 
 func (x *CreateSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[8]
+	mi := &file_swap_v1_swap_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1237,7 +2059,7 @@ func (x *CreateSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateSwapResponse.ProtoReflect.Descriptor instead.
 func (*CreateSwapResponse) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{8}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *CreateSwapResponse) GetSwap() *Swap {
@@ -1263,7 +2085,7 @@ type GetSwapRequest struct {
 
 func (x *GetSwapRequest) Reset() {
 	*x = GetSwapRequest{}
-	mi := &file_swap_v1_swap_proto_msgTypes[9]
+	mi := &file_swap_v1_swap_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1275,7 +2097,7 @@ func (x *GetSwapRequest) String() string {
 func (*GetSwapRequest) ProtoMessage() {}
 
 func (x *GetSwapRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[9]
+	mi := &file_swap_v1_swap_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1288,7 +2110,7 @@ func (x *GetSwapRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSwapRequest.ProtoReflect.Descriptor instead.
 func (*GetSwapRequest) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{9}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetSwapRequest) GetSelector() isGetSwapRequest_Selector {
@@ -1345,7 +2167,7 @@ type GetSwapResponse struct {
 
 func (x *GetSwapResponse) Reset() {
 	*x = GetSwapResponse{}
-	mi := &file_swap_v1_swap_proto_msgTypes[10]
+	mi := &file_swap_v1_swap_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1357,7 +2179,7 @@ func (x *GetSwapResponse) String() string {
 func (*GetSwapResponse) ProtoMessage() {}
 
 func (x *GetSwapResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[10]
+	mi := &file_swap_v1_swap_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1370,7 +2192,7 @@ func (x *GetSwapResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSwapResponse.ProtoReflect.Descriptor instead.
 func (*GetSwapResponse) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{10}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetSwapResponse) GetSwap() *Swap {
@@ -1402,7 +2224,7 @@ type ErrorDetail struct {
 
 func (x *ErrorDetail) Reset() {
 	*x = ErrorDetail{}
-	mi := &file_swap_v1_swap_proto_msgTypes[11]
+	mi := &file_swap_v1_swap_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1414,7 +2236,7 @@ func (x *ErrorDetail) String() string {
 func (*ErrorDetail) ProtoMessage() {}
 
 func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
-	mi := &file_swap_v1_swap_proto_msgTypes[11]
+	mi := &file_swap_v1_swap_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1427,7 +2249,7 @@ func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
 func (*ErrorDetail) Descriptor() ([]byte, []int) {
-	return file_swap_v1_swap_proto_rawDescGZIP(), []int{11}
+	return file_swap_v1_swap_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *ErrorDetail) GetCode() ErrorCode {
@@ -1462,15 +2284,26 @@ var File_swap_v1_swap_proto protoreflect.FileDescriptor
 
 const file_swap_v1_swap_proto_rawDesc = "" +
 	"\n" +
-	"\x12swap/v1/swap.proto\x12\aswap.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xf4\x02\n" +
+	"\x12swap/v1/swap.proto\x12\aswap.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"\xa6\x03\n" +
 	"\tSwapTerms\x126\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x11\xbaH\x0e\xd8\x01\x01R\t!\x00\x00\x00\x00\x00\x00\x00\x00R\fsubaccountId\x12/\n" +
 	"\x0fsource_asset_id\x18\x02 \x01(\rB\a\xbaH\x04*\x02 \x00R\rsourceAssetId\x129\n" +
 	"\x14destination_asset_id\x18\x03 \x01(\rB\a\xbaH\x04*\x02 \x00R\x12destinationAssetId\x128\n" +
 	"\n" +
-	"amount_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128H\x00R\tamountE18:x\xbaHu\x1as\n" +
+	"amount_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128H\x00R\tamountE18\x120\n" +
+	"\texecution\x18\x05 \x01(\v2\x12.swap.v1.ExecutionR\texecution:x\xbaHu\x1as\n" +
 	"\x1aswap_terms.distinct_assets\x12\"source and destination must differ\x1a1this.source_asset_id != this.destination_asset_idB\x0f\n" +
-	"\x06amount\x12\x05\xbaH\x02\b\x01\"\xa6\x02\n" +
+	"\x06amount\x12\x05\xbaH\x02\b\x01\"\x11\n" +
+	"\x0fMarketExecution\"\x84\x02\n" +
+	"\rTwapExecution\x12/\n" +
+	"\vduration_ms\x18\x01 \x01(\x04B\x0e\xbaH\v2\t\x18\x80\xdd\xdb\x01(\xe0\xd4\x03R\n" +
+	"durationMs\x124\n" +
+	"\x11slice_interval_ms\x18\x02 \x01(\x04B\b\xbaH\x052\x03(\x90NR\x0fsliceIntervalMs:\x8b\x01\xbaH\x87\x01\x1a\x84\x01\n" +
+	"'twap_execution.interval_within_duration\x12-slice_interval_ms must not exceed duration_ms\x1a*this.slice_interval_ms <= this.duration_ms\"\x80\x01\n" +
+	"\tExecution\x122\n" +
+	"\x06market\x18\x01 \x01(\v2\x18.swap.v1.MarketExecutionH\x00R\x06market\x12,\n" +
+	"\x04twap\x18\x02 \x01(\v2\x16.swap.v1.TwapExecutionH\x00R\x04twapB\x11\n" +
+	"\bstrategy\x12\x05\xbaH\x02\b\x01\"\xa6\x02\n" +
 	"\fSwapQuoteLeg\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12!\n" +
 	"\x04side\x18\x02 \x01(\x0e2\r.swap.v1.SideR\x04side\x12#\n" +
@@ -1479,7 +2312,7 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\x16taker_fee_rate_percent\x18\x05 \x01(\tR\x13takerFeeRatePercent\x120\n" +
 	"\afee_e18\x18\x06 \x01(\v2\x17.polyester.type.v1.U128R\x06feeE18\x12 \n" +
 	"\ffee_asset_id\x18\a \x01(\rR\n" +
-	"feeAssetId\"\xea\x02\n" +
+	"feeAssetId\"\xeb\x03\n" +
 	"\tSwapQuote\x12(\n" +
 	"\x05terms\x18\x01 \x01(\v2\x12.swap.v1.SwapTermsR\x05terms\x12)\n" +
 	"\x04legs\x18\x02 \x03(\v2\x15.swap.v1.SwapQuoteLegR\x04legs\x12N\n" +
@@ -1487,7 +2320,10 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\x12min_amount_out_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\x0fminAmountOutE18\x127\n" +
 	"\tquoted_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\bquotedAt\x129\n" +
 	"\n" +
-	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\"\xfa\x02\n" +
+	"expires_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x122\n" +
+	"\x15intermediate_asset_id\x18\a \x01(\rR\x13intermediateAssetId\x12(\n" +
+	"\x10price_impact_bps\x18\b \x01(\rR\x0epriceImpactBps\x12!\n" +
+	"\ftotal_slices\x18\t \x01(\rR\vtotalSlices\"\x90\x03\n" +
 	"\tSwapOrder\x12\x19\n" +
 	"\border_id\x18\x01 \x01(\x06R\aorderId\x12\x1b\n" +
 	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12!\n" +
@@ -1497,7 +2333,64 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\x11limit_price_ticks\x18\x06 \x01(\x03R\x0flimitPriceTicks\x124\n" +
 	"\tspent_e18\x18\a \x01(\v2\x17.polyester.type.v1.U128R\bspentE18\x12:\n" +
 	"\freceived_e18\x18\b \x01(\v2\x17.polyester.type.v1.U128R\vreceivedE18\x120\n" +
-	"\afee_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\x06feeE18\"\xb2\x06\n" +
+	"\afee_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\x06feeE18\x12\x14\n" +
+	"\x05slice\x18\n" +
+	" \x01(\rR\x05slice\"\xa1\x02\n" +
+	"\aSwapLeg\x12\x10\n" +
+	"\x03leg\x18\x01 \x01(\rR\x03leg\x12\x1b\n" +
+	"\tsymbol_id\x18\x02 \x01(\rR\bsymbolId\x12!\n" +
+	"\x04side\x18\x03 \x01(\x0e2\r.swap.v1.SideR\x04side\x124\n" +
+	"\tspent_e18\x18\x04 \x01(\v2\x17.polyester.type.v1.U128R\bspentE18\x12:\n" +
+	"\freceived_e18\x18\x05 \x01(\v2\x17.polyester.type.v1.U128R\vreceivedE18\x120\n" +
+	"\afee_e18\x18\x06 \x01(\v2\x17.polyester.type.v1.U128R\x06feeE18\x12 \n" +
+	"\ffee_asset_id\x18\a \x01(\rR\n" +
+	"feeAssetId\"\x91\b\n" +
+	"\tSwapSlice\x12\x14\n" +
+	"\x05index\x18\x01 \x01(\rR\x05index\x129\n" +
+	"\n" +
+	"planned_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tplannedAt\x12;\n" +
+	"\vexecuted_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"executedAt\x12;\n" +
+	"\vfinished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"finishedAt\x12.\n" +
+	"\x05state\x18\x05 \x01(\x0e2\x18.swap.v1.SwapSlice.StateR\x05state\x121\n" +
+	"\x06reason\x18\x06 \x01(\x0e2\x19.swap.v1.SwapSlice.ReasonR\x06reason\x12\x1c\n" +
+	"\tcompleted\x18\a \x01(\bR\tcompleted\x12A\n" +
+	"\x10input_traded_e18\x18\b \x01(\v2\x17.polyester.type.v1.U128R\x0einputTradedE18\x12G\n" +
+	"\x13output_received_e18\x18\t \x01(\v2\x17.polyester.type.v1.U128R\x11outputReceivedE18\x12H\n" +
+	"\x14second_leg_input_e18\x18\n" +
+	" \x01(\v2\x17.polyester.type.v1.U128R\x11secondLegInputE18\x12Q\n" +
+	"\x18intermediate_carried_e18\x18\v \x01(\v2\x17.polyester.type.v1.U128R\x16intermediateCarriedE18\x12<\n" +
+	"\fcarry_reason\x18\f \x01(\x0e2\x19.swap.v1.SwapSlice.ReasonR\vcarryReason\"r\n" +
+	"\x05State\x12\x15\n" +
+	"\x11STATE_UNSPECIFIED\x10\x00\x12\v\n" +
+	"\aPLANNED\x10\x01\x12\r\n" +
+	"\tEXECUTING\x10\x02\x12\n" +
+	"\n" +
+	"\x06TRADED\x10\x03\x12\x11\n" +
+	"\rPARTLY_TRADED\x10\x04\x12\v\n" +
+	"\aSKIPPED\x10\x05\x12\n" +
+	"\n" +
+	"\x06FAILED\x10\x06\"\xdc\x01\n" +
+	"\x06Reason\x12\x1c\n" +
+	"\x18SLICE_REASON_UNSPECIFIED\x10\x00\x12\x0f\n" +
+	"\vSLOT_MISSED\x10\x01\x12\x14\n" +
+	"\x10DEADLINE_REACHED\x10\x02\x12\x11\n" +
+	"\rMARKET_CLOSED\x10\x03\x12\x11\n" +
+	"\rBELOW_MINIMUM\x10\x04\x12\x11\n" +
+	"\rABOVE_MAXIMUM\x10\x05\x12\x16\n" +
+	"\x12PROTECTION_NOT_MET\x10\x06\x12\v\n" +
+	"\aREFUSED\x10\a\x12\x1a\n" +
+	"\x16INSUFFICIENT_LIQUIDITY\x10\b\x12\x13\n" +
+	"\x0fEXECUTION_ENDED\x10\t\"\xa6\x02\n" +
+	"\fSwapProgress\x12)\n" +
+	"\x10completed_slices\x18\x01 \x01(\rR\x0fcompletedSlices\x12!\n" +
+	"\ftotal_slices\x18\x02 \x01(\rR\vtotalSlices\x129\n" +
+	"\n" +
+	"started_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x126\n" +
+	"\bdeadline\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\bdeadline\x12*\n" +
+	"\x06slices\x18\x05 \x03(\v2\x12.swap.v1.SwapSliceR\x06slices\x12)\n" +
+	"\x10slices_truncated\x18\x06 \x01(\bR\x0fslicesTruncated\"\x96\b\n" +
 	"\x04Swap\x12\x17\n" +
 	"\aswap_id\x18\x01 \x01(\x06R\x06swapId\x12'\n" +
 	"\x0fidempotency_key\x18\x02 \x01(\tR\x0eidempotencyKey\x12#\n" +
@@ -1514,11 +2407,15 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"isTerminal\x12G\n" +
 	"\x13executed_amount_e18\x18\v \x01(\v2\x17.polyester.type.v1.U128R\x11executedAmountE18\x12E\n" +
 	"\x12unspent_amount_e18\x18\f \x01(\v2\x17.polyester.type.v1.U128R\x10unspentAmountE18\x12G\n" +
-	"\x13received_amount_e18\x18\r \x01(\v2\x17.polyester.type.v1.U128R\x11receivedAmountE18\x120\n" +
-	"\afee_e18\x18\x0e \x01(\v2\x17.polyester.type.v1.U128R\x06feeE18\x12*\n" +
+	"\x13received_amount_e18\x18\r \x01(\v2\x17.polyester.type.v1.U128R\x11receivedAmountE18\x12*\n" +
 	"\x06orders\x18\x0f \x03(\v2\x12.swap.v1.SwapOrderR\x06orders\x129\n" +
 	"\n" +
-	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\"z\n" +
+	"created_at\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x120\n" +
+	"\texecution\x18\x11 \x01(\v2\x12.swap.v1.ExecutionR\texecution\x122\n" +
+	"\x15intermediate_asset_id\x18\x12 \x01(\rR\x13intermediateAssetId\x12U\n" +
+	"\x1aintermediate_remainder_e18\x18\x13 \x01(\v2\x17.polyester.type.v1.U128R\x18intermediateRemainderE18\x12$\n" +
+	"\x04legs\x18\x14 \x03(\v2\x10.swap.v1.SwapLegR\x04legs\x121\n" +
+	"\bprogress\x18\x15 \x01(\v2\x15.swap.v1.SwapProgressR\bprogress\"z\n" +
 	"\x10QuoteSwapRequest\x120\n" +
 	"\x05terms\x18\x01 \x01(\v2\x12.swap.v1.SwapTermsB\x06\xbaH\x03\xc8\x01\x01R\x05terms\x124\n" +
 	"\x10max_slippage_bps\x18\x02 \x01(\rB\n" +
@@ -1555,7 +2452,7 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\x13PARTIALLY_COMPLETED\x10\x03\x12\n" +
 	"\n" +
 	"\x06FAILED\x10\x04\x12\x0f\n" +
-	"\vRECONCILING\x10\x05*\xe9\x01\n" +
+	"\vRECONCILING\x10\x05*\x89\x02\n" +
 	"\n" +
 	"SwapReason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x18\n" +
@@ -1567,7 +2464,9 @@ const file_swap_v1_swap_proto_rawDesc = "" +
 	"\x0eORDER_REJECTED\x10\x06\x12\v\n" +
 	"\aEXPIRED\x10\a\x12\x13\n" +
 	"\x0fMINIMUM_NOT_MET\x10\b\x12\x16\n" +
-	"\x12MAX_ORDER_QUANTITY\x10\t*v\n" +
+	"\x12MAX_ORDER_QUANTITY\x10\t\x12\x1e\n" +
+	"\x1aINTERMEDIATE_BELOW_MINIMUM\x10\n" +
+	"*v\n" +
 	"\x0fSwapOrderStatus\x12\x1c\n" +
 	"\x18ORDER_STATUS_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aPLACING\x10\x01\x12\n" +
@@ -1616,75 +2515,106 @@ func file_swap_v1_swap_proto_rawDescGZIP() []byte {
 	return file_swap_v1_swap_proto_rawDescData
 }
 
-var file_swap_v1_swap_proto_enumTypes = make([]protoimpl.EnumInfo, 5)
-var file_swap_v1_swap_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_swap_v1_swap_proto_enumTypes = make([]protoimpl.EnumInfo, 7)
+var file_swap_v1_swap_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_swap_v1_swap_proto_goTypes = []any{
 	(Side)(0),                     // 0: swap.v1.Side
 	(SwapStatus)(0),               // 1: swap.v1.SwapStatus
 	(SwapReason)(0),               // 2: swap.v1.SwapReason
 	(SwapOrderStatus)(0),          // 3: swap.v1.SwapOrderStatus
 	(ErrorCode)(0),                // 4: swap.v1.ErrorCode
-	(*SwapTerms)(nil),             // 5: swap.v1.SwapTerms
-	(*SwapQuoteLeg)(nil),          // 6: swap.v1.SwapQuoteLeg
-	(*SwapQuote)(nil),             // 7: swap.v1.SwapQuote
-	(*SwapOrder)(nil),             // 8: swap.v1.SwapOrder
-	(*Swap)(nil),                  // 9: swap.v1.Swap
-	(*QuoteSwapRequest)(nil),      // 10: swap.v1.QuoteSwapRequest
-	(*QuoteSwapResponse)(nil),     // 11: swap.v1.QuoteSwapResponse
-	(*CreateSwapRequest)(nil),     // 12: swap.v1.CreateSwapRequest
-	(*CreateSwapResponse)(nil),    // 13: swap.v1.CreateSwapResponse
-	(*GetSwapRequest)(nil),        // 14: swap.v1.GetSwapRequest
-	(*GetSwapResponse)(nil),       // 15: swap.v1.GetSwapResponse
-	(*ErrorDetail)(nil),           // 16: swap.v1.ErrorDetail
-	(*v1.U128)(nil),               // 17: polyester.type.v1.U128
-	(*timestamppb.Timestamp)(nil), // 18: google.protobuf.Timestamp
+	(SwapSlice_State)(0),          // 5: swap.v1.SwapSlice.State
+	(SwapSlice_Reason)(0),         // 6: swap.v1.SwapSlice.Reason
+	(*SwapTerms)(nil),             // 7: swap.v1.SwapTerms
+	(*MarketExecution)(nil),       // 8: swap.v1.MarketExecution
+	(*TwapExecution)(nil),         // 9: swap.v1.TwapExecution
+	(*Execution)(nil),             // 10: swap.v1.Execution
+	(*SwapQuoteLeg)(nil),          // 11: swap.v1.SwapQuoteLeg
+	(*SwapQuote)(nil),             // 12: swap.v1.SwapQuote
+	(*SwapOrder)(nil),             // 13: swap.v1.SwapOrder
+	(*SwapLeg)(nil),               // 14: swap.v1.SwapLeg
+	(*SwapSlice)(nil),             // 15: swap.v1.SwapSlice
+	(*SwapProgress)(nil),          // 16: swap.v1.SwapProgress
+	(*Swap)(nil),                  // 17: swap.v1.Swap
+	(*QuoteSwapRequest)(nil),      // 18: swap.v1.QuoteSwapRequest
+	(*QuoteSwapResponse)(nil),     // 19: swap.v1.QuoteSwapResponse
+	(*CreateSwapRequest)(nil),     // 20: swap.v1.CreateSwapRequest
+	(*CreateSwapResponse)(nil),    // 21: swap.v1.CreateSwapResponse
+	(*GetSwapRequest)(nil),        // 22: swap.v1.GetSwapRequest
+	(*GetSwapResponse)(nil),       // 23: swap.v1.GetSwapResponse
+	(*ErrorDetail)(nil),           // 24: swap.v1.ErrorDetail
+	(*v1.U128)(nil),               // 25: polyester.type.v1.U128
+	(*timestamppb.Timestamp)(nil), // 26: google.protobuf.Timestamp
 }
 var file_swap_v1_swap_proto_depIdxs = []int32{
-	17, // 0: swap.v1.SwapTerms.amount_e18:type_name -> polyester.type.v1.U128
-	0,  // 1: swap.v1.SwapQuoteLeg.side:type_name -> swap.v1.Side
-	17, // 2: swap.v1.SwapQuoteLeg.fee_e18:type_name -> polyester.type.v1.U128
-	5,  // 3: swap.v1.SwapQuote.terms:type_name -> swap.v1.SwapTerms
-	6,  // 4: swap.v1.SwapQuote.legs:type_name -> swap.v1.SwapQuoteLeg
-	17, // 5: swap.v1.SwapQuote.expected_amount_out_e18:type_name -> polyester.type.v1.U128
-	17, // 6: swap.v1.SwapQuote.min_amount_out_e18:type_name -> polyester.type.v1.U128
-	18, // 7: swap.v1.SwapQuote.quoted_at:type_name -> google.protobuf.Timestamp
-	18, // 8: swap.v1.SwapQuote.expires_at:type_name -> google.protobuf.Timestamp
-	0,  // 9: swap.v1.SwapOrder.side:type_name -> swap.v1.Side
-	3,  // 10: swap.v1.SwapOrder.status:type_name -> swap.v1.SwapOrderStatus
-	17, // 11: swap.v1.SwapOrder.spent_e18:type_name -> polyester.type.v1.U128
-	17, // 12: swap.v1.SwapOrder.received_e18:type_name -> polyester.type.v1.U128
-	17, // 13: swap.v1.SwapOrder.fee_e18:type_name -> polyester.type.v1.U128
-	17, // 14: swap.v1.Swap.amount_e18:type_name -> polyester.type.v1.U128
-	17, // 15: swap.v1.Swap.min_amount_out_e18:type_name -> polyester.type.v1.U128
-	1,  // 16: swap.v1.Swap.status:type_name -> swap.v1.SwapStatus
-	2,  // 17: swap.v1.Swap.reason:type_name -> swap.v1.SwapReason
-	17, // 18: swap.v1.Swap.executed_amount_e18:type_name -> polyester.type.v1.U128
-	17, // 19: swap.v1.Swap.unspent_amount_e18:type_name -> polyester.type.v1.U128
-	17, // 20: swap.v1.Swap.received_amount_e18:type_name -> polyester.type.v1.U128
-	17, // 21: swap.v1.Swap.fee_e18:type_name -> polyester.type.v1.U128
-	8,  // 22: swap.v1.Swap.orders:type_name -> swap.v1.SwapOrder
-	18, // 23: swap.v1.Swap.created_at:type_name -> google.protobuf.Timestamp
-	5,  // 24: swap.v1.QuoteSwapRequest.terms:type_name -> swap.v1.SwapTerms
-	7,  // 25: swap.v1.QuoteSwapResponse.quote:type_name -> swap.v1.SwapQuote
-	5,  // 26: swap.v1.CreateSwapRequest.terms:type_name -> swap.v1.SwapTerms
-	17, // 27: swap.v1.CreateSwapRequest.min_amount_out_e18:type_name -> polyester.type.v1.U128
-	18, // 28: swap.v1.CreateSwapRequest.quote_expires_at:type_name -> google.protobuf.Timestamp
-	9,  // 29: swap.v1.CreateSwapResponse.swap:type_name -> swap.v1.Swap
-	9,  // 30: swap.v1.GetSwapResponse.swap:type_name -> swap.v1.Swap
-	4,  // 31: swap.v1.ErrorDetail.code:type_name -> swap.v1.ErrorCode
-	17, // 32: swap.v1.ErrorDetail.min_amount_e18:type_name -> polyester.type.v1.U128
-	17, // 33: swap.v1.ErrorDetail.max_amount_e18:type_name -> polyester.type.v1.U128
-	10, // 34: swap.v1.SwapService.QuoteSwap:input_type -> swap.v1.QuoteSwapRequest
-	12, // 35: swap.v1.SwapService.CreateSwap:input_type -> swap.v1.CreateSwapRequest
-	14, // 36: swap.v1.SwapService.GetSwap:input_type -> swap.v1.GetSwapRequest
-	11, // 37: swap.v1.SwapService.QuoteSwap:output_type -> swap.v1.QuoteSwapResponse
-	13, // 38: swap.v1.SwapService.CreateSwap:output_type -> swap.v1.CreateSwapResponse
-	15, // 39: swap.v1.SwapService.GetSwap:output_type -> swap.v1.GetSwapResponse
-	37, // [37:40] is the sub-list for method output_type
-	34, // [34:37] is the sub-list for method input_type
-	34, // [34:34] is the sub-list for extension type_name
-	34, // [34:34] is the sub-list for extension extendee
-	0,  // [0:34] is the sub-list for field type_name
+	25, // 0: swap.v1.SwapTerms.amount_e18:type_name -> polyester.type.v1.U128
+	10, // 1: swap.v1.SwapTerms.execution:type_name -> swap.v1.Execution
+	8,  // 2: swap.v1.Execution.market:type_name -> swap.v1.MarketExecution
+	9,  // 3: swap.v1.Execution.twap:type_name -> swap.v1.TwapExecution
+	0,  // 4: swap.v1.SwapQuoteLeg.side:type_name -> swap.v1.Side
+	25, // 5: swap.v1.SwapQuoteLeg.fee_e18:type_name -> polyester.type.v1.U128
+	7,  // 6: swap.v1.SwapQuote.terms:type_name -> swap.v1.SwapTerms
+	11, // 7: swap.v1.SwapQuote.legs:type_name -> swap.v1.SwapQuoteLeg
+	25, // 8: swap.v1.SwapQuote.expected_amount_out_e18:type_name -> polyester.type.v1.U128
+	25, // 9: swap.v1.SwapQuote.min_amount_out_e18:type_name -> polyester.type.v1.U128
+	26, // 10: swap.v1.SwapQuote.quoted_at:type_name -> google.protobuf.Timestamp
+	26, // 11: swap.v1.SwapQuote.expires_at:type_name -> google.protobuf.Timestamp
+	0,  // 12: swap.v1.SwapOrder.side:type_name -> swap.v1.Side
+	3,  // 13: swap.v1.SwapOrder.status:type_name -> swap.v1.SwapOrderStatus
+	25, // 14: swap.v1.SwapOrder.spent_e18:type_name -> polyester.type.v1.U128
+	25, // 15: swap.v1.SwapOrder.received_e18:type_name -> polyester.type.v1.U128
+	25, // 16: swap.v1.SwapOrder.fee_e18:type_name -> polyester.type.v1.U128
+	0,  // 17: swap.v1.SwapLeg.side:type_name -> swap.v1.Side
+	25, // 18: swap.v1.SwapLeg.spent_e18:type_name -> polyester.type.v1.U128
+	25, // 19: swap.v1.SwapLeg.received_e18:type_name -> polyester.type.v1.U128
+	25, // 20: swap.v1.SwapLeg.fee_e18:type_name -> polyester.type.v1.U128
+	26, // 21: swap.v1.SwapSlice.planned_at:type_name -> google.protobuf.Timestamp
+	26, // 22: swap.v1.SwapSlice.executed_at:type_name -> google.protobuf.Timestamp
+	26, // 23: swap.v1.SwapSlice.finished_at:type_name -> google.protobuf.Timestamp
+	5,  // 24: swap.v1.SwapSlice.state:type_name -> swap.v1.SwapSlice.State
+	6,  // 25: swap.v1.SwapSlice.reason:type_name -> swap.v1.SwapSlice.Reason
+	25, // 26: swap.v1.SwapSlice.input_traded_e18:type_name -> polyester.type.v1.U128
+	25, // 27: swap.v1.SwapSlice.output_received_e18:type_name -> polyester.type.v1.U128
+	25, // 28: swap.v1.SwapSlice.second_leg_input_e18:type_name -> polyester.type.v1.U128
+	25, // 29: swap.v1.SwapSlice.intermediate_carried_e18:type_name -> polyester.type.v1.U128
+	6,  // 30: swap.v1.SwapSlice.carry_reason:type_name -> swap.v1.SwapSlice.Reason
+	26, // 31: swap.v1.SwapProgress.started_at:type_name -> google.protobuf.Timestamp
+	26, // 32: swap.v1.SwapProgress.deadline:type_name -> google.protobuf.Timestamp
+	15, // 33: swap.v1.SwapProgress.slices:type_name -> swap.v1.SwapSlice
+	25, // 34: swap.v1.Swap.amount_e18:type_name -> polyester.type.v1.U128
+	25, // 35: swap.v1.Swap.min_amount_out_e18:type_name -> polyester.type.v1.U128
+	1,  // 36: swap.v1.Swap.status:type_name -> swap.v1.SwapStatus
+	2,  // 37: swap.v1.Swap.reason:type_name -> swap.v1.SwapReason
+	25, // 38: swap.v1.Swap.executed_amount_e18:type_name -> polyester.type.v1.U128
+	25, // 39: swap.v1.Swap.unspent_amount_e18:type_name -> polyester.type.v1.U128
+	25, // 40: swap.v1.Swap.received_amount_e18:type_name -> polyester.type.v1.U128
+	13, // 41: swap.v1.Swap.orders:type_name -> swap.v1.SwapOrder
+	26, // 42: swap.v1.Swap.created_at:type_name -> google.protobuf.Timestamp
+	10, // 43: swap.v1.Swap.execution:type_name -> swap.v1.Execution
+	25, // 44: swap.v1.Swap.intermediate_remainder_e18:type_name -> polyester.type.v1.U128
+	14, // 45: swap.v1.Swap.legs:type_name -> swap.v1.SwapLeg
+	16, // 46: swap.v1.Swap.progress:type_name -> swap.v1.SwapProgress
+	7,  // 47: swap.v1.QuoteSwapRequest.terms:type_name -> swap.v1.SwapTerms
+	12, // 48: swap.v1.QuoteSwapResponse.quote:type_name -> swap.v1.SwapQuote
+	7,  // 49: swap.v1.CreateSwapRequest.terms:type_name -> swap.v1.SwapTerms
+	25, // 50: swap.v1.CreateSwapRequest.min_amount_out_e18:type_name -> polyester.type.v1.U128
+	26, // 51: swap.v1.CreateSwapRequest.quote_expires_at:type_name -> google.protobuf.Timestamp
+	17, // 52: swap.v1.CreateSwapResponse.swap:type_name -> swap.v1.Swap
+	17, // 53: swap.v1.GetSwapResponse.swap:type_name -> swap.v1.Swap
+	4,  // 54: swap.v1.ErrorDetail.code:type_name -> swap.v1.ErrorCode
+	25, // 55: swap.v1.ErrorDetail.min_amount_e18:type_name -> polyester.type.v1.U128
+	25, // 56: swap.v1.ErrorDetail.max_amount_e18:type_name -> polyester.type.v1.U128
+	18, // 57: swap.v1.SwapService.QuoteSwap:input_type -> swap.v1.QuoteSwapRequest
+	20, // 58: swap.v1.SwapService.CreateSwap:input_type -> swap.v1.CreateSwapRequest
+	22, // 59: swap.v1.SwapService.GetSwap:input_type -> swap.v1.GetSwapRequest
+	19, // 60: swap.v1.SwapService.QuoteSwap:output_type -> swap.v1.QuoteSwapResponse
+	21, // 61: swap.v1.SwapService.CreateSwap:output_type -> swap.v1.CreateSwapResponse
+	23, // 62: swap.v1.SwapService.GetSwap:output_type -> swap.v1.GetSwapResponse
+	60, // [60:63] is the sub-list for method output_type
+	57, // [57:60] is the sub-list for method input_type
+	57, // [57:57] is the sub-list for extension type_name
+	57, // [57:57] is the sub-list for extension extendee
+	0,  // [0:57] is the sub-list for field type_name
 }
 
 func init() { file_swap_v1_swap_proto_init() }
@@ -1695,7 +2625,11 @@ func file_swap_v1_swap_proto_init() {
 	file_swap_v1_swap_proto_msgTypes[0].OneofWrappers = []any{
 		(*SwapTerms_AmountE18)(nil),
 	}
-	file_swap_v1_swap_proto_msgTypes[9].OneofWrappers = []any{
+	file_swap_v1_swap_proto_msgTypes[3].OneofWrappers = []any{
+		(*Execution_Market)(nil),
+		(*Execution_Twap)(nil),
+	}
+	file_swap_v1_swap_proto_msgTypes[15].OneofWrappers = []any{
 		(*GetSwapRequest_SwapId)(nil),
 		(*GetSwapRequest_IdempotencyKey)(nil),
 	}
@@ -1704,8 +2638,8 @@ func file_swap_v1_swap_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_swap_v1_swap_proto_rawDesc), len(file_swap_v1_swap_proto_rawDesc)),
-			NumEnums:      5,
-			NumMessages:   12,
+			NumEnums:      7,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

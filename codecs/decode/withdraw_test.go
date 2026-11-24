@@ -18,6 +18,7 @@ func TestWithdrawDestinationValidationCodeLabels(t *testing.T) {
 		{chainwithdrawv1.WithdrawDestinationValidationCode_POLYESTER_SMART_ACCOUNT, "polyester_smart_account"},
 		{chainwithdrawv1.WithdrawDestinationValidationCode_TOKEN_CONTRACT, "token_contract"},
 		{chainwithdrawv1.WithdrawDestinationValidationCode_DENYLISTED_ADDRESS, "denylisted_address"},
+		{chainwithdrawv1.WithdrawDestinationValidationCode_SWAP_DEPOSIT_ADDRESS, "swap_deposit_address"},
 		{chainwithdrawv1.WithdrawDestinationValidationCode(99), "unknown_code_99"},
 	}
 	for _, tc := range cases {

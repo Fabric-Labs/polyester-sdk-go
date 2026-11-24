@@ -359,6 +359,86 @@ func (x *Sparkline) GetCloseTicks() []int64 {
 	return nil
 }
 
+// RollingWindowStats summarizes executed trade prices over one rolling window
+// that ends now. Like the rolling 24h stats, a window has minute granularity:
+// it starts at the start of the minute that contains the time one window
+// length ago. All prices are in quote units scaled by 1e9 and come from
+// executed trades, never from the index price.
+type RollingWindowStats struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Price at the start of the window: the last trade price before the
+	// window's first minute or, for a market that first traded later, its
+	// first trade.
+	OpenTicks int64 `protobuf:"varint,1,opt,name=open_ticks,json=openTicks,proto3" json:"open_ticks,omitempty"`
+	// Highest price in the window, counting the open and every trade.
+	HighTicks int64 `protobuf:"varint,2,opt,name=high_ticks,json=highTicks,proto3" json:"high_ticks,omitempty"`
+	// Lowest price in the window, counting the open and every trade.
+	LowTicks int64 `protobuf:"varint,3,opt,name=low_ticks,json=lowTicks,proto3" json:"low_ticks,omitempty"`
+	// Change from the open to the last price in basis points (bp), truncated
+	// toward zero. Example: +123 = +1.23%.
+	ChangeBps     int32 `protobuf:"varint,4,opt,name=change_bps,json=changeBps,proto3" json:"change_bps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *RollingWindowStats) Reset() {
+	*x = RollingWindowStats{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *RollingWindowStats) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*RollingWindowStats) ProtoMessage() {}
+
+func (x *RollingWindowStats) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use RollingWindowStats.ProtoReflect.Descriptor instead.
+func (*RollingWindowStats) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *RollingWindowStats) GetOpenTicks() int64 {
+	if x != nil {
+		return x.OpenTicks
+	}
+	return 0
+}
+
+func (x *RollingWindowStats) GetHighTicks() int64 {
+	if x != nil {
+		return x.HighTicks
+	}
+	return 0
+}
+
+func (x *RollingWindowStats) GetLowTicks() int64 {
+	if x != nil {
+		return x.LowTicks
+	}
+	return 0
+}
+
+func (x *RollingWindowStats) GetChangeBps() int32 {
+	if x != nil {
+		return x.ChangeBps
+	}
+	return 0
+}
+
 type MarketOverview struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Numeric spot market identifier.
@@ -370,15 +450,58 @@ type MarketOverview struct {
 	// Rolling 24h change expressed in basis points (bp). Example: +123 = +1.23%.
 	// Measured from the 24h open to the last price, at minute granularity: the
 	// 24h open is the price at the start of the minute that contains the time
-	// 24h ago or, for a market that first traded later, its first trade. 0 when
-	// the market has no trade yet (its last trade timestamp is 0 too) and until
-	// its first minute of trading has ended.
+	// 24h ago or, for a market that first traded later, its first trade. 0 while
+	// the 24h open is unavailable (open_24h_ticks is 0 then): the market has no
+	// trade yet (its last trade timestamp is 0 too), its first trade is a few
+	// seconds old, or its trade history is temporarily unavailable.
 	Change_24HBps int32 `protobuf:"varint,5,opt,name=change_24h_bps,json=change24hBps,proto3" json:"change_24h_bps,omitempty"`
-	// Rolling 24h stats.
-	// Highest traded price in the 24h window, in quote units scaled by 1e9.
+	// Rolling 24h stats. The 24h window starts at the start of the minute that
+	// contains the time 24h ago and ends now; its prices, volumes and trade
+	// count cover the same window.
+	// Highest price in the 24h window, counting its open and every trade, in
+	// quote units scaled by 1e9.
 	High_24HTicks int64 `protobuf:"varint,6,opt,name=high_24h_ticks,json=high24hTicks,proto3" json:"high_24h_ticks,omitempty"`
-	// Lowest traded price in the 24h window, in quote units scaled by 1e9.
+	// Lowest price in the 24h window, counting its open and every trade, in
+	// quote units scaled by 1e9.
 	Low_24HTicks int64 `protobuf:"varint,7,opt,name=low_24h_ticks,json=low24hTicks,proto3" json:"low_24h_ticks,omitempty"`
+	// The 24h open that change_24h_bps is measured from, in quote units scaled
+	// by 1e9. 0 while the open is unavailable, including when history is
+	// temporarily unavailable: the market has no trade yet, its first trade is a
+	// few seconds old, or its trade history cannot be read for a while.
+	Open_24HTicks int64 `protobuf:"varint,22,opt,name=open_24h_ticks,json=open24hTicks,proto3" json:"open_24h_ticks,omitempty"`
+	// Number of trades executed in the 24h window.
+	TradeCount_24H uint64 `protobuf:"varint,24,opt,name=trade_count_24h,json=tradeCount24h,proto3" json:"trade_count_24h,omitempty"`
+	// 24h volume-weighted average trade price in quote units scaled by 1e9,
+	// rounded down: the exact 24h quote notional divided by the 24h base volume.
+	// The notional is not rounded to the quote scale, so dividing the displayed
+	// volume_24h_quote_scaled by volume_24h_base_scaled can differ slightly;
+	// clients cannot reproduce this value from the displayed volumes. The base
+	// volume is exact when the base asset's market_data_volume_scale equals its
+	// quantity_scale in GetSpotConfig. Otherwise each second with trades rounds
+	// its base volume to the volume scale, by at most half of one volume unit,
+	// so the base volume can be off by that much per second with trades and the
+	// price error shrinks as the total base volume grows. Omitted when the
+	// window has no base volume or the 24h base volume is omitted.
+	Vwap_24HTicks *int64 `protobuf:"varint,25,opt,name=vwap_24h_ticks,json=vwap24hTicks,proto3,oneof" json:"vwap_24h_ticks,omitempty"`
+	// Price at the start of the current UTC day (00:00 UTC), in quote units
+	// scaled by 1e9: the last trade price before the day's first minute or, for
+	// a market that first traded later that day, its first trade. Change since
+	// the day open is last_price_ticks against this price. 0 while the open is
+	// unavailable, including when history is temporarily unavailable: the
+	// market has no trade yet, a new day's first price is still being recorded
+	// (a few seconds after 00:00 UTC), or its trade history cannot be read for a
+	// while.
+	OpenUtcDayTicks int64 `protobuf:"varint,23,opt,name=open_utc_day_ticks,json=openUtcDayTicks,proto3" json:"open_utc_day_ticks,omitempty"`
+	// Rolling 1h stats, over the same minute-granular window as the 24h stats.
+	// Absent while the window's open is unavailable, including when history is
+	// temporarily unavailable: the market has no trade yet, its first trade is
+	// a few seconds old, or the window's trade history cannot be read for a
+	// while. Later fields may add volumes per window.
+	Stats_1H *RollingWindowStats `protobuf:"bytes,19,opt,name=stats_1h,json=stats1h,proto3" json:"stats_1h,omitempty"`
+	// Rolling 4h stats. Absent under the same conditions as stats_1h.
+	Stats_4H *RollingWindowStats `protobuf:"bytes,20,opt,name=stats_4h,json=stats4h,proto3" json:"stats_4h,omitempty"`
+	// Rolling 7-day stats. Absent under the same conditions as stats_1h.
+	Stats_7D *RollingWindowStats `protobuf:"bytes,21,opt,name=stats_7d,json=stats7d,proto3" json:"stats_7d,omitempty"`
 	// Rolling 24h base volume scaled by the base asset's
 	// market_data_volume_scale from GetSpotConfig. Omitted if the amount exceeds
 	// the signed 64-bit range.
@@ -423,7 +546,7 @@ type MarketOverview struct {
 
 func (x *MarketOverview) Reset() {
 	*x = MarketOverview{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[2]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -435,7 +558,7 @@ func (x *MarketOverview) String() string {
 func (*MarketOverview) ProtoMessage() {}
 
 func (x *MarketOverview) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[2]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -448,7 +571,7 @@ func (x *MarketOverview) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarketOverview.ProtoReflect.Descriptor instead.
 func (*MarketOverview) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{2}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *MarketOverview) GetSymbolId() uint32 {
@@ -491,6 +614,55 @@ func (x *MarketOverview) GetLow_24HTicks() int64 {
 		return x.Low_24HTicks
 	}
 	return 0
+}
+
+func (x *MarketOverview) GetOpen_24HTicks() int64 {
+	if x != nil {
+		return x.Open_24HTicks
+	}
+	return 0
+}
+
+func (x *MarketOverview) GetTradeCount_24H() uint64 {
+	if x != nil {
+		return x.TradeCount_24H
+	}
+	return 0
+}
+
+func (x *MarketOverview) GetVwap_24HTicks() int64 {
+	if x != nil && x.Vwap_24HTicks != nil {
+		return *x.Vwap_24HTicks
+	}
+	return 0
+}
+
+func (x *MarketOverview) GetOpenUtcDayTicks() int64 {
+	if x != nil {
+		return x.OpenUtcDayTicks
+	}
+	return 0
+}
+
+func (x *MarketOverview) GetStats_1H() *RollingWindowStats {
+	if x != nil {
+		return x.Stats_1H
+	}
+	return nil
+}
+
+func (x *MarketOverview) GetStats_4H() *RollingWindowStats {
+	if x != nil {
+		return x.Stats_4H
+	}
+	return nil
+}
+
+func (x *MarketOverview) GetStats_7D() *RollingWindowStats {
+	if x != nil {
+		return x.Stats_7D
+	}
+	return nil
 }
 
 func (x *MarketOverview) GetVolume_24HBaseScaled() int64 {
@@ -570,6 +742,188 @@ func (x *MarketOverview) GetPriceBand() *v1.LivePriceBand {
 	return nil
 }
 
+// PriceTicksRange bounds a price in quote units scaled by 1e9. Both bounds
+// are inclusive; an omitted bound leaves that side unbounded.
+type PriceTicksRange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Lowest matching price, inclusive, in quote units scaled by 1e9; at least
+	// 0. Omit for no lower bound.
+	MinTicks *int64 `protobuf:"varint,1,opt,name=min_ticks,json=minTicks,proto3,oneof" json:"min_ticks,omitempty"`
+	// Highest matching price, inclusive, in quote units scaled by 1e9; at least
+	// 0. Omit for no upper bound.
+	MaxTicks      *int64 `protobuf:"varint,2,opt,name=max_ticks,json=maxTicks,proto3,oneof" json:"max_ticks,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PriceTicksRange) Reset() {
+	*x = PriceTicksRange{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PriceTicksRange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PriceTicksRange) ProtoMessage() {}
+
+func (x *PriceTicksRange) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PriceTicksRange.ProtoReflect.Descriptor instead.
+func (*PriceTicksRange) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PriceTicksRange) GetMinTicks() int64 {
+	if x != nil && x.MinTicks != nil {
+		return *x.MinTicks
+	}
+	return 0
+}
+
+func (x *PriceTicksRange) GetMaxTicks() int64 {
+	if x != nil && x.MaxTicks != nil {
+		return *x.MaxTicks
+	}
+	return 0
+}
+
+// BpsRange bounds a signed change in basis points (bp). Both bounds are
+// inclusive; an omitted bound leaves that side unbounded.
+type BpsRange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Lowest matching change, inclusive, in basis points; may be negative.
+	// Example: -500 = -5%. Omit for no lower bound.
+	MinBps *int32 `protobuf:"varint,1,opt,name=min_bps,json=minBps,proto3,oneof" json:"min_bps,omitempty"`
+	// Highest matching change, inclusive, in basis points; may be negative.
+	// Example: 1000 = +10%. Omit for no upper bound.
+	MaxBps        *int32 `protobuf:"varint,2,opt,name=max_bps,json=maxBps,proto3,oneof" json:"max_bps,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BpsRange) Reset() {
+	*x = BpsRange{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BpsRange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BpsRange) ProtoMessage() {}
+
+func (x *BpsRange) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BpsRange.ProtoReflect.Descriptor instead.
+func (*BpsRange) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *BpsRange) GetMinBps() int32 {
+	if x != nil && x.MinBps != nil {
+		return *x.MinBps
+	}
+	return 0
+}
+
+func (x *BpsRange) GetMaxBps() int32 {
+	if x != nil && x.MaxBps != nil {
+		return *x.MaxBps
+	}
+	return 0
+}
+
+// UsdVolumeRange bounds a USD volume scaled by 1e6 (one unit is 0.000001
+// USD). Both bounds are inclusive; an omitted bound leaves that side
+// unbounded.
+type UsdVolumeRange struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Lowest matching USD volume, inclusive, scaled by 1e6; at least 0. Omit
+	// for no lower bound.
+	MinUsdScaled *int64 `protobuf:"varint,1,opt,name=min_usd_scaled,json=minUsdScaled,proto3,oneof" json:"min_usd_scaled,omitempty"`
+	// Highest matching USD volume, inclusive, scaled by 1e6; at least 0. Omit
+	// for no upper bound.
+	MaxUsdScaled  *int64 `protobuf:"varint,2,opt,name=max_usd_scaled,json=maxUsdScaled,proto3,oneof" json:"max_usd_scaled,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UsdVolumeRange) Reset() {
+	*x = UsdVolumeRange{}
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UsdVolumeRange) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UsdVolumeRange) ProtoMessage() {}
+
+func (x *UsdVolumeRange) ProtoReflect() protoreflect.Message {
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UsdVolumeRange.ProtoReflect.Descriptor instead.
+func (*UsdVolumeRange) Descriptor() ([]byte, []int) {
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *UsdVolumeRange) GetMinUsdScaled() int64 {
+	if x != nil && x.MinUsdScaled != nil {
+		return *x.MinUsdScaled
+	}
+	return 0
+}
+
+func (x *UsdVolumeRange) GetMaxUsdScaled() int64 {
+	if x != nil && x.MaxUsdScaled != nil {
+		return *x.MaxUsdScaled
+	}
+	return 0
+}
+
+// ListMarketOverviewRequest lists market overview rows. The symbol_id
+// filter and the range filters combine: a market is returned only when it
+// matches every filter given. Filters apply before sorting and paging.
+// A range whose minimum exceeds its maximum is refused as invalid, with a
+// violation on the range field (last_price, change_24h or volume_24h); a
+// negative price or volume bound is refused with a violation on the bound
+// itself, such as last_price.max_ticks.
 type ListMarketOverviewRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Filter by stable numeric pair IDs from GetSpotConfig. When empty, returns
@@ -581,8 +935,14 @@ type ListMarketOverviewRequest struct {
 	// is 2000.
 	Limit uint32 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
 	// Opaque keyset cursor from a previous response. The cursor is exclusive and
-	// bound to symbol IDs, sort key, and sort direction. Sparkline options
-	// affect only response enrichment and may change between pages.
+	// bound to symbol IDs, the range filters, sort key, and sort direction:
+	// reuse it with the same filters. A cursor reused with other filters or
+	// another sort is refused as invalid; request the first page again.
+	// Sparkline options affect only response enrichment and may change between
+	// pages. Each page is cut from current values, so a market whose sort value
+	// or range membership changes between pages can appear twice or not at all
+	// across them. For a consistent list, request a single page with the
+	// maximum limit.
 	PageToken string `protobuf:"bytes,3,opt,name=page_token,json=pageToken,proto3" json:"page_token,omitempty"`
 	// Sort key. When unset/UNSPECIFIED, defaults to descending 24h USD volume.
 	OrderBy MarketOrderBy `protobuf:"varint,4,opt,name=order_by,json=orderBy,proto3,enum=marketoverview.v1.MarketOrderBy" json:"order_by,omitempty"`
@@ -593,13 +953,25 @@ type ListMarketOverviewRequest struct {
 	// Which sparklines to include. If empty and include_sparklines is true,
 	// server defaults to 24h.
 	SparklineIntervals []SparklineInterval `protobuf:"varint,7,rep,packed,name=sparkline_intervals,json=sparklineIntervals,proto3,enum=marketoverview.v1.SparklineInterval" json:"sparkline_intervals,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Only markets whose last_price_ticks is within this range. When a bound is
+	// set, a market with no trade yet never matches. Omit for no price filter.
+	LastPrice *PriceTicksRange `protobuf:"bytes,8,opt,name=last_price,json=lastPrice,proto3" json:"last_price,omitempty"`
+	// Only markets whose signed change_24h_bps is within this range; sorting by
+	// ORDER_BY_CHANGE_24H_BPS still uses the absolute change. When a bound is
+	// set, a market whose 24h change has no open (open_24h_ticks is 0) never
+	// matches. Omit for no change filter.
+	Change_24H *BpsRange `protobuf:"bytes,9,opt,name=change_24h,json=change24h,proto3" json:"change_24h,omitempty"`
+	// Only markets whose volume_24h_usd_scaled is within this range. When a
+	// bound is set, a market whose USD volume is omitted never matches. Omit
+	// for no volume filter.
+	Volume_24H    *UsdVolumeRange `protobuf:"bytes,10,opt,name=volume_24h,json=volume24h,proto3" json:"volume_24h,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ListMarketOverviewRequest) Reset() {
 	*x = ListMarketOverviewRequest{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[3]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -611,7 +983,7 @@ func (x *ListMarketOverviewRequest) String() string {
 func (*ListMarketOverviewRequest) ProtoMessage() {}
 
 func (x *ListMarketOverviewRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[3]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -624,7 +996,7 @@ func (x *ListMarketOverviewRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMarketOverviewRequest.ProtoReflect.Descriptor instead.
 func (*ListMarketOverviewRequest) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{3}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *ListMarketOverviewRequest) GetSymbolId() []uint32 {
@@ -676,6 +1048,27 @@ func (x *ListMarketOverviewRequest) GetSparklineIntervals() []SparklineInterval 
 	return nil
 }
 
+func (x *ListMarketOverviewRequest) GetLastPrice() *PriceTicksRange {
+	if x != nil {
+		return x.LastPrice
+	}
+	return nil
+}
+
+func (x *ListMarketOverviewRequest) GetChange_24H() *BpsRange {
+	if x != nil {
+		return x.Change_24H
+	}
+	return nil
+}
+
+func (x *ListMarketOverviewRequest) GetVolume_24H() *UsdVolumeRange {
+	if x != nil {
+		return x.Volume_24H
+	}
+	return nil
+}
+
 type ListMarketOverviewResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Market overview rows for the requested page.
@@ -688,7 +1081,7 @@ type ListMarketOverviewResponse struct {
 
 func (x *ListMarketOverviewResponse) Reset() {
 	*x = ListMarketOverviewResponse{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[4]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -700,7 +1093,7 @@ func (x *ListMarketOverviewResponse) String() string {
 func (*ListMarketOverviewResponse) ProtoMessage() {}
 
 func (x *ListMarketOverviewResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[4]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -713,7 +1106,7 @@ func (x *ListMarketOverviewResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListMarketOverviewResponse.ProtoReflect.Descriptor instead.
 func (*ListMarketOverviewResponse) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{4}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *ListMarketOverviewResponse) GetMarkets() []*MarketOverview {
@@ -744,7 +1137,7 @@ type MarketOverviewBatch struct {
 
 func (x *MarketOverviewBatch) Reset() {
 	*x = MarketOverviewBatch{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[5]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -756,7 +1149,7 @@ func (x *MarketOverviewBatch) String() string {
 func (*MarketOverviewBatch) ProtoMessage() {}
 
 func (x *MarketOverviewBatch) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[5]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -769,7 +1162,7 @@ func (x *MarketOverviewBatch) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use MarketOverviewBatch.ProtoReflect.Descriptor instead.
 func (*MarketOverviewBatch) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{5}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *MarketOverviewBatch) GetMarkets() []*MarketOverview {
@@ -799,7 +1192,7 @@ type GetSpotVolumeHistoryRequest struct {
 
 func (x *GetSpotVolumeHistoryRequest) Reset() {
 	*x = GetSpotVolumeHistoryRequest{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[6]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -811,7 +1204,7 @@ func (x *GetSpotVolumeHistoryRequest) String() string {
 func (*GetSpotVolumeHistoryRequest) ProtoMessage() {}
 
 func (x *GetSpotVolumeHistoryRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[6]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -824,7 +1217,7 @@ func (x *GetSpotVolumeHistoryRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSpotVolumeHistoryRequest.ProtoReflect.Descriptor instead.
 func (*GetSpotVolumeHistoryRequest) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{6}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *GetSpotVolumeHistoryRequest) GetSymbolId() []uint32 {
@@ -850,7 +1243,7 @@ type SpotPairVolumeSeries struct {
 
 func (x *SpotPairVolumeSeries) Reset() {
 	*x = SpotPairVolumeSeries{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[7]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -862,7 +1255,7 @@ func (x *SpotPairVolumeSeries) String() string {
 func (*SpotPairVolumeSeries) ProtoMessage() {}
 
 func (x *SpotPairVolumeSeries) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[7]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -875,7 +1268,7 @@ func (x *SpotPairVolumeSeries) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SpotPairVolumeSeries.ProtoReflect.Descriptor instead.
 func (*SpotPairVolumeSeries) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{7}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *SpotPairVolumeSeries) GetSymbolId() uint32 {
@@ -923,7 +1316,7 @@ type GetSpotVolumeHistoryResponse struct {
 
 func (x *GetSpotVolumeHistoryResponse) Reset() {
 	*x = GetSpotVolumeHistoryResponse{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[8]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -935,7 +1328,7 @@ func (x *GetSpotVolumeHistoryResponse) String() string {
 func (*GetSpotVolumeHistoryResponse) ProtoMessage() {}
 
 func (x *GetSpotVolumeHistoryResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[8]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -948,7 +1341,7 @@ func (x *GetSpotVolumeHistoryResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetSpotVolumeHistoryResponse.ProtoReflect.Descriptor instead.
 func (*GetSpotVolumeHistoryResponse) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{8}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetSpotVolumeHistoryResponse) GetBucket() string {
@@ -1014,7 +1407,7 @@ type CurrencyMetadata struct {
 
 func (x *CurrencyMetadata) Reset() {
 	*x = CurrencyMetadata{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[9]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1026,7 +1419,7 @@ func (x *CurrencyMetadata) String() string {
 func (*CurrencyMetadata) ProtoMessage() {}
 
 func (x *CurrencyMetadata) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[9]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1039,7 +1432,7 @@ func (x *CurrencyMetadata) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CurrencyMetadata.ProtoReflect.Descriptor instead.
 func (*CurrencyMetadata) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{9}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *CurrencyMetadata) GetCode() string {
@@ -1079,7 +1472,7 @@ type GetCurrencyConversionConfigRequest struct {
 
 func (x *GetCurrencyConversionConfigRequest) Reset() {
 	*x = GetCurrencyConversionConfigRequest{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[10]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1091,7 +1484,7 @@ func (x *GetCurrencyConversionConfigRequest) String() string {
 func (*GetCurrencyConversionConfigRequest) ProtoMessage() {}
 
 func (x *GetCurrencyConversionConfigRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[10]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1104,7 +1497,7 @@ func (x *GetCurrencyConversionConfigRequest) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetCurrencyConversionConfigRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrencyConversionConfigRequest) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{10}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{14}
 }
 
 // GetCurrencyConversionConfigResponse contains finite, cacheable display metadata.
@@ -1121,7 +1514,7 @@ type GetCurrencyConversionConfigResponse struct {
 
 func (x *GetCurrencyConversionConfigResponse) Reset() {
 	*x = GetCurrencyConversionConfigResponse{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[11]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1133,7 +1526,7 @@ func (x *GetCurrencyConversionConfigResponse) String() string {
 func (*GetCurrencyConversionConfigResponse) ProtoMessage() {}
 
 func (x *GetCurrencyConversionConfigResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[11]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1146,7 +1539,7 @@ func (x *GetCurrencyConversionConfigResponse) ProtoReflect() protoreflect.Messag
 
 // Deprecated: Use GetCurrencyConversionConfigResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrencyConversionConfigResponse) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{11}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *GetCurrencyConversionConfigResponse) GetFiat() []*CurrencyMetadata {
@@ -1176,7 +1569,7 @@ type FiatConversionRate struct {
 
 func (x *FiatConversionRate) Reset() {
 	*x = FiatConversionRate{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[12]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1188,7 +1581,7 @@ func (x *FiatConversionRate) String() string {
 func (*FiatConversionRate) ProtoMessage() {}
 
 func (x *FiatConversionRate) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[12]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1201,7 +1594,7 @@ func (x *FiatConversionRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FiatConversionRate.ProtoReflect.Descriptor instead.
 func (*FiatConversionRate) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{12}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *FiatConversionRate) GetCode() string {
@@ -1233,7 +1626,7 @@ type FiatConversionSnapshot struct {
 
 func (x *FiatConversionSnapshot) Reset() {
 	*x = FiatConversionSnapshot{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[13]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1245,7 +1638,7 @@ func (x *FiatConversionSnapshot) String() string {
 func (*FiatConversionSnapshot) ProtoMessage() {}
 
 func (x *FiatConversionSnapshot) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[13]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1258,7 +1651,7 @@ func (x *FiatConversionSnapshot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FiatConversionSnapshot.ProtoReflect.Descriptor instead.
 func (*FiatConversionSnapshot) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{13}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *FiatConversionSnapshot) GetRates() []*FiatConversionRate {
@@ -1299,7 +1692,7 @@ type StablecoinConversionRate struct {
 
 func (x *StablecoinConversionRate) Reset() {
 	*x = StablecoinConversionRate{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[14]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1311,7 +1704,7 @@ func (x *StablecoinConversionRate) String() string {
 func (*StablecoinConversionRate) ProtoMessage() {}
 
 func (x *StablecoinConversionRate) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[14]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1324,7 +1717,7 @@ func (x *StablecoinConversionRate) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StablecoinConversionRate.ProtoReflect.Descriptor instead.
 func (*StablecoinConversionRate) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{14}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *StablecoinConversionRate) GetCode() string {
@@ -1364,7 +1757,7 @@ type GetCurrencyConversionRatesRequest struct {
 
 func (x *GetCurrencyConversionRatesRequest) Reset() {
 	*x = GetCurrencyConversionRatesRequest{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[15]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1376,7 +1769,7 @@ func (x *GetCurrencyConversionRatesRequest) String() string {
 func (*GetCurrencyConversionRatesRequest) ProtoMessage() {}
 
 func (x *GetCurrencyConversionRatesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[15]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1389,7 +1782,7 @@ func (x *GetCurrencyConversionRatesRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use GetCurrencyConversionRatesRequest.ProtoReflect.Descriptor instead.
 func (*GetCurrencyConversionRatesRequest) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{15}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{19}
 }
 
 // GetCurrencyConversionRatesResponse groups rates by their USD conversion direction.
@@ -1409,7 +1802,7 @@ type GetCurrencyConversionRatesResponse struct {
 
 func (x *GetCurrencyConversionRatesResponse) Reset() {
 	*x = GetCurrencyConversionRatesResponse{}
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[16]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[20]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1421,7 +1814,7 @@ func (x *GetCurrencyConversionRatesResponse) String() string {
 func (*GetCurrencyConversionRatesResponse) ProtoMessage() {}
 
 func (x *GetCurrencyConversionRatesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[16]
+	mi := &file_marketoverview_v1_marketoverview_proto_msgTypes[20]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1434,7 +1827,7 @@ func (x *GetCurrencyConversionRatesResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use GetCurrencyConversionRatesResponse.ProtoReflect.Descriptor instead.
 func (*GetCurrencyConversionRatesResponse) Descriptor() ([]byte, []int) {
-	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{16}
+	return file_marketoverview_v1_marketoverview_proto_rawDescGZIP(), []int{20}
 }
 
 func (x *GetCurrencyConversionRatesResponse) GetFiat() *FiatConversionSnapshot {
@@ -1468,17 +1861,32 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\tSparkline\x12J\n" +
 	"\binterval\x18\x01 \x01(\x0e2$.marketoverview.v1.SparklineIntervalB\b\xbaH\x05\x82\x01\x02\x10\x01R\binterval\x12\x1f\n" +
 	"\vclose_ticks\x18\x02 \x03(\x03R\n" +
-	"closeTicks\"\xe2\x06\n" +
+	"closeTicks\"\x8e\x01\n" +
+	"\x12RollingWindowStats\x12\x1d\n" +
+	"\n" +
+	"open_ticks\x18\x01 \x01(\x03R\topenTicks\x12\x1d\n" +
+	"\n" +
+	"high_ticks\x18\x02 \x01(\x03R\thighTicks\x12\x1b\n" +
+	"\tlow_ticks\x18\x03 \x01(\x03R\blowTicks\x12\x1d\n" +
+	"\n" +
+	"change_bps\x18\x04 \x01(\x05R\tchangeBps\"\xe1\t\n" +
 	"\x0eMarketOverview\x12\x1b\n" +
 	"\tsymbol_id\x18\x01 \x01(\rR\bsymbolId\x12(\n" +
 	"\x10last_price_ticks\x18\x03 \x01(\x03R\x0elastPriceTicks\x12'\n" +
 	"\x10last_trade_ts_ns\x18\x04 \x01(\x04R\rlastTradeTsNs\x12$\n" +
 	"\x0echange_24h_bps\x18\x05 \x01(\x05R\fchange24hBps\x12$\n" +
 	"\x0ehigh_24h_ticks\x18\x06 \x01(\x03R\fhigh24hTicks\x12\"\n" +
-	"\rlow_24h_ticks\x18\a \x01(\x03R\vlow24hTicks\x128\n" +
-	"\x16volume_24h_base_scaled\x18\b \x01(\x03H\x00R\x13volume24hBaseScaled\x88\x01\x01\x12:\n" +
-	"\x17volume_24h_quote_scaled\x18\x0e \x01(\x03H\x01R\x14volume24hQuoteScaled\x88\x01\x01\x126\n" +
-	"\x15volume_24h_usd_scaled\x18\x11 \x01(\x03H\x02R\x12volume24hUsdScaled\x88\x01\x01\x12 \n" +
+	"\rlow_24h_ticks\x18\a \x01(\x03R\vlow24hTicks\x12$\n" +
+	"\x0eopen_24h_ticks\x18\x16 \x01(\x03R\fopen24hTicks\x12&\n" +
+	"\x0ftrade_count_24h\x18\x18 \x01(\x04R\rtradeCount24h\x12)\n" +
+	"\x0evwap_24h_ticks\x18\x19 \x01(\x03H\x00R\fvwap24hTicks\x88\x01\x01\x12+\n" +
+	"\x12open_utc_day_ticks\x18\x17 \x01(\x03R\x0fopenUtcDayTicks\x12@\n" +
+	"\bstats_1h\x18\x13 \x01(\v2%.marketoverview.v1.RollingWindowStatsR\astats1h\x12@\n" +
+	"\bstats_4h\x18\x14 \x01(\v2%.marketoverview.v1.RollingWindowStatsR\astats4h\x12@\n" +
+	"\bstats_7d\x18\x15 \x01(\v2%.marketoverview.v1.RollingWindowStatsR\astats7d\x128\n" +
+	"\x16volume_24h_base_scaled\x18\b \x01(\x03H\x01R\x13volume24hBaseScaled\x88\x01\x01\x12:\n" +
+	"\x17volume_24h_quote_scaled\x18\x0e \x01(\x03H\x02R\x14volume24hQuoteScaled\x88\x01\x01\x126\n" +
+	"\x15volume_24h_usd_scaled\x18\x11 \x01(\x03H\x03R\x12volume24hUsdScaled\x88\x01\x01\x12 \n" +
 	"\flisted_ts_ns\x18\x0f \x01(\x04R\n" +
 	"listedTsNs\x12$\n" +
 	"\x0ebest_bid_ticks\x18\t \x01(\x03R\fbestBidTicks\x12-\n" +
@@ -1491,10 +1899,33 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"sparklines\x12*\n" +
 	"\x11index_price_ticks\x18\x10 \x01(\x03R\x0findexPriceTicks\x12;\n" +
 	"\n" +
-	"price_band\x18\x12 \x01(\v2\x1c.marketdata.v1.LivePriceBandR\tpriceBandB\x19\n" +
+	"price_band\x18\x12 \x01(\v2\x1c.marketdata.v1.LivePriceBandR\tpriceBandB\x11\n" +
+	"\x0f_vwap_24h_ticksB\x19\n" +
 	"\x17_volume_24h_base_scaledB\x1a\n" +
 	"\x18_volume_24h_quote_scaledB\x18\n" +
-	"\x16_volume_24h_usd_scaled\"\xb0\x03\n" +
+	"\x16_volume_24h_usd_scaled\"\x9f\x02\n" +
+	"\x0fPriceTicksRange\x12)\n" +
+	"\tmin_ticks\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x00R\bminTicks\x88\x01\x01\x12)\n" +
+	"\tmax_ticks\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x01R\bmaxTicks\x88\x01\x01:\x99\x01\xbaH\x95\x01\x1a\x92\x01\n" +
+	"\x19price_ticks_range.ordered\x12#min_ticks must not exceed max_ticks\x1aP!has(this.min_ticks) || !has(this.max_ticks) || this.min_ticks <= this.max_ticksB\f\n" +
+	"\n" +
+	"_min_ticksB\f\n" +
+	"\n" +
+	"_max_ticks\"\xe5\x01\n" +
+	"\bBpsRange\x12\x1c\n" +
+	"\amin_bps\x18\x01 \x01(\x05H\x00R\x06minBps\x88\x01\x01\x12\x1c\n" +
+	"\amax_bps\x18\x02 \x01(\x05H\x01R\x06maxBps\x88\x01\x01:\x84\x01\xbaH\x80\x01\x1a~\n" +
+	"\x11bps_range.ordered\x12\x1fmin_bps must not exceed max_bps\x1aH!has(this.min_bps) || !has(this.max_bps) || this.min_bps <= this.max_bpsB\n" +
+	"\n" +
+	"\b_min_bpsB\n" +
+	"\n" +
+	"\b_max_bps\"\xd7\x02\n" +
+	"\x0eUsdVolumeRange\x122\n" +
+	"\x0emin_usd_scaled\x18\x01 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x00R\fminUsdScaled\x88\x01\x01\x122\n" +
+	"\x0emax_usd_scaled\x18\x02 \x01(\x03B\a\xbaH\x04\"\x02(\x00H\x01R\fmaxUsdScaled\x88\x01\x01:\xb6\x01\xbaH\xb2\x01\x1a\xaf\x01\n" +
+	"\x18usd_volume_range.ordered\x12-min_usd_scaled must not exceed max_usd_scaled\x1ad!has(this.min_usd_scaled) || !has(this.max_usd_scaled) || this.min_usd_scaled <= this.max_usd_scaledB\x11\n" +
+	"\x0f_min_usd_scaledB\x11\n" +
+	"\x0f_max_usd_scaled\"\xf1\x04\n" +
 	"\x19ListMarketOverviewRequest\x12.\n" +
 	"\tsymbol_id\x18\x01 \x03(\rB\x11\xbaH\x0e\x92\x01\v\x10\xd0\x0f\x18\x01\"\x04*\x02 \x00R\bsymbolId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xd0\x0fR\x05limit\x12'\n" +
@@ -1504,7 +1935,14 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x04sort\x18\x05 \x01(\x0e2 .marketoverview.v1.SortDirectionB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04sort\x12-\n" +
 	"\x12include_sparklines\x18\x06 \x01(\bR\x11includeSparklines\x12d\n" +
 	"\x13sparkline_intervals\x18\a \x03(\x0e2$.marketoverview.v1.SparklineIntervalB\r\xbaH\n" +
-	"\x92\x01\a\"\x05\x82\x01\x02\x10\x01R\x12sparklineIntervals\"\x8b\x01\n" +
+	"\x92\x01\a\"\x05\x82\x01\x02\x10\x01R\x12sparklineIntervals\x12A\n" +
+	"\n" +
+	"last_price\x18\b \x01(\v2\".marketoverview.v1.PriceTicksRangeR\tlastPrice\x12:\n" +
+	"\n" +
+	"change_24h\x18\t \x01(\v2\x1b.marketoverview.v1.BpsRangeR\tchange24h\x12@\n" +
+	"\n" +
+	"volume_24h\x18\n" +
+	" \x01(\v2!.marketoverview.v1.UsdVolumeRangeR\tvolume24h\"\x8b\x01\n" +
 	"\x1aListMarketOverviewResponse\x12;\n" +
 	"\amarkets\x18\x01 \x03(\v2!.marketoverview.v1.MarketOverviewR\amarkets\x120\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"g\n" +
@@ -1573,16 +2011,16 @@ const file_marketoverview_v1_marketoverview_proto_rawDesc = "" +
 	"\x1bERROR_CODE_INVALID_ARGUMENT\x10\x02\x12\x18\n" +
 	"\x14ERROR_CODE_NOT_FOUND\x10\x03\x12\x1a\n" +
 	"\x16ERROR_CODE_UNAVAILABLE\x10\x04\x12\x1d\n" +
-	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\xce\v\n" +
+	"\x19ERROR_CODE_UPSTREAM_ERROR\x10\x052\x88\f\n" +
 	"\x15MarketOverviewService\x12\x8f\x03\n" +
 	"\x1bGetCurrencyConversionConfig\x125.marketoverview.v1.GetCurrencyConversionConfigRequest\x1a6.marketoverview.v1.GetCurrencyConversionConfigResponse\"\x80\x02\xbaG\xcb\x01\n" +
 	"\x17Market Overview Service\x12\x1eGet Currency Conversion Config\x1a\x8f\x01Get supported fiat and stablecoin display metadata with default English names, symbols, and fraction digits. Clients may localize presentation.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02'\x12%/v1/market/currency-conversion/config\x12\xcc\x02\n" +
 	"\x1aGetCurrencyConversionRates\x124.marketoverview.v1.GetCurrencyConversionRatesRequest\x1a5.marketoverview.v1.GetCurrencyConversionRatesResponse\"\xc0\x01\xbaG\x8c\x01\n" +
 	"\x17Market Overview Service\x12\x1dGet Currency Conversion Rates\x1aRGet fiat units per USD and USD per stablecoin unit, grouped with source freshness.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02&\x12$/v1/market/currency-conversion/rates\x12\xf4\x02\n" +
 	"\x14GetSpotVolumeHistory\x12..marketoverview.v1.GetSpotVolumeHistoryRequest\x1a/.marketoverview.v1.GetSpotVolumeHistoryResponse\"\xfa\x01\xbaG\xcb\x01\n" +
-	"\x17Market Overview Service\x12\x17Get Spot Volume History\x1a\x96\x01Get aligned columnar pair-level and total trailing-24h USD volume at 15-minute intervals over the latest day. Unavailable valuations fail the request.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02!\x12\x1f/v1/spot/markets/volume-history\x12\xcc\x02\n" +
-	"\x12ListMarketOverview\x12,.marketoverview.v1.ListMarketOverviewRequest\x1a-.marketoverview.v1.ListMarketOverviewResponse\"\xd8\x01\xbaG\xaf\x01\n" +
-	"\x17Market Overview Service\x12\x15List Market Overviews\x1a}List ticker-style market overview rows with optional sparklines. Supports symbol filtering, sorting, and pagination controls.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/spot/markets/overview\x1a\x0e\x8a\xb5\x18\n" +
+	"\x17Market Overview Service\x12\x17Get Spot Volume History\x1a\x96\x01Get aligned columnar pair-level and total trailing-24h USD volume at 15-minute intervals over the latest day. Unavailable valuations fail the request.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02!\x12\x1f/v1/spot/markets/volume-history\x12\x86\x03\n" +
+	"\x12ListMarketOverview\x12,.marketoverview.v1.ListMarketOverviewRequest\x1a-.marketoverview.v1.ListMarketOverviewResponse\"\x92\x02\xbaG\xe9\x01\n" +
+	"\x17Market Overview Service\x12\x15List Market Overviews\x1a\xb6\x01List ticker-style market overview rows with optional sparklines. Supports symbol filtering, last price, 24h change and 24h USD volume range filters, sorting, and pagination controls.\x88\xb5\x18\x01\x82\xd3\xe4\x93\x02\x1b\x12\x19/v1/spot/markets/overview\x1a\x0e\x8a\xb5\x18\n" +
 	"marketdataB\xc8\x01\xbaGu:s\n" +
 	"\x17Market Overview Service\x12XPublic read surface for per-market overview (ticker-like) stats and optional sparklines.ZNgithub.com/Fabric-Labs/polyester-sdk-go/gen/marketoverview/v1;marketoverviewv1b\x06proto3"
 
@@ -1599,7 +2037,7 @@ func file_marketoverview_v1_marketoverview_proto_rawDescGZIP() []byte {
 }
 
 var file_marketoverview_v1_marketoverview_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_marketoverview_v1_marketoverview_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
+var file_marketoverview_v1_marketoverview_proto_msgTypes = make([]protoimpl.MessageInfo, 21)
 var file_marketoverview_v1_marketoverview_proto_goTypes = []any{
 	(SparklineInterval)(0),                      // 0: marketoverview.v1.SparklineInterval
 	(MarketOrderBy)(0),                          // 1: marketoverview.v1.MarketOrderBy
@@ -1607,52 +2045,62 @@ var file_marketoverview_v1_marketoverview_proto_goTypes = []any{
 	(ErrorCode)(0),                              // 3: marketoverview.v1.ErrorCode
 	(*ErrorDetail)(nil),                         // 4: marketoverview.v1.ErrorDetail
 	(*Sparkline)(nil),                           // 5: marketoverview.v1.Sparkline
-	(*MarketOverview)(nil),                      // 6: marketoverview.v1.MarketOverview
-	(*ListMarketOverviewRequest)(nil),           // 7: marketoverview.v1.ListMarketOverviewRequest
-	(*ListMarketOverviewResponse)(nil),          // 8: marketoverview.v1.ListMarketOverviewResponse
-	(*MarketOverviewBatch)(nil),                 // 9: marketoverview.v1.MarketOverviewBatch
-	(*GetSpotVolumeHistoryRequest)(nil),         // 10: marketoverview.v1.GetSpotVolumeHistoryRequest
-	(*SpotPairVolumeSeries)(nil),                // 11: marketoverview.v1.SpotPairVolumeSeries
-	(*GetSpotVolumeHistoryResponse)(nil),        // 12: marketoverview.v1.GetSpotVolumeHistoryResponse
-	(*CurrencyMetadata)(nil),                    // 13: marketoverview.v1.CurrencyMetadata
-	(*GetCurrencyConversionConfigRequest)(nil),  // 14: marketoverview.v1.GetCurrencyConversionConfigRequest
-	(*GetCurrencyConversionConfigResponse)(nil), // 15: marketoverview.v1.GetCurrencyConversionConfigResponse
-	(*FiatConversionRate)(nil),                  // 16: marketoverview.v1.FiatConversionRate
-	(*FiatConversionSnapshot)(nil),              // 17: marketoverview.v1.FiatConversionSnapshot
-	(*StablecoinConversionRate)(nil),            // 18: marketoverview.v1.StablecoinConversionRate
-	(*GetCurrencyConversionRatesRequest)(nil),   // 19: marketoverview.v1.GetCurrencyConversionRatesRequest
-	(*GetCurrencyConversionRatesResponse)(nil),  // 20: marketoverview.v1.GetCurrencyConversionRatesResponse
-	(*v1.LivePriceBand)(nil),                    // 21: marketdata.v1.LivePriceBand
+	(*RollingWindowStats)(nil),                  // 6: marketoverview.v1.RollingWindowStats
+	(*MarketOverview)(nil),                      // 7: marketoverview.v1.MarketOverview
+	(*PriceTicksRange)(nil),                     // 8: marketoverview.v1.PriceTicksRange
+	(*BpsRange)(nil),                            // 9: marketoverview.v1.BpsRange
+	(*UsdVolumeRange)(nil),                      // 10: marketoverview.v1.UsdVolumeRange
+	(*ListMarketOverviewRequest)(nil),           // 11: marketoverview.v1.ListMarketOverviewRequest
+	(*ListMarketOverviewResponse)(nil),          // 12: marketoverview.v1.ListMarketOverviewResponse
+	(*MarketOverviewBatch)(nil),                 // 13: marketoverview.v1.MarketOverviewBatch
+	(*GetSpotVolumeHistoryRequest)(nil),         // 14: marketoverview.v1.GetSpotVolumeHistoryRequest
+	(*SpotPairVolumeSeries)(nil),                // 15: marketoverview.v1.SpotPairVolumeSeries
+	(*GetSpotVolumeHistoryResponse)(nil),        // 16: marketoverview.v1.GetSpotVolumeHistoryResponse
+	(*CurrencyMetadata)(nil),                    // 17: marketoverview.v1.CurrencyMetadata
+	(*GetCurrencyConversionConfigRequest)(nil),  // 18: marketoverview.v1.GetCurrencyConversionConfigRequest
+	(*GetCurrencyConversionConfigResponse)(nil), // 19: marketoverview.v1.GetCurrencyConversionConfigResponse
+	(*FiatConversionRate)(nil),                  // 20: marketoverview.v1.FiatConversionRate
+	(*FiatConversionSnapshot)(nil),              // 21: marketoverview.v1.FiatConversionSnapshot
+	(*StablecoinConversionRate)(nil),            // 22: marketoverview.v1.StablecoinConversionRate
+	(*GetCurrencyConversionRatesRequest)(nil),   // 23: marketoverview.v1.GetCurrencyConversionRatesRequest
+	(*GetCurrencyConversionRatesResponse)(nil),  // 24: marketoverview.v1.GetCurrencyConversionRatesResponse
+	(*v1.LivePriceBand)(nil),                    // 25: marketdata.v1.LivePriceBand
 }
 var file_marketoverview_v1_marketoverview_proto_depIdxs = []int32{
 	3,  // 0: marketoverview.v1.ErrorDetail.code:type_name -> marketoverview.v1.ErrorCode
 	0,  // 1: marketoverview.v1.Sparkline.interval:type_name -> marketoverview.v1.SparklineInterval
-	5,  // 2: marketoverview.v1.MarketOverview.sparklines:type_name -> marketoverview.v1.Sparkline
-	21, // 3: marketoverview.v1.MarketOverview.price_band:type_name -> marketdata.v1.LivePriceBand
-	1,  // 4: marketoverview.v1.ListMarketOverviewRequest.order_by:type_name -> marketoverview.v1.MarketOrderBy
-	2,  // 5: marketoverview.v1.ListMarketOverviewRequest.sort:type_name -> marketoverview.v1.SortDirection
-	0,  // 6: marketoverview.v1.ListMarketOverviewRequest.sparkline_intervals:type_name -> marketoverview.v1.SparklineInterval
-	6,  // 7: marketoverview.v1.ListMarketOverviewResponse.markets:type_name -> marketoverview.v1.MarketOverview
-	6,  // 8: marketoverview.v1.MarketOverviewBatch.markets:type_name -> marketoverview.v1.MarketOverview
-	11, // 9: marketoverview.v1.GetSpotVolumeHistoryResponse.pairs:type_name -> marketoverview.v1.SpotPairVolumeSeries
-	13, // 10: marketoverview.v1.GetCurrencyConversionConfigResponse.fiat:type_name -> marketoverview.v1.CurrencyMetadata
-	13, // 11: marketoverview.v1.GetCurrencyConversionConfigResponse.stablecoins:type_name -> marketoverview.v1.CurrencyMetadata
-	16, // 12: marketoverview.v1.FiatConversionSnapshot.rates:type_name -> marketoverview.v1.FiatConversionRate
-	17, // 13: marketoverview.v1.GetCurrencyConversionRatesResponse.fiat:type_name -> marketoverview.v1.FiatConversionSnapshot
-	18, // 14: marketoverview.v1.GetCurrencyConversionRatesResponse.stablecoins:type_name -> marketoverview.v1.StablecoinConversionRate
-	14, // 15: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:input_type -> marketoverview.v1.GetCurrencyConversionConfigRequest
-	19, // 16: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:input_type -> marketoverview.v1.GetCurrencyConversionRatesRequest
-	10, // 17: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:input_type -> marketoverview.v1.GetSpotVolumeHistoryRequest
-	7,  // 18: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
-	15, // 19: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:output_type -> marketoverview.v1.GetCurrencyConversionConfigResponse
-	20, // 20: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:output_type -> marketoverview.v1.GetCurrencyConversionRatesResponse
-	12, // 21: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:output_type -> marketoverview.v1.GetSpotVolumeHistoryResponse
-	8,  // 22: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
-	19, // [19:23] is the sub-list for method output_type
-	15, // [15:19] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	6,  // 2: marketoverview.v1.MarketOverview.stats_1h:type_name -> marketoverview.v1.RollingWindowStats
+	6,  // 3: marketoverview.v1.MarketOverview.stats_4h:type_name -> marketoverview.v1.RollingWindowStats
+	6,  // 4: marketoverview.v1.MarketOverview.stats_7d:type_name -> marketoverview.v1.RollingWindowStats
+	5,  // 5: marketoverview.v1.MarketOverview.sparklines:type_name -> marketoverview.v1.Sparkline
+	25, // 6: marketoverview.v1.MarketOverview.price_band:type_name -> marketdata.v1.LivePriceBand
+	1,  // 7: marketoverview.v1.ListMarketOverviewRequest.order_by:type_name -> marketoverview.v1.MarketOrderBy
+	2,  // 8: marketoverview.v1.ListMarketOverviewRequest.sort:type_name -> marketoverview.v1.SortDirection
+	0,  // 9: marketoverview.v1.ListMarketOverviewRequest.sparkline_intervals:type_name -> marketoverview.v1.SparklineInterval
+	8,  // 10: marketoverview.v1.ListMarketOverviewRequest.last_price:type_name -> marketoverview.v1.PriceTicksRange
+	9,  // 11: marketoverview.v1.ListMarketOverviewRequest.change_24h:type_name -> marketoverview.v1.BpsRange
+	10, // 12: marketoverview.v1.ListMarketOverviewRequest.volume_24h:type_name -> marketoverview.v1.UsdVolumeRange
+	7,  // 13: marketoverview.v1.ListMarketOverviewResponse.markets:type_name -> marketoverview.v1.MarketOverview
+	7,  // 14: marketoverview.v1.MarketOverviewBatch.markets:type_name -> marketoverview.v1.MarketOverview
+	15, // 15: marketoverview.v1.GetSpotVolumeHistoryResponse.pairs:type_name -> marketoverview.v1.SpotPairVolumeSeries
+	17, // 16: marketoverview.v1.GetCurrencyConversionConfigResponse.fiat:type_name -> marketoverview.v1.CurrencyMetadata
+	17, // 17: marketoverview.v1.GetCurrencyConversionConfigResponse.stablecoins:type_name -> marketoverview.v1.CurrencyMetadata
+	20, // 18: marketoverview.v1.FiatConversionSnapshot.rates:type_name -> marketoverview.v1.FiatConversionRate
+	21, // 19: marketoverview.v1.GetCurrencyConversionRatesResponse.fiat:type_name -> marketoverview.v1.FiatConversionSnapshot
+	22, // 20: marketoverview.v1.GetCurrencyConversionRatesResponse.stablecoins:type_name -> marketoverview.v1.StablecoinConversionRate
+	18, // 21: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:input_type -> marketoverview.v1.GetCurrencyConversionConfigRequest
+	23, // 22: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:input_type -> marketoverview.v1.GetCurrencyConversionRatesRequest
+	14, // 23: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:input_type -> marketoverview.v1.GetSpotVolumeHistoryRequest
+	11, // 24: marketoverview.v1.MarketOverviewService.ListMarketOverview:input_type -> marketoverview.v1.ListMarketOverviewRequest
+	19, // 25: marketoverview.v1.MarketOverviewService.GetCurrencyConversionConfig:output_type -> marketoverview.v1.GetCurrencyConversionConfigResponse
+	24, // 26: marketoverview.v1.MarketOverviewService.GetCurrencyConversionRates:output_type -> marketoverview.v1.GetCurrencyConversionRatesResponse
+	16, // 27: marketoverview.v1.MarketOverviewService.GetSpotVolumeHistory:output_type -> marketoverview.v1.GetSpotVolumeHistoryResponse
+	12, // 28: marketoverview.v1.MarketOverviewService.ListMarketOverview:output_type -> marketoverview.v1.ListMarketOverviewResponse
+	25, // [25:29] is the sub-list for method output_type
+	21, // [21:25] is the sub-list for method input_type
+	21, // [21:21] is the sub-list for extension type_name
+	21, // [21:21] is the sub-list for extension extendee
+	0,  // [0:21] is the sub-list for field type_name
 }
 
 func init() { file_marketoverview_v1_marketoverview_proto_init() }
@@ -1660,14 +2108,17 @@ func file_marketoverview_v1_marketoverview_proto_init() {
 	if File_marketoverview_v1_marketoverview_proto != nil {
 		return
 	}
-	file_marketoverview_v1_marketoverview_proto_msgTypes[2].OneofWrappers = []any{}
+	file_marketoverview_v1_marketoverview_proto_msgTypes[3].OneofWrappers = []any{}
+	file_marketoverview_v1_marketoverview_proto_msgTypes[4].OneofWrappers = []any{}
+	file_marketoverview_v1_marketoverview_proto_msgTypes[5].OneofWrappers = []any{}
+	file_marketoverview_v1_marketoverview_proto_msgTypes[6].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketoverview_v1_marketoverview_proto_rawDesc), len(file_marketoverview_v1_marketoverview_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   17,
+			NumMessages:   21,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
