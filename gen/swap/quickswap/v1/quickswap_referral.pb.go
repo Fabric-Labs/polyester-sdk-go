@@ -2097,16 +2097,16 @@ const file_swap_quickswap_v1_quickswap_referral_proto_rawDesc = "" +
 	"\fCODE_INVALID\x10\x05*Q\n" +
 	"\x17ReferralCommissionBasis\x12 \n" +
 	"\x1cCOMMISSION_BASIS_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10PRE_DISCOUNT_FEE\x10\x012\xa9\x14\n" +
+	"\x10PRE_DISCOUNT_FEE\x10\x012\xc3\x14\n" +
 	"\x18QuickSwapReferralService\x12\xcb\x02\n" +
 	"\x15EnrollReferralPartner\x12/.swap.quickswap.v1.EnrollReferralPartnerRequest\x1a0.swap.quickswap.v1.EnrollReferralPartnerResponse\"\xce\x01\xbaG~\n" +
 	"\x12QuickSwap Referral\x12\x17Enroll referral partner\x1aOApply to become a referral partner, paid into one of the caller's sub-accounts.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x18EARNINGS_ACCOUNT_INVALID\xaa\xb5\x18\x17REFERRAL_PARTNER_EXISTS\x12\x9c\x02\n" +
 	"\x12GetReferralPartner\x12,.swap.quickswap.v1.GetReferralPartnerRequest\x1a-.swap.quickswap.v1.GetReferralPartnerResponse\"\xa8\x01\xbaGq\n" +
 	"\x12QuickSwap Referral\x12\x14Get referral partner\x1aEGet the caller's referral partner record, rates, code and share link.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x12\x85\x02\n" +
 	"\x11CheckReferralCode\x12+.swap.quickswap.v1.CheckReferralCodeRequest\x1a,.swap.quickswap.v1.CheckReferralCodeResponse\"\x94\x01\xbaG]\n" +
-	"\x12QuickSwap Referral\x12\x13Check referral code\x1a2Check whether the caller may take a referral code.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x12\x85\x03\n" +
-	"\x0fSetReferralCode\x12).swap.quickswap.v1.SetReferralCodeRequest\x1a*.swap.quickswap.v1.SetReferralCodeResponse\"\x9a\x02\xbaGe\n" +
-	"\x12QuickSwap Referral\x12\x11Set referral code\x1a<Replace the caller's referral code; the old code is retired.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x15REFERRAL_CODE_INVALID\xaa\xb5\x18\x13REFERRAL_CODE_LIMIT\xaa\xb5\x18\x16REFERRAL_CODE_RESERVED\xaa\xb5\x18\x13REFERRAL_CODE_TAKEN\xaa\xb5\x18\x19REFERRAL_PARTNER_DISABLED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x12\xb9\x02\n" +
+	"\x12QuickSwap Referral\x12\x13Check referral code\x1a2Check whether the caller may take a referral code.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x12\x9f\x03\n" +
+	"\x0fSetReferralCode\x12).swap.quickswap.v1.SetReferralCodeRequest\x1a*.swap.quickswap.v1.SetReferralCodeResponse\"\xb4\x02\xbaG\x7f\n" +
+	"\x12QuickSwap Referral\x12\x11Set referral code\x1aVReplace the caller's referral code; links with the old code keep crediting the caller.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x15REFERRAL_CODE_INVALID\xaa\xb5\x18\x13REFERRAL_CODE_LIMIT\xaa\xb5\x18\x16REFERRAL_CODE_RESERVED\xaa\xb5\x18\x13REFERRAL_CODE_TAKEN\xaa\xb5\x18\x19REFERRAL_PARTNER_DISABLED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x12\xb9\x02\n" +
 	"\x16ListReferredQuickSwaps\x120.swap.quickswap.v1.ListReferredQuickSwapsRequest\x1a1.swap.quickswap.v1.ListReferredQuickSwapsResponse\"\xb9\x01\xbaG\x81\x01\n" +
 	"\x12QuickSwap Referral\x12\x18List referred QuickSwaps\x1aQList the QuickSwaps the caller referred, newest first, with rates and commission.\xa2\xb5\x18\x01\x01\xaa\xb5\x18\rACTION_DENIED\xaa\xb5\x18\x1aREFERRAL_PARTNER_NOT_FOUND\x12\xbe\x02\n" +
 	"\x14GetReferredQuickSwap\x12..swap.quickswap.v1.GetReferredQuickSwapRequest\x1a/.swap.quickswap.v1.GetReferredQuickSwapResponse\"\xc4\x01\xbaG{\n" +

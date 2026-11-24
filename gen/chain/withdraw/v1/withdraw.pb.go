@@ -152,6 +152,13 @@ const (
 	// Nothing was reserved; submit a new request once the status is NORMAL
 	// again.
 	ErrorCode_ERROR_CODE_ROUTE_SUSPENDED ErrorCode = 50
+	// The destination address is a deposit address issued for a QuickSwap,
+	// which is never a withdrawal destination: a withdrawal could reach it
+	// after its swap stopped accepting deposits, and could then be neither
+	// swapped nor returned. Nothing was reserved. A Polyester account's own
+	// deposit address is not affected. On an auto-withdraw destination,
+	// ErrorDetail.field_path names the destination.
+	ErrorCode_ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS ErrorCode = 51
 )
 
 // Enum value maps for ErrorCode.
@@ -208,6 +215,7 @@ var (
 		48: "ERROR_CODE_VERSION_CONFLICT",
 		49: "ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN",
 		50: "ERROR_CODE_ROUTE_SUSPENDED",
+		51: "ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                          0,
@@ -261,6 +269,7 @@ var (
 		"ERROR_CODE_VERSION_CONFLICT":                     48,
 		"ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN":    49,
 		"ERROR_CODE_ROUTE_SUSPENDED":                      50,
+		"ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS":     51,
 	}
 )
 
@@ -361,6 +370,12 @@ const (
 	WithdrawDestinationValidationCode_TOKEN_CONTRACT WithdrawDestinationValidationCode = 5
 	// The destination is blocked by Polyester's user-safety denylist.
 	WithdrawDestinationValidationCode_DENYLISTED_ADDRESS WithdrawDestinationValidationCode = 6
+	// The destination is a deposit address issued for a QuickSwap. A
+	// withdrawal could reach it after its swap stopped accepting deposits,
+	// and those funds could then be neither swapped nor returned, so it is
+	// never a withdrawal destination. A Polyester account's own deposit
+	// address is not affected.
+	WithdrawDestinationValidationCode_SWAP_DEPOSIT_ADDRESS WithdrawDestinationValidationCode = 7
 )
 
 // Enum value maps for WithdrawDestinationValidationCode.
@@ -373,6 +388,7 @@ var (
 		4: "POLYESTER_SMART_ACCOUNT",
 		5: "TOKEN_CONTRACT",
 		6: "DENYLISTED_ADDRESS",
+		7: "SWAP_DEPOSIT_ADDRESS",
 	}
 	WithdrawDestinationValidationCode_value = map[string]int32{
 		"RESULT_UNSPECIFIED":      0,
@@ -382,6 +398,7 @@ var (
 		"POLYESTER_SMART_ACCOUNT": 4,
 		"TOKEN_CONTRACT":          5,
 		"DENYLISTED_ADDRESS":      6,
+		"SWAP_DEPOSIT_ADDRESS":    7,
 	}
 )
 
@@ -1768,7 +1785,7 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x10unified_asset_id\x18\x02 \x01(\rR\x0eunifiedAssetId\x12\x19\n" +
 	"\bchain_id\x18\x03 \x01(\rR\achainId\x12%\n" +
 	"\x0eztoken_address\x18\x04 \x01(\tR\rztokenAddress\x12G\n" +
-	"\x06reason\x18\x05 \x01(\x0e2/.chain.withdraw.v1.WalletAssetUnavailableReasonR\x06reason*\xb8\x0f\n" +
+	"\x06reason\x18\x05 \x01(\x0e2/.chain.withdraw.v1.WalletAssetUnavailableReasonR\x06reason*\xe9\x0f\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dERROR_CODE_INSUFFICIENT_FUNDS\x10\x01\x12\x1e\n" +
@@ -1821,12 +1838,13 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x1cERROR_CODE_ROUTE_UNSUPPORTED\x10/\x12\x1f\n" +
 	"\x1bERROR_CODE_VERSION_CONFLICT\x100\x120\n" +
 	",ERROR_CODE_EXTERNAL_DESTINATION_COOLING_DOWN\x101\x12\x1e\n" +
-	"\x1aERROR_CODE_ROUTE_SUSPENDED\x102*V\n" +
+	"\x1aERROR_CODE_ROUTE_SUSPENDED\x102\x12/\n" +
+	"+ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS\x103*V\n" +
 	"\x15TradingWithdrawAction\x12\x16\n" +
 	"\x12ACTION_UNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
 	"TO_FUNDING\x10\x01\x12\x15\n" +
-	"\x11TO_EXTERNAL_CHAIN\x10\x02*\xbb\x01\n" +
+	"\x11TO_EXTERNAL_CHAIN\x10\x02*\xd5\x01\n" +
 	"!WithdrawDestinationValidationCode\x12\x16\n" +
 	"\x12RESULT_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05VALID\x10\x01\x12\x13\n" +
@@ -1834,7 +1852,8 @@ const file_chain_withdraw_v1_withdraw_proto_rawDesc = "" +
 	"\x11UNSUPPORTED_CHAIN\x10\x03\x12\x1b\n" +
 	"\x17POLYESTER_SMART_ACCOUNT\x10\x04\x12\x12\n" +
 	"\x0eTOKEN_CONTRACT\x10\x05\x12\x16\n" +
-	"\x12DENYLISTED_ADDRESS\x10\x06*r\n" +
+	"\x12DENYLISTED_ADDRESS\x10\x06\x12\x18\n" +
+	"\x14SWAP_DEPOSIT_ADDRESS\x10\a*r\n" +
 	"\x1cWalletAssetUnavailableReason\x12\x1b\n" +
 	"\x17UNAVAILABLE_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vNO_CONTRACT\x10\x01\x12\x0f\n" +

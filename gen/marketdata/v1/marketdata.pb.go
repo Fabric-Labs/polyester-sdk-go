@@ -2865,6 +2865,59 @@ func (x *GetPriceBandResponse) GetBand() *LivePriceBand {
 	return nil
 }
 
+// ErrorDetail is attached to a ConnectRPC error the caller can correct:
+// BAD_REQUEST, INVALID_ARGUMENT, UNKNOWN_SYMBOL, NOT_FOUND and
+// PAGE_TOKEN_INVALID. The error message is the stable error code; branch on
+// it. Other errors carry no ErrorDetail.
+type ErrorDetail struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Why the request was refused, for display, for example "timeframe SEC_1
+	// has no index price candles". For PAGE_TOKEN_INVALID it tells a malformed
+	// page_token ("bad page_token") from one issued for another request
+	// ("page_token does not match request"); either way, request the first
+	// page again. The wording can change: never branch on it.
+	Reason        string `protobuf:"bytes,1,opt,name=reason,proto3" json:"reason,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ErrorDetail) Reset() {
+	*x = ErrorDetail{}
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ErrorDetail) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ErrorDetail) ProtoMessage() {}
+
+func (x *ErrorDetail) ProtoReflect() protoreflect.Message {
+	mi := &file_marketdata_v1_marketdata_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ErrorDetail.ProtoReflect.Descriptor instead.
+func (*ErrorDetail) Descriptor() ([]byte, []int) {
+	return file_marketdata_v1_marketdata_proto_rawDescGZIP(), []int{22}
+}
+
+func (x *ErrorDetail) GetReason() string {
+	if x != nil {
+		return x.Reason
+	}
+	return ""
+}
+
 var File_marketdata_v1_marketdata_proto protoreflect.FileDescriptor
 
 const file_marketdata_v1_marketdata_proto_rawDesc = "" +
@@ -3086,7 +3139,9 @@ const file_marketdata_v1_marketdata_proto_rawDesc = "" +
 	"\x13GetPriceBandRequest\x12$\n" +
 	"\tsymbol_id\x18\x01 \x01(\rB\a\xbaH\x04*\x02 \x00R\bsymbolId\"H\n" +
 	"\x14GetPriceBandResponse\x120\n" +
-	"\x04band\x18\x01 \x01(\v2\x1c.marketdata.v1.LivePriceBandR\x04band*5\n" +
+	"\x04band\x18\x01 \x01(\v2\x1c.marketdata.v1.LivePriceBandR\x04band\"%\n" +
+	"\vErrorDetail\x12\x16\n" +
+	"\x06reason\x18\x01 \x01(\tR\x06reason*5\n" +
 	"\n" +
 	"SideFilter\x12\x14\n" +
 	"\x10SIDE_UNSPECIFIED\x10\x00\x12\a\n" +
@@ -3169,7 +3224,7 @@ func file_marketdata_v1_marketdata_proto_rawDescGZIP() []byte {
 }
 
 var file_marketdata_v1_marketdata_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_marketdata_v1_marketdata_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_marketdata_v1_marketdata_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_marketdata_v1_marketdata_proto_goTypes = []any{
 	(SideFilter)(0),                      // 0: marketdata.v1.SideFilter
 	(Timeframe)(0),                       // 1: marketdata.v1.Timeframe
@@ -3199,36 +3254,37 @@ var file_marketdata_v1_marketdata_proto_goTypes = []any{
 	(*LivePriceBand)(nil),                // 25: marketdata.v1.LivePriceBand
 	(*GetPriceBandRequest)(nil),          // 26: marketdata.v1.GetPriceBandRequest
 	(*GetPriceBandResponse)(nil),         // 27: marketdata.v1.GetPriceBandResponse
-	(*timestamppb.Timestamp)(nil),        // 28: google.protobuf.Timestamp
-	(*ListAssetInfoRequest)(nil),         // 29: marketdata.v1.ListAssetInfoRequest
-	(*ListAssetInfoResponse)(nil),        // 30: marketdata.v1.ListAssetInfoResponse
+	(*ErrorDetail)(nil),                  // 28: marketdata.v1.ErrorDetail
+	(*timestamppb.Timestamp)(nil),        // 29: google.protobuf.Timestamp
+	(*ListAssetInfoRequest)(nil),         // 30: marketdata.v1.ListAssetInfoRequest
+	(*ListAssetInfoResponse)(nil),        // 31: marketdata.v1.ListAssetInfoResponse
 }
 var file_marketdata_v1_marketdata_proto_depIdxs = []int32{
-	28, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
-	28, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
+	29, // 0: marketdata.v1.GetTradesRequest.start_time:type_name -> google.protobuf.Timestamp
+	29, // 1: marketdata.v1.GetTradesRequest.end_time:type_name -> google.protobuf.Timestamp
 	0,  // 2: marketdata.v1.GetTradesRequest.side:type_name -> marketdata.v1.SideFilter
 	7,  // 3: marketdata.v1.MarketTradeBatch.events:type_name -> marketdata.v1.MarketTrade
 	7,  // 4: marketdata.v1.GetTradesResponse.trades:type_name -> marketdata.v1.MarketTrade
 	9,  // 5: marketdata.v1.GetTradesResponse.epoch_ends:type_name -> marketdata.v1.TradeEpochEnd
 	1,  // 6: marketdata.v1.GetCandlesRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	28, // 7: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
-	28, // 8: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
+	29, // 7: marketdata.v1.GetCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
+	29, // 8: marketdata.v1.GetCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
 	1,  // 9: marketdata.v1.GetCandlesColumnsRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	28, // 10: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
-	28, // 11: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
+	29, // 10: marketdata.v1.GetCandlesColumnsRequest.start_time:type_name -> google.protobuf.Timestamp
+	29, // 11: marketdata.v1.GetCandlesColumnsRequest.end_time:type_name -> google.protobuf.Timestamp
 	1,  // 12: marketdata.v1.GetCandlesResponse.timeframe:type_name -> marketdata.v1.Timeframe
 	13, // 13: marketdata.v1.GetCandlesResponse.candles:type_name -> marketdata.v1.CandlePoint
 	13, // 14: marketdata.v1.GetCandlesResponse.reference_candles:type_name -> marketdata.v1.CandlePoint
 	1,  // 15: marketdata.v1.GetCandlesColumnsResponse.timeframe:type_name -> marketdata.v1.Timeframe
 	1,  // 16: marketdata.v1.GetIndexPriceCandlesRequest.timeframe:type_name -> marketdata.v1.Timeframe
-	28, // 17: marketdata.v1.GetIndexPriceCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
-	28, // 18: marketdata.v1.GetIndexPriceCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
+	29, // 17: marketdata.v1.GetIndexPriceCandlesRequest.start_time:type_name -> google.protobuf.Timestamp
+	29, // 18: marketdata.v1.GetIndexPriceCandlesRequest.end_time:type_name -> google.protobuf.Timestamp
 	1,  // 19: marketdata.v1.GetIndexPriceCandlesResponse.timeframe:type_name -> marketdata.v1.Timeframe
 	2,  // 20: marketdata.v1.GetIndexPriceCandlesResponse.source:type_name -> marketdata.v1.IndexPriceCandleSource
 	1,  // 21: marketdata.v1.Candle.timeframe:type_name -> marketdata.v1.Timeframe
 	20, // 22: marketdata.v1.PairConfig.marketdata:type_name -> marketdata.v1.PairMarketdataConfig
-	28, // 23: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
-	28, // 24: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
+	29, // 23: marketdata.v1.PairConfig.listing_at:type_name -> google.protobuf.Timestamp
+	29, // 24: marketdata.v1.PairConfig.delisting_at:type_name -> google.protobuf.Timestamp
 	3,  // 25: marketdata.v1.PairConfig.status:type_name -> marketdata.v1.PairStatus
 	22, // 26: marketdata.v1.PairConfig.price_band:type_name -> marketdata.v1.PriceBand
 	19, // 27: marketdata.v1.GetSpotConfigResponse.assets:type_name -> marketdata.v1.AssetConfig
@@ -3237,14 +3293,14 @@ var file_marketdata_v1_marketdata_proto_depIdxs = []int32{
 	5,  // 30: marketdata.v1.LivePriceBand.reference_source:type_name -> marketdata.v1.PriceBandReferenceSource
 	22, // 31: marketdata.v1.LivePriceBand.parameters:type_name -> marketdata.v1.PriceBand
 	25, // 32: marketdata.v1.GetPriceBandResponse.band:type_name -> marketdata.v1.LivePriceBand
-	29, // 33: marketdata.v1.MarketDataService.ListAssetInfo:input_type -> marketdata.v1.ListAssetInfoRequest
+	30, // 33: marketdata.v1.MarketDataService.ListAssetInfo:input_type -> marketdata.v1.ListAssetInfoRequest
 	6,  // 34: marketdata.v1.MarketDataService.GetTrades:input_type -> marketdata.v1.GetTradesRequest
 	11, // 35: marketdata.v1.MarketDataService.GetCandles:input_type -> marketdata.v1.GetCandlesRequest
 	12, // 36: marketdata.v1.MarketDataService.GetCandlesColumns:input_type -> marketdata.v1.GetCandlesColumnsRequest
 	16, // 37: marketdata.v1.MarketDataService.GetIndexPriceCandles:input_type -> marketdata.v1.GetIndexPriceCandlesRequest
 	23, // 38: marketdata.v1.MarketDataService.GetSpotConfig:input_type -> marketdata.v1.GetSpotConfigRequest
 	26, // 39: marketdata.v1.MarketDataService.GetPriceBand:input_type -> marketdata.v1.GetPriceBandRequest
-	30, // 40: marketdata.v1.MarketDataService.ListAssetInfo:output_type -> marketdata.v1.ListAssetInfoResponse
+	31, // 40: marketdata.v1.MarketDataService.ListAssetInfo:output_type -> marketdata.v1.ListAssetInfoResponse
 	10, // 41: marketdata.v1.MarketDataService.GetTrades:output_type -> marketdata.v1.GetTradesResponse
 	14, // 42: marketdata.v1.MarketDataService.GetCandles:output_type -> marketdata.v1.GetCandlesResponse
 	15, // 43: marketdata.v1.MarketDataService.GetCandlesColumns:output_type -> marketdata.v1.GetCandlesColumnsResponse
@@ -3274,7 +3330,7 @@ func file_marketdata_v1_marketdata_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_marketdata_v1_marketdata_proto_rawDesc), len(file_marketdata_v1_marketdata_proto_rawDesc)),
 			NumEnums:      6,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

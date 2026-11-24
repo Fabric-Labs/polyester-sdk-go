@@ -62,8 +62,13 @@ type LedgerReadServiceClient interface {
 	// Supports optional subaccount, range, account-code filtering, and grouping by account or asset.
 	GetEquityHistorySeries(context.Context, *connect.Request[v1.GetEquityHistorySeriesRequest]) (*connect.Response[v1.GetEquityHistorySeriesResponse], error)
 	// Retrieve root portfolio equity history as master, top owned subaccounts,
-	// and an aggregate of the remaining owned subaccounts. Requires an
-	// interactive root-account session; API keys are not supported.
+	// and an aggregate of the remaining owned subaccounts. Accepts a
+	// root-account session, or a root-scoped API key whose policy grants
+	// READ_BALANCES. An API key covers the master account and only the
+	// subaccounts that master account owns, each within its subaccount policy;
+	// the request fails when the key may not read one of them. A
+	// subaccount-scoped API key is refused with AUTH_API_KEY_ACCESS_DENIED: the
+	// history needs a key scoped to the main account.
 	GetPortfolioEquityHistorySeries(context.Context, *connect.Request[v1.GetPortfolioEquityHistorySeriesRequest]) (*connect.Response[v1.GetPortfolioEquityHistorySeriesResponse], error)
 	// Retrieve current root portfolio equity grouped by logical account and
 	// asset. Accepts a root-account session, or a root-scoped API key whose
@@ -187,8 +192,13 @@ type LedgerReadServiceHandler interface {
 	// Supports optional subaccount, range, account-code filtering, and grouping by account or asset.
 	GetEquityHistorySeries(context.Context, *connect.Request[v1.GetEquityHistorySeriesRequest]) (*connect.Response[v1.GetEquityHistorySeriesResponse], error)
 	// Retrieve root portfolio equity history as master, top owned subaccounts,
-	// and an aggregate of the remaining owned subaccounts. Requires an
-	// interactive root-account session; API keys are not supported.
+	// and an aggregate of the remaining owned subaccounts. Accepts a
+	// root-account session, or a root-scoped API key whose policy grants
+	// READ_BALANCES. An API key covers the master account and only the
+	// subaccounts that master account owns, each within its subaccount policy;
+	// the request fails when the key may not read one of them. A
+	// subaccount-scoped API key is refused with AUTH_API_KEY_ACCESS_DENIED: the
+	// history needs a key scoped to the main account.
 	GetPortfolioEquityHistorySeries(context.Context, *connect.Request[v1.GetPortfolioEquityHistorySeriesRequest]) (*connect.Response[v1.GetPortfolioEquityHistorySeriesResponse], error)
 	// Retrieve current root portfolio equity grouped by logical account and
 	// asset. Accepts a root-account session, or a root-scoped API key whose

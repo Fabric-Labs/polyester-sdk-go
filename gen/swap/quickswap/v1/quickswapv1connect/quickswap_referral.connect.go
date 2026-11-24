@@ -82,8 +82,11 @@ type QuickSwapReferralServiceClient interface {
 	// Errors:
 	// - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND.
 	CheckReferralCode(context.Context, *connect.Request[v1.CheckReferralCodeRequest]) (*connect.Response[v1.CheckReferralCodeResponse], error)
-	// SetReferralCode replaces the caller's referral code. The old code is
-	// retired for good, so a partner can change its code at most 9 times (see
+	// SetReferralCode replaces the caller's referral code. The old code keeps
+	// crediting the caller: a QuickSwap request with it is referred to the
+	// caller at the program's current rates, so links already shared keep
+	// working. It stays reserved for good and is never given to another
+	// partner, so a partner can change its code at most 9 times (see
 	// ReferralPartner.code_changes_remaining). Setting the current code again
 	// changes nothing.
 	//
@@ -284,8 +287,11 @@ type QuickSwapReferralServiceHandler interface {
 	// Errors:
 	// - NOT_FOUND: REFERRAL_PARTNER_NOT_FOUND.
 	CheckReferralCode(context.Context, *connect.Request[v1.CheckReferralCodeRequest]) (*connect.Response[v1.CheckReferralCodeResponse], error)
-	// SetReferralCode replaces the caller's referral code. The old code is
-	// retired for good, so a partner can change its code at most 9 times (see
+	// SetReferralCode replaces the caller's referral code. The old code keeps
+	// crediting the caller: a QuickSwap request with it is referred to the
+	// caller at the program's current rates, so links already shared keep
+	// working. It stays reserved for good and is never given to another
+	// partner, so a partner can change its code at most 9 times (see
 	// ReferralPartner.code_changes_remaining). Setting the current code again
 	// changes nothing.
 	//

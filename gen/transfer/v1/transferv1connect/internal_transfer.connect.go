@@ -82,6 +82,19 @@ type InternalTransferServiceClient interface {
 	// read the transfers of every source account of the batch; any other
 	// batch is not found. An API key whose policy does not grant
 	// READ_INTERNAL_TRANSFERS is refused PERMISSION_DENIED for any batch.
+	//
+	// By idempotency key instead, the read answers the batch the caller
+	// submitted under that key as BatchCreateInternalTransfers stored its
+	// outcome: accepted with its transfer IDs, still processing, or refused
+	// with its reasons. It needs the read permission on every source account,
+	// never the move permission, so a caller no longer allowed to move a
+	// source still reads an answer it lost. The key is the caller's own, so
+	// two answers differ from a read by request ID, which answers NOT_FOUND for
+	// both: a batch its checks refused reads its refusal, and a caller who may
+	// not read one of its sources is refused PERMISSION_DENIED, or UNAVAILABLE
+	// while that permission cannot be decided yet (retry). NOT_FOUND means the
+	// caller submitted no batch under that key.
+	//
 	// This read does not submit or retry the batch and requires no fresh MFA.
 	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
 }
@@ -189,6 +202,19 @@ type InternalTransferServiceHandler interface {
 	// read the transfers of every source account of the batch; any other
 	// batch is not found. An API key whose policy does not grant
 	// READ_INTERNAL_TRANSFERS is refused PERMISSION_DENIED for any batch.
+	//
+	// By idempotency key instead, the read answers the batch the caller
+	// submitted under that key as BatchCreateInternalTransfers stored its
+	// outcome: accepted with its transfer IDs, still processing, or refused
+	// with its reasons. It needs the read permission on every source account,
+	// never the move permission, so a caller no longer allowed to move a
+	// source still reads an answer it lost. The key is the caller's own, so
+	// two answers differ from a read by request ID, which answers NOT_FOUND for
+	// both: a batch its checks refused reads its refusal, and a caller who may
+	// not read one of its sources is refused PERMISSION_DENIED, or UNAVAILABLE
+	// while that permission cannot be decided yet (retry). NOT_FOUND means the
+	// caller submitted no batch under that key.
+	//
 	// This read does not submit or retry the batch and requires no fresh MFA.
 	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
 }
