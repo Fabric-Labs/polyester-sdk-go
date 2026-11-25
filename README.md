@@ -2018,13 +2018,19 @@ for _, bal := range view.Balances.Balances {
 ## Account statements
 
 `client.Statements` exports an account's balance movements for a period as one
-CSV file, for reconciliation and tax reporting. The server produces the file in
+CSV file, for reconciliation and tax reporting: an account statement
+(`models.StatementExportTypeAccountStatement`, one row per entry with its fees),
+a ledger (`models.StatementExportTypeLedger`, one row per transfer leg) or the
+account's balances (`models.StatementExportTypeBalances`, one row per account
+bucket and asset with its opening and closing balance).
+The server produces the file in
 the background; create an export, wait until it is final, then download it.
 The calls are signed like the other ledger reads, and an API key needs
 `READ_STATEMENTS` on its policy.
 
 ```go
 export, err := client.Statements.CreateExport(ctx, services.CreateStatementExportOptions{
+	Type:           models.StatementExportTypeAccountStatement, // or ...Ledger, ...Balances
 	StartTime:      time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC), // inclusive
 	EndTime:        time.Date(2027, 1, 1, 0, 0, 0, 0, time.UTC), // exclusive
 	IdempotencyKey: "statement-2026",
@@ -2047,16 +2053,24 @@ if export.Status == "ready" {
 }
 ```
 
-`StartTime` and `EndTime` are required; the period is at most 366 days.
-`Account` and `SubAccountID` select the account as for `Transfers.List`, and
-without either the client's `DefaultSubAccountID` applies. `AssetID` keeps one
-asset. `IdempotencyKey` is required (1 to 64 letters, digits, `.`, `_`, `:` or
-`-`): repeating a create with the same key returns the same export, and the
-same key with other fields is refused with
-`ERROR_CODE_IDEMPOTENCY_KEY_REUSED`. A root account has at most 5 exports
-queued or processing; another create is refused with
-`ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED`, which is not retryable until one
-of them finishes. `Statements.ListExports` and the `Statements.Exports`
+`Type`, `StartTime` and `EndTime` are required; the period is at most 366 days.
+An empty or unknown `Type` is refused before sending, and repeating an
+idempotency key with another type is refused like any other changed field.
+`export.Type` echoes it, and reads `unknown(n)` for a type newer than this SDK.
+A balances period must start inside the account history: an earlier start is
+refused with `errors.CodeStatementHistoryUnavailable`
+(`errors.IsStatementHistoryUnavailable`), and
+`errors.APIError.HistoryAvailableFrom` says where to start instead. If the
+history moves later before the file is produced, the export ends `failed` with
+`FailureReason` `history_unavailable` and `HistoryAvailableFrom` set. `Account`
+and `SubAccountID` select the account as for `Transfers.List`, and without
+either the client's `DefaultSubAccountID` applies. `AssetID` keeps one asset.
+`IdempotencyKey` is required (1 to 64 letters, digits, `.`, `_`, `:` or `-`):
+repeating a create with the same key returns the same export, and the same key
+with other fields is refused with `ERROR_CODE_IDEMPOTENCY_KEY_REUSED`. A root
+account has at most 5 exports queued or processing; another create is refused
+with `ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED`, which is not retryable until
+one of them finishes. `Statements.ListExports` and the `Statements.Exports`
 iterator list an account's exports, newest first; each page carries
 `InProgressExports` and `MaxInProgressExports`, the root account's room left.
 `Statements.CancelExport` stops a queued or processing export: it becomes
@@ -2075,11 +2089,20 @@ for 60 seconds, so ask for it right before downloading. The URL is a
 can download the file, so never log, store or share it.
 
 The file is RFC 4180 CSV with CRLF line endings, header row first; keep it as
-text. `models.ParseStatementCSV` reads the columns by header name, so columns
-a later release appends do not break it, and keeps amounts as exact decimal
-strings (`Amount`, `Fee`, `Balance`; `Balance` is the previous balance of the
-same bucket and asset plus `Amount` minus `Fee`). `FlowID` matches the entry's
-`Transfers.List` flow, empty for trades.
+text. The download saves it as `account-statement-<exportId>.csv`,
+`ledger-<exportId>.csv` or `balances-<exportId>.csv`, by type.
+`models.ParseStatementCSV` reads an account statement, `models.ParseLedgerCSV` a
+ledger and `models.ParseBalancesCSV` balances. All three read the columns by
+header name, so columns a later release appends do not break them, and keep
+amounts as exact decimal strings. In an account statement `Balance` is the
+previous balance of the same bucket and asset plus `Amount` minus `Fee`. In a
+ledger each row is one transfer leg (`TransferID`, `Side` `debit` or `credit`, a
+signed `Amount`, `Counterparty`), and `Balance` is the previous balance plus
+`Amount`. A balances row (`models.BalancesRow`) reconciles: `ClosingBalance` is
+`OpeningBalance` plus `Credits` minus `Debits`, the totals of the ledger's
+credit and debit rows of that bucket and asset, over `Movements` movements.
+`FlowID` is the lifecycle flow linked before the export was created, empty for
+trades; a flow linked later shows in `Transfers.List` and in a new export.
 
 ## Dust conversion
 

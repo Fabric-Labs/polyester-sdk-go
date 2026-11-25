@@ -113,7 +113,7 @@ func TestStatementsCreateExportScopes(t *testing.T) {
 	}
 	for _, tc := range cases {
 		opts := tc.opts
-		opts.StartTime, opts.EndTime, opts.AssetID, opts.IdempotencyKey = start, end, 3, "statement-1"
+		opts.Type, opts.StartTime, opts.EndTime, opts.AssetID, opts.IdempotencyKey = models.StatementExportTypeAccountStatement, start, end, 3, "statement-1"
 		export, err := client.Statements.CreateExport(context.Background(), opts)
 		if err != nil {
 			t.Fatalf("%s: %v", tc.name, err)
@@ -127,8 +127,9 @@ func TestStatementsCreateExportScopes(t *testing.T) {
 		if (got.SubaccountId == nil) != (tc.want == nil) || (got.SubaccountId != nil && *got.SubaccountId != *tc.want) {
 			t.Fatalf("%s: subaccount_id = %v, want %v", tc.name, got.SubaccountId, tc.want)
 		}
-		if !got.GetStartTime().AsTime().Equal(start) || !got.GetEndTime().AsTime().Equal(end) || got.GetAssetId() != 3 {
-			t.Fatalf("%s: request = %v; want the period at full precision and the asset", tc.name, got)
+		if !got.GetStartTime().AsTime().Equal(start) || !got.GetEndTime().AsTime().Equal(end) || got.GetAssetId() != 3 ||
+			got.GetType() != ledgerrdv1.StatementExportType_ACCOUNT_STATEMENT {
+			t.Fatalf("%s: request = %v; want the period at full precision, the asset and the type", tc.name, got)
 		}
 	}
 	// An empty sub-account is no ID: it is refused before sending, never the
@@ -136,7 +137,7 @@ func TestStatementsCreateExportScopes(t *testing.T) {
 	fake.mu.Lock()
 	sent := len(fake.creates)
 	fake.mu.Unlock()
-	opts := services.CreateStatementExportOptions{SubAccountID: &empty, StartTime: start, EndTime: end, IdempotencyKey: "statement-1"}
+	opts := services.CreateStatementExportOptions{Type: models.StatementExportTypeAccountStatement, SubAccountID: &empty, StartTime: start, EndTime: end, IdempotencyKey: "statement-1"}
 	var validation *sdkerrors.ValidationError
 	if _, err := client.Statements.CreateExport(context.Background(), opts); !stderrors.As(err, &validation) {
 		t.Fatalf("empty sub-account: err = %v, want a ValidationError", err)
@@ -186,19 +187,19 @@ func TestStatementsCancelExportReturnsTheCanceledExport(t *testing.T) {
 }
 
 func TestStatementsGetExportDownloadURLNeverPrintsTheURL(t *testing.T) {
-	const signed = "https://files.example/statement-7000000001.csv?signature=very-secret"
+	const signed = "https://files.example/account-statement-7000000001.csv?signature=very-secret"
 	expires := time.Date(2026, 11, 16, 21, 0, 0, 0, time.UTC)
 	fake := &fakeStatementExports{url: &ledgerrdv1.GetStatementExportDownloadUrlResponse{
 		Url:       signed,
 		ExpiresAt: timestamppb.New(expires),
-		Filename:  "statement-7000000001.csv",
+		Filename:  "account-statement-7000000001.csv",
 	}}
 	client := newStatementExportsClient(t, fake, nil)
 	got, err := client.Statements.GetExportDownloadURL(context.Background(), codecs.FormatID(7000000001))
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got.URL.Reveal() != signed || !got.ExpiresAt.Equal(expires) || got.Filename != "statement-7000000001.csv" {
+	if got.URL.Reveal() != signed || !got.ExpiresAt.Equal(expires) || got.Filename != "account-statement-7000000001.csv" {
 		t.Fatalf("download URL = %+v", got)
 	}
 	encoded, err := json.Marshal(got)
@@ -216,8 +217,8 @@ func TestStatementsGetExportDownloadURLNeverPrintsTheURL(t *testing.T) {
 
 	// A reply without its URL, expiry or file name breaks the contract.
 	for _, reply := range []*ledgerrdv1.GetStatementExportDownloadUrlResponse{
-		{ExpiresAt: timestamppb.New(expires), Filename: "statement-7000000001.csv"},
-		{Url: signed, Filename: "statement-7000000001.csv"},
+		{ExpiresAt: timestamppb.New(expires), Filename: "account-statement-7000000001.csv"},
+		{Url: signed, Filename: "account-statement-7000000001.csv"},
 		{Url: signed, ExpiresAt: timestamppb.New(expires)},
 	} {
 		fake.url = reply
@@ -257,6 +258,29 @@ func TestStatementExportIsFinal(t *testing.T) {
 	} {
 		if got := (models.StatementExport{Status: status}).IsFinal(); got != final {
 			t.Fatalf("IsFinal(%q) = %v, want %v", status, got, final)
+		}
+	}
+}
+
+// Each type label is sent as the contract's type.
+func TestStatementsCreateExportSendsEachType(t *testing.T) {
+	fake := &fakeStatementExports{}
+	client := newStatementExportsClient(t, fake, nil)
+	start, end := time.Unix(1_790_000_000, 0), time.Unix(1_790_086_400, 0)
+	for label, want := range map[string]ledgerrdv1.StatementExportType{
+		models.StatementExportTypeAccountStatement: ledgerrdv1.StatementExportType_ACCOUNT_STATEMENT,
+		models.StatementExportTypeLedger:           ledgerrdv1.StatementExportType_LEDGER,
+		models.StatementExportTypeBalances:         ledgerrdv1.StatementExportType_BALANCES,
+	} {
+		opts := services.CreateStatementExportOptions{Type: label, StartTime: start, EndTime: end, IdempotencyKey: "statement-" + label}
+		if _, err := client.Statements.CreateExport(context.Background(), opts); err != nil {
+			t.Fatalf("%s: %v", label, err)
+		}
+		fake.mu.Lock()
+		got := fake.creates[len(fake.creates)-1].GetType()
+		fake.mu.Unlock()
+		if got != want {
+			t.Fatalf("%s sent type %v, want %v", label, got, want)
 		}
 	}
 }

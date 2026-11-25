@@ -10,6 +10,7 @@ import (
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	withdrawv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/withdraw/v1"
+	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	typev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/type/v1"
 	"google.golang.org/protobuf/proto"
@@ -196,6 +197,42 @@ func TestWithdrawCoolingDownCarriesPayableFrom(t *testing.T) {
 	}
 	if !sdkerrors.IsDestinationCoolingDown(mapped) || sdkerrors.IsRetryable(mapped) {
 		t.Fatalf("cooling=%v retryable=%v", sdkerrors.IsDestinationCoolingDown(mapped), sdkerrors.IsRetryable(mapped))
+	}
+}
+
+// A balances statement export that starts before the account history names
+// where the history starts, so the caller can create it again from there.
+func TestStatementHistoryUnavailableCarriesHistoryAvailableFrom(t *testing.T) {
+	from := time.Date(2026, 11, 25, 14, 55, 2, 123456789, time.UTC)
+	connectErr := connect.NewError(connect.CodeFailedPrecondition, errors.New("statement_history_unavailable"))
+	detail, err := connect.NewErrorDetail(&ledgerrdv1.ErrorDetail{
+		Code:                 ledgerrdv1.ErrorCode_ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE,
+		HistoryAvailableFrom: timestamppb.New(from),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	connectErr.AddDetail(detail)
+	mapped := MapConnectError(connectErr)
+	var apiErr *sdkerrors.APIError
+	if !errors.As(mapped, &apiErr) || apiErr.Code != sdkerrors.CodeStatementHistoryUnavailable {
+		t.Fatalf("mapped=%T %#v", mapped, mapped)
+	}
+	if apiErr.HistoryAvailableFrom == nil || !apiErr.HistoryAvailableFrom.Equal(from) {
+		t.Fatalf("history_available_from=%v", apiErr.HistoryAvailableFrom)
+	}
+	if !sdkerrors.IsStatementHistoryUnavailable(mapped) || sdkerrors.IsRetryable(mapped) {
+		t.Fatalf("history=%v retryable=%v", sdkerrors.IsStatementHistoryUnavailable(mapped), sdkerrors.IsRetryable(mapped))
+	}
+	// Another ledger refusal carries no history instant.
+	other := connect.NewError(connect.CodeFailedPrecondition, errors.New("not ready"))
+	otherDetail, err := connect.NewErrorDetail(&ledgerrdv1.ErrorDetail{Code: ledgerrdv1.ErrorCode_ERROR_CODE_STATEMENT_EXPORT_NOT_READY})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other.AddDetail(otherDetail)
+	if !errors.As(MapConnectError(other), &apiErr) || apiErr.HistoryAvailableFrom != nil || sdkerrors.IsStatementHistoryUnavailable(apiErr) {
+		t.Fatalf("other ledger refusal = %#v", apiErr)
 	}
 }
 
