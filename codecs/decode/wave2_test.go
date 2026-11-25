@@ -90,7 +90,7 @@ func TestMarketTradesFromProto(t *testing.T) {
 		},
 		NextPageToken: "56",
 	}
-	result := decode.MarketTradesFromProto(msg, 8)
+	result := mustDecoded(decode.MarketTradesFromProto(msg, 8))
 	if len(result.Trades) != 1 || result.Trades[0].MatchID != "55" {
 		t.Fatalf("trades=%+v", result.Trades)
 	}
@@ -109,7 +109,7 @@ func TestMarketOverviewListFromProto(t *testing.T) {
 			},
 		},
 	}
-	result := decode.MarketOverviewListFromProto(msg, nil)
+	result := mustDecoded(decode.MarketOverviewListFromProto(msg, nil))
 	if len(result.Markets) != 1 || result.Markets[0].SymbolID != 1 || result.Markets[0].Symbol != "" {
 		t.Fatalf("markets=%+v", result.Markets)
 	}
@@ -168,14 +168,14 @@ func TestOrderbookFromProto(t *testing.T) {
 // An empty backfill page still moves the walk forward: its cursors and epoch
 // ends must decode even when it carries no trades.
 func TestMarketTradesBackfillEmptyPageKeepsCursors(t *testing.T) {
-	result := decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{
+	result := mustDecoded(decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{
 		CompleteThroughTradeId: 2_199_023_255_552,
 		NextAfterTradeId:       2_199_023_255_552,
 		EpochEnds: []*marketdatav1.TradeEpochEnd{
 			{Epoch: 1, LastTradeId: 1_099_511_627_800},
 			{Epoch: 2, LastTradeId: 1_099_511_627_776},
 		},
-	}, 8)
+	}, 8))
 	if len(result.Trades) != 0 {
 		t.Fatalf("trades %+v", result.Trades)
 	}
@@ -192,7 +192,7 @@ func TestMarketTradesBackfillEmptyPageKeepsCursors(t *testing.T) {
 // answers both watermarks 0, and the returned cursor must be usable as the
 // next after_trade_id.
 func TestMarketTradesBackfillZeroWatermarks(t *testing.T) {
-	got := decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{}, 8)
+	got := mustDecoded(decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{}, 8))
 	if got.NextAfterTradeID != "0" || got.CompleteThroughTradeID != "0" {
 		t.Fatalf("backfill watermarks next=%q complete=%q, want decimal zero", got.NextAfterTradeID, got.CompleteThroughTradeID)
 	}
@@ -200,7 +200,7 @@ func TestMarketTradesBackfillZeroWatermarks(t *testing.T) {
 		t.Fatalf("returned next cursor cannot be used for the next GetTradesAfter: %v", err)
 	}
 	// A plain page-token read carries no backfill watermarks.
-	if plain := decode.MarketTradesFromProto(&marketdatav1.GetTradesResponse{}, 8); plain.NextAfterTradeID != "" || plain.CompleteThroughTradeID != "" {
+	if plain := mustDecoded(decode.MarketTradesFromProto(&marketdatav1.GetTradesResponse{}, 8)); plain.NextAfterTradeID != "" || plain.CompleteThroughTradeID != "" {
 		t.Fatalf("page-token read reported watermarks %+v", plain)
 	}
 }

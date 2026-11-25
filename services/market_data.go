@@ -118,7 +118,7 @@ func (s *MarketDataService) GetTrades(ctx context.Context, symbol *string, symbo
 	if pageToken != nil && *pageToken != "" {
 		req.PageToken = *pageToken
 	}
-	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) (models.MarketTradesResult, error) {
 		return decode.MarketTradesFromProto(msg, scale)
 	})
 }
@@ -156,7 +156,7 @@ func (s *MarketDataService) GetTradesAfter(ctx context.Context, symbol *string, 
 	if err := codecs.CheckPageLimit(req); err != nil {
 		return models.MarketTradesResult{}, err
 	}
-	return UnaryPublic(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) models.MarketTradesResult {
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetTrades, req, func(msg *marketdatav1.GetTradesResponse) (models.MarketTradesResult, error) {
 		return decode.MarketTradesBackfillFromProto(msg, scale)
 	})
 }

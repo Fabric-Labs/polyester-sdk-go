@@ -56,9 +56,9 @@ func TestTrailingDistanceTicksArePriceTicks(t *testing.T) {
 			t.Fatalf("attached %s: trailing_distance_ticks=%d want %d", tc.distance, got, tc.ticks)
 		}
 
-		read := decode.TriggerFromProto(&triggersv1.Trigger{
+		read := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{
 			RuntimeDetails: &triggersv1.Trigger_Trailing{Trailing: &triggersv1.TrailingDetails{TrailingDistanceTicks: tc.ticks}},
-		})
+		}))
 		if read.Details == nil || read.Details.TrailingDistance.Ticks() != tc.ticks {
 			t.Fatalf("read %s: details=%+v", tc.distance, read.Details)
 		}

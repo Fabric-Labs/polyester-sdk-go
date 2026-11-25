@@ -81,18 +81,18 @@ func TestAssetInfoCarriesItsMarketStats(t *testing.T) {
 // A ladder says how its levels were placed, and how placement went once it
 // has ended.
 func TestLadderStateCarriesItsLevelCountsAndOutcome(t *testing.T) {
-	trigger := TriggerFromProto(&triggersv1.Trigger{
+	trigger := mustDecoded(TriggerFromProto(&triggersv1.Trigger{
 		TriggerId: 1, SymbolId: 1,
 		RuntimeDetails: &triggersv1.Trigger_LadderState{LadderState: &triggersv1.LadderDetails{
 			LadderLevels: 3, ExecutedLevels: 1, RequestedLevels: 3, PlacedLevels: 2, RejectedLevels: 1, CanceledLevels: 1,
 			Outcome: triggersv1.LadderOutcome_MIXED_REJECTIONS,
 		}},
-	})
+	}))
 	d := trigger.Details
 	if d == nil || d.RequestedLevels != 3 || d.PlacedLevels != 2 || d.RejectedLevels != 1 || d.CanceledLevels != 1 || d.LadderOutcome != "mixed_rejections" {
 		t.Fatalf("details = %+v", d)
 	}
-	running := TriggerFromProto(&triggersv1.Trigger{TriggerId: 1, SymbolId: 1, RuntimeDetails: &triggersv1.Trigger_LadderState{LadderState: &triggersv1.LadderDetails{LadderLevels: 3}}})
+	running := mustDecoded(TriggerFromProto(&triggersv1.Trigger{TriggerId: 1, SymbolId: 1, RuntimeDetails: &triggersv1.Trigger_LadderState{LadderState: &triggersv1.LadderDetails{LadderLevels: 3}}}))
 	if running.Details.LadderOutcome != "" {
 		t.Fatalf("running ladder outcome = %q", running.Details.LadderOutcome)
 	}

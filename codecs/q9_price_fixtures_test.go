@@ -118,9 +118,9 @@ func TestQ9OrderAndTriggerEncodePaths(t *testing.T) {
 }
 
 func TestQ9DecodePaths(t *testing.T) {
-	trades := decode.MarketTradesFromProto(&marketdatav1.GetTradesResponse{Trades: []*marketdatav1.MarketTrade{
+	trades := mustDecoded(decode.MarketTradesFromProto(&marketdatav1.GetTradesResponse{Trades: []*marketdatav1.MarketTrade{
 		{SymbolId: 1, PriceTicks: 83589000000000, QtyScaled: 12345},
-	}}, 8)
+	}}, 8))
 	if got := trades.Trades[0].Price.Format(); got != "83589" {
 		t.Fatalf("trade price=%q", got)
 	}
@@ -128,12 +128,12 @@ func TestQ9DecodePaths(t *testing.T) {
 		t.Fatalf("trade qty scaled=%d", got)
 	}
 
-	userTrade := decode.UserTradeFromProto(&orderv1.UserTrade{PriceTicks: 2420000000000, QtyScaled: 2315})
+	userTrade := mustDecoded(decode.UserTradeFromProto(&orderv1.UserTrade{PriceTicks: 2420000000000, QtyScaled: 2315}))
 	if got := userTrade.Price.Format(); got != "2420" {
 		t.Fatalf("user trade price=%q", got)
 	}
 
-	order := decode.OrderFromProto(&orderv1.Order{PriceTicks: 185250000000, AvgPriceTicks: 2420000000000})
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{PriceTicks: 185250000000, AvgPriceTicks: 2420000000000}))
 	if order.Price.Format() != "185.25" || order.AvgPx.Format() != "2420" {
 		t.Fatalf("order price=%q avg=%q", order.Price.Format(), order.AvgPx.Format())
 	}

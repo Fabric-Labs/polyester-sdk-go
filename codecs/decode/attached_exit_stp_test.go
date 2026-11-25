@@ -20,23 +20,23 @@ func TestAttachedExitFiredCancelReason(t *testing.T) {
 		triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED != 249 {
 		t.Fatal("generated attached-exit reason numbers changed")
 	}
-	order := decode.OrderFromProto(&orderv1.Order{
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId: 1, Status: orderv1.OrderStatus_CANCELED,
 		CancelReason: orderv1.CancelReason_CANCEL_REASON_ATTACHED_EXIT_FIRED,
-	})
+	}))
 	if order.CancelReason != "attached_exit_fired" {
 		t.Fatalf("order cancel reason=%q", order.CancelReason)
 	}
-	events := decode.OrderUnitEventsFromProto([]*privatewsv1.UnitEvent{
+	events := mustDecoded(decode.OrderUnitEventsFromProto([]*privatewsv1.UnitEvent{
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 1, Kind: privatewsv1.OrderEvent_CANCELED, CancelReason: orderv1.CancelReason_CANCEL_REASON_ATTACHED_EXIT_FIRED}),
-	}, nil)
+	}, nil))
 	if len(events) != 1 || events[0].Order.CancelReason != "attached_exit_fired" {
 		t.Fatalf("order stream events=%+v", events)
 	}
-	rejected := decode.OrderFromProto(&orderv1.Order{
+	rejected := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId: 2, Status: orderv1.OrderStatus_REJECTED,
 		RejectReason: orderv1.ErrorCode_ERROR_CODE_SELF_TRADE_PREVENTED,
-	})
+	}))
 	if rejected.RejectReason != "self_trade_prevented" {
 		t.Fatalf("reject reason=%q", rejected.RejectReason)
 	}
@@ -54,7 +54,7 @@ func TestSelfTradePreventedIsAFireRefusal(t *testing.T) {
 		got.CancelReason != "" || got.FailureReason != "" {
 		t.Fatalf("event=%+v", got)
 	}
-	trigger := decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 11, Status: triggersv1.TriggerStatus_STATUS_ARMED})
+	trigger := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 11, Status: triggersv1.TriggerStatus_STATUS_ARMED}))
 	if trigger.Status != "armed" || trigger.FailureReason != "" {
 		t.Fatalf("trigger=%+v", trigger)
 	}
@@ -69,7 +69,7 @@ func TestOrderReadsSelfTradePreventionMode(t *testing.T) {
 		orderv1.SelfTradePreventionMode(9):                                     "unknown(9)",
 	}
 	for mode, want := range cases {
-		got := decode.OrderFromProto(&orderv1.Order{OrderId: 1, SelfTradePreventionMode: mode})
+		got := mustDecoded(decode.OrderFromProto(&orderv1.Order{OrderId: 1, SelfTradePreventionMode: mode}))
 		if got.SelfTradePreventionMode != want {
 			t.Fatalf("mode %d: got %q want %q", mode, got.SelfTradePreventionMode, want)
 		}

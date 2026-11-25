@@ -226,11 +226,11 @@ func TestBackfilledTradesKeepTheirExchangeTime(t *testing.T) {
 	wire := func(matchID, tsNs uint64) *marketdatav1.MarketTrade {
 		return &marketdatav1.MarketTrade{SymbolId: 7, MatchId: matchID, IsBuy: true, PriceTicks: 65_000_000_000_000, QtyScaled: 1_500, TsNs: tsNs}
 	}
-	res := decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{
+	res := mustDecoded(decode.MarketTradesBackfillFromProto(&marketdatav1.GetTradesResponse{
 		Trades:                 []*marketdatav1.MarketTrade{wire(101, 1_700_000_000_123_456_789), wire(102, 0), wire(103, 1<<63)},
 		CompleteThroughTradeId: 103,
 		NextAfterTradeId:       103,
-	}, 3)
+	}, 3))
 	page, err := historyPage(res)
 	if err != nil {
 		t.Fatal(err)

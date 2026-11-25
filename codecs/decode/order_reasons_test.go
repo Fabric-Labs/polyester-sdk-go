@@ -56,7 +56,7 @@ func TestOrderFromProtoDecodesEndReasons(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			got := decode.OrderFromProto(tc.msg)
+			got := mustDecoded(decode.OrderFromProto(tc.msg))
 			if got.RejectReason != tc.reject || got.CancelReason != tc.cancel {
 				t.Fatalf("reject=%q cancel=%q, want reject=%q cancel=%q", got.RejectReason, got.CancelReason, tc.reject, tc.cancel)
 			}

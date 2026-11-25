@@ -29,7 +29,7 @@ func TestMarketOverviewEntryReadsLivePriceBand(t *testing.T) {
 		AsOfTsNs:             asOf,
 		ValidUntilTsNs:       asOf + 5_000_000_000,
 	}
-	entry := MarketOverviewEntryFromProto(row, topOfBookCatalogs(t))
+	entry := mustDecoded(MarketOverviewEntryFromProto(row, topOfBookCatalogs(t)))
 	band := entry.PriceBand
 	if band == nil {
 		t.Fatal("price band dropped")
@@ -50,7 +50,7 @@ func TestMarketOverviewEntryReadsLivePriceBand(t *testing.T) {
 	if unknown.State != "unknown" || unknown.FreshAt(at) {
 		t.Fatalf("unknown band = %+v", unknown)
 	}
-	without := MarketOverviewEntryFromProto(&overviewpb.MarketOverview{SymbolId: 1}, nil)
+	without := mustDecoded(MarketOverviewEntryFromProto(&overviewpb.MarketOverview{SymbolId: 1}, nil))
 	if without.PriceBand != nil || without.PriceBand.FreshAt(at) {
 		t.Fatalf("row without a band = %+v", without.PriceBand)
 	}

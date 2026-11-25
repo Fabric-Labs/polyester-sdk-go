@@ -15,9 +15,14 @@ import (
 // which Orders.Get answers for 60 seconds without order terms, decodes with
 // SymbolID 0, empty side, type, time in force, self-trade prevention mode and
 // fee asset, and zero quantities that name no pair.
-func OrderFromProto(msg *orderv1.Order) models.Order {
+//
+// Every order quantity is a plain proto3 field, so an omitted one is 0 and
+// decodes as a zero quantity, as an original quantity of 0 does on a
+// canceled order whose total the server took down to its filled quantity.
+// A negative quantity returns a *errors.ResponseContractError.
+func OrderFromProto(msg *orderv1.Order) (models.Order, error) {
 	if msg == nil {
-		return models.Order{}
+		return models.Order{}, nil
 	}
 	sid := msg.GetSymbolId()
 	// Quantities name the order's pair, so the catalogs can scale them; an
@@ -26,7 +31,16 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 	if sid != 0 {
 		qtyPair = &sid
 	}
-	return models.Order{
+	// qty decodes one quantity; err keeps the first refusal.
+	var err error
+	qty := func(scaled int64, field string) models.QtyScaled {
+		q, qErr := codecs.DecodeQtyScaled(scaled, -1, "", qtyPair, field)
+		if qErr != nil && err == nil {
+			err = qErr
+		}
+		return q
+	}
+	order := models.Order{
 		OrderID:       codecs.FormatUint64ID(msg.GetOrderId()),
 		SymbolID:      sid,
 		ClientOrderID: msg.GetClientOrderId(),
@@ -35,12 +49,12 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		OrderType:     codecs.OrderTypeName(msg.GetOrderType()),
 		TIF:           codecs.TimeInForceName(msg.GetTimeInForce()),
 		// Current accepted total; changes after a successful modify.
-		OrigQty:         codecs.DecodeQtyScaled(msg.GetOrigQtyScaled(), -1, "", qtyPair),
-		CumQty:          codecs.DecodeQtyScaled(msg.GetCumQtyScaled(), -1, "", qtyPair),
-		InheritedCumQty: codecs.DecodeQtyScaled(msg.GetInheritedCumQtyScaled(), -1, "", qtyPair),
-		LeavesQty:       codecs.DecodeQtyScaled(msg.GetLeavesQtyScaled(), -1, "", qtyPair),
-		DisplayQty:      codecs.DecodeQtyScaled(msg.GetDisplayQtyScaled(), -1, "", qtyPair),
-		HiddenQty:       codecs.DecodeQtyScaled(msg.GetHiddenQtyScaled(), -1, "", qtyPair),
+		OrigQty:         qty(msg.GetOrigQtyScaled(), "Order.orig_qty_scaled"),
+		CumQty:          qty(msg.GetCumQtyScaled(), "Order.cum_qty_scaled"),
+		InheritedCumQty: qty(msg.GetInheritedCumQtyScaled(), "Order.inherited_cum_qty_scaled"),
+		LeavesQty:       qty(msg.GetLeavesQtyScaled(), "Order.leaves_qty_scaled"),
+		DisplayQty:      qty(msg.GetDisplayQtyScaled(), "Order.display_qty_scaled"),
+		HiddenQty:       qty(msg.GetHiddenQtyScaled(), "Order.hidden_qty_scaled"),
 		Price:           codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
 		AvgPx:           codecs.DecodePriceTicks(msg.GetAvgPriceTicks(), ""),
 		CreatedTsNs:     strconv.FormatUint(msg.GetCreatedTsNs(), 10),
@@ -69,20 +83,24 @@ func OrderFromProto(msg *orderv1.Order) models.Order {
 		CancelReason:         OrderCancelReasonLabel(msg.GetCancelReason()),
 		AvgPriceE18:          u128(msg.GetAvgPriceE18()),
 		CumNotional:          u128(msg.GetCumNotional()),
-		FeeTotal:             orderFeeTotalFromProto(msg.GetFeeTotal(), qtyPair),
+		FeeTotal:             orderFeeTotalFromProto(msg.GetFeeTotal(), qty),
 	}
+	if err != nil {
+		return models.Order{}, err
+	}
+	return order, nil
 }
 
 // orderFeeTotalFromProto decodes an order's fee total; nil when the read
 // carries none.
-func orderFeeTotalFromProto(msg *orderv1.OrderFeeTotal, symbolID *uint32) *models.OrderFeeTotal {
+func orderFeeTotalFromProto(msg *orderv1.OrderFeeTotal, qty func(int64, string) models.QtyScaled) *models.OrderFeeTotal {
 	if msg == nil {
 		return nil
 	}
 	return &models.OrderFeeTotal{
 		AmountE18: u128(msg.GetAmountE18()),
 		IsRebate:  msg.GetIsRebate(),
-		Qty:       codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", symbolID),
+		Qty:       qty(msg.GetQtyScaled(), "OrderFeeTotal.qty_scaled"),
 	}
 }
 
@@ -340,7 +358,7 @@ func OrdersListFromOpen(msg *orderv1.GetOpenOrdersResponse) (models.OrdersList, 
 	if err := requireOrderIDs("GetOpenOrders", msg.GetOrders()...); err != nil {
 		return models.OrdersList{}, err
 	}
-	return ordersList(msg.GetOrders(), msg.GetNextPageToken()), nil
+	return ordersList(msg.GetOrders(), msg.GetNextPageToken())
 }
 
 // OrdersListFromHistory decodes order history response. An order without its
@@ -349,7 +367,7 @@ func OrdersListFromHistory(msg *orderv1.GetOrderHistoryResponse) (models.OrdersL
 	if err := requireOrderIDs("GetOrderHistory", msg.GetOrders()...); err != nil {
 		return models.OrdersList{}, err
 	}
-	return ordersList(msg.GetOrders(), msg.GetNextPageToken()), nil
+	return ordersList(msg.GetOrders(), msg.GetNextPageToken())
 }
 
 // requireOrderIDs refuses an order read without the order's ID, or with a
@@ -384,20 +402,25 @@ func requireTradeLineageIDs(operation string, trades []*orderv1.UserTrade) error
 	return nil
 }
 
-func ordersList(orders []*orderv1.Order, token string) models.OrdersList {
-	out := make([]models.Order, 0, len(orders))
-	for _, o := range orders {
-		out = append(out, OrderFromProto(o))
+func ordersList(orders []*orderv1.Order, token string) (models.OrdersList, error) {
+	out, err := OrdersFromProto(orders)
+	if err != nil {
+		return models.OrdersList{}, err
 	}
-	return models.OrdersList{Orders: out, NextPageToken: token}
+	return models.OrdersList{Orders: out, NextPageToken: token}, nil
 }
 
-// UserTradeFromProto decodes a user trade.
-func UserTradeFromProto(msg *orderv1.UserTrade) models.UserTrade {
+// UserTradeFromProto decodes a user trade. A negative quantity returns a
+// *errors.ResponseContractError.
+func UserTradeFromProto(msg *orderv1.UserTrade) (models.UserTrade, error) {
 	if msg == nil {
-		return models.UserTrade{}
+		return models.UserTrade{}, nil
 	}
 	sid := msg.GetSymbolId()
+	qty, err := codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid, "UserTrade.qty_scaled")
+	if err != nil {
+		return models.UserTrade{}, err
+	}
 	return models.UserTrade{
 		SymbolID:               sid,
 		MatchID:                strconv.FormatUint(msg.GetMatchId(), 10),
@@ -405,14 +428,27 @@ func UserTradeFromProto(msg *orderv1.UserTrade) models.UserTrade {
 		Side:                   codecs.OrderSideName(msg.GetSide()),
 		IsMaker:                msg.GetIsMaker(),
 		Price:                  codecs.DecodePriceTicks(msg.GetPriceTicks(), ""),
-		Qty:                    codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
+		Qty:                    qty,
 		FeeAmountE18:           u128(msg.GetFeeAmountE18()),
 		FeeAsset:               feeAssetName(msg.GetFeeAsset()),
 		ReferralShareAmountE18: u128(msg.GetReferralShareAmountE18()),
 		TsNs:                   strconv.FormatUint(msg.GetTsNs(), 10),
 		FeeIsRebate:            msg.GetFeeIsRebate(),
 		Lineage:                orderLineageFromProto(msg.GetLineage()),
+	}, nil
+}
+
+// userTradesFromProto decodes user trades in order.
+func userTradesFromProto(msgs []*orderv1.UserTrade) ([]models.UserTrade, error) {
+	out := make([]models.UserTrade, 0, len(msgs))
+	for _, msg := range msgs {
+		trade, err := UserTradeFromProto(msg)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, trade)
 	}
+	return out, nil
 }
 
 func feeAssetName(asset orderv1.FeeAsset) string {
@@ -435,12 +471,15 @@ func optionalScaledString(value *int64) string {
 	return strconv.FormatInt(*value, 10)
 }
 
-func qtyFromScaled(value int64) *models.QtyScaled {
+func qtyFromScaled(value int64, field string) (*models.QtyScaled, error) {
 	if value == 0 {
-		return nil
+		return nil, nil
 	}
-	qty := codecs.DecodeQtyScaled(value, -1, "", nil)
-	return &qty
+	qty, err := codecs.DecodeQtyScaled(value, -1, "", nil, field)
+	if err != nil {
+		return nil, err
+	}
+	return &qty, nil
 }
 
 // UserTradesListFromProto decodes user trades list. A trade with a lineage
@@ -449,9 +488,9 @@ func UserTradesListFromProto(msg *orderv1.GetUserTradesResponse) (models.UserTra
 	if err := requireTradeLineageIDs("GetUserTrades", msg.GetTrades()); err != nil {
 		return models.UserTradesList{}, err
 	}
-	trades := make([]models.UserTrade, 0, len(msg.GetTrades()))
-	for _, t := range msg.GetTrades() {
-		trades = append(trades, UserTradeFromProto(t))
+	trades, err := userTradesFromProto(msg.GetTrades())
+	if err != nil {
+		return models.UserTradesList{}, err
 	}
 	transfers := make([]models.OrderTransfer, 0, len(msg.GetTransfers()))
 	for _, item := range msg.GetTransfers() {
@@ -479,12 +518,15 @@ func GetOrderFromProto(msg *orderv1.GetOrderResponse) (models.GetOrderResult, er
 	}
 	var order *models.Order
 	if msg.GetOrder() != nil {
-		o := OrderFromProto(msg.GetOrder())
+		o, err := OrderFromProto(msg.GetOrder())
+		if err != nil {
+			return models.GetOrderResult{}, err
+		}
 		order = &o
 	}
-	trades := make([]models.UserTrade, 0, len(msg.GetTrades()))
-	for _, t := range msg.GetTrades() {
-		trades = append(trades, UserTradeFromProto(t))
+	trades, err := userTradesFromProto(msg.GetTrades())
+	if err != nil {
+		return models.GetOrderResult{}, err
 	}
 	transfers := make([]models.OrderTransfer, 0, len(msg.GetTransfers()))
 	for _, item := range msg.GetTransfers() {
@@ -510,7 +552,11 @@ func OrderMutationFromProto(msg *orderv1.CreateOrderResponse) (models.OrderMutat
 	result := orderMutation("accepted", msg.GetOrderId(), msg.GetClientOrderId())
 	if value := msg.GetResolvedBaseQtyScaled(); value != 0 {
 		result.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
-		result.ResolvedBaseQty = qtyFromScaled(value)
+		qty, err := qtyFromScaled(value, "CreateOrderResponse.resolved_base_qty_scaled")
+		if err != nil {
+			return models.OrderMutationResult{}, err
+		}
+		result.ResolvedBaseQty = qty
 	}
 	result.SubmittedMaxQuoteDebitScaled = optionalScaledString(msg.SubmittedMaxQuoteDebitScaled)
 	result.SubmittedQuoteProceedsScaled = optionalScaledString(msg.SubmittedQuoteProceedsScaled)
@@ -594,7 +640,10 @@ func PreviewOrderFromProto(
 	if msg.ResolvedBaseQtyScaled != nil {
 		value := msg.GetResolvedBaseQtyScaled()
 		result.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
-		qty := codecs.DecodeQtyScaled(value, baseScale, symbol, symbolID)
+		qty, err := codecs.DecodeQtyScaled(value, baseScale, symbol, symbolID, "PreviewOrderResponse.resolved_base_qty_scaled")
+		if err != nil {
+			return models.PreviewOrderResult{}, err
+		}
 		result.ResolvedBaseQty = &qty
 	}
 	if msg.ProtectedPriceBoundTicks != nil {
@@ -954,7 +1003,11 @@ func BatchCreateFromProto(msg *orderv1.BatchCreateOrdersResponse) (models.BatchC
 			out.OrderID = codecs.FormatUint64ID(accepted.GetOrderId())
 			if value := accepted.GetResolvedBaseQtyScaled(); value != 0 {
 				out.ResolvedBaseQtyScaled = strconv.FormatInt(value, 10)
-				out.ResolvedBaseQty = qtyFromScaled(value)
+				qty, err := qtyFromScaled(value, "BatchCreateResultItem.accepted.resolved_base_qty_scaled")
+				if err != nil {
+					return models.BatchCreateOrdersResult{}, err
+				}
+				out.ResolvedBaseQty = qty
 			}
 			out.SubmittedMaxQuoteDebitScaled = optionalScaledString(accepted.SubmittedMaxQuoteDebitScaled)
 			out.SubmittedQuoteProceedsScaled = optionalScaledString(accepted.SubmittedQuoteProceedsScaled)

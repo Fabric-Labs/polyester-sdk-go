@@ -1040,12 +1040,15 @@ func timeOf(ns uint64) time.Time {
 	return time.Unix(int64(ns/uint64(time.Second)), int64(ns%uint64(time.Second))).UTC()
 }
 
+// levelsOf decodes book levels. The book holds only levels whose frames it
+// checked, a price and a quantity above zero, so no quantity is negative.
 func levelsOf(levels []levelMsg, scale int, symbol string, symbolID uint32) []Level {
 	out := make([]Level, len(levels))
 	for i, l := range levels {
+		qty, _ := codecs.DecodeQtyScaled(l.qty, scale, symbol, &symbolID, "level.qty")
 		out[i] = Level{
 			Price: codecs.DecodePriceTicks(l.price, symbol),
-			Qty:   codecs.DecodeQtyScaled(l.qty, scale, symbol, &symbolID),
+			Qty:   qty,
 		}
 	}
 	return out

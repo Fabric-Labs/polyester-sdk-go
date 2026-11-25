@@ -20,7 +20,7 @@ import (
 // left, both at the pair's base scale; a plain order reads zero for both. A
 // SELL sized by quote proceeds echoes its target.
 func TestOrderReadsIcebergAndQuoteProceeds(t *testing.T) {
-	order := OrderFromProto(&orderv1.Order{
+	order := mustDecoded(OrderFromProto(&orderv1.Order{
 		OrderId:                      7,
 		SymbolId:                     1,
 		OrigQtyScaled:                100_000_000,
@@ -29,7 +29,7 @@ func TestOrderReadsIcebergAndQuoteProceeds(t *testing.T) {
 		HiddenQtyScaled:              80_000_000,
 		SubmittedQuoteProceedsScaled: proto.Int64(100_000_000),
 		SelfTradePreventionMode:      orderv1.SelfTradePreventionMode_DECREMENT,
-	})
+	}))
 	if order.DisplayQty.Scaled() != 10_000_000 || order.HiddenQty.Scaled() != 80_000_000 ||
 		order.SubmittedQuoteProceedsScaled != "100000000" || order.SubmittedMaxQuoteDebitScaled != "" ||
 		order.SelfTradePreventionMode != "decrement" {
@@ -46,7 +46,7 @@ func TestOrderReadsIcebergAndQuoteProceeds(t *testing.T) {
 	if text, _ := scaled.HiddenQty.Format(); text != "0.8" {
 		t.Fatalf("hidden=%q", text)
 	}
-	plain := OrderFromProto(&orderv1.Order{OrderId: 8, SymbolId: 1, LeavesQtyScaled: 5})
+	plain := mustDecoded(OrderFromProto(&orderv1.Order{OrderId: 8, SymbolId: 1, LeavesQtyScaled: 5}))
 	if plain.DisplayQty.Scaled() != 0 || plain.HiddenQty.Scaled() != 0 || plain.SubmittedQuoteProceedsScaled != "" {
 		t.Fatalf("plain=%+v", plain)
 	}
@@ -59,7 +59,7 @@ func TestOrderReadsNewCancelReasons(t *testing.T) {
 		orderv1.CancelReason_CANCEL_REASON_PRICE_BAND:           "price_band",
 		orderv1.CancelReason_CANCEL_REASON_CANCEL_ON_DISCONNECT: "cancel_on_disconnect",
 	} {
-		order := OrderFromProto(&orderv1.Order{OrderId: 1, Status: orderv1.OrderStatus_CANCELED, CancelReason: reason})
+		order := mustDecoded(OrderFromProto(&orderv1.Order{OrderId: 1, Status: orderv1.OrderStatus_CANCELED, CancelReason: reason}))
 		if order.CancelReason != want {
 			t.Fatalf("%s read %q, want %q", reason, order.CancelReason, want)
 		}
@@ -130,14 +130,14 @@ func TestSpotConfigReadsPriceBand(t *testing.T) {
 
 // Triggers read DECREMENT, a band refusal and the renamed quote-size failure.
 func TestTriggerReadsDecrementAndNewFailureReasons(t *testing.T) {
-	trigger := TriggerFromProto(&triggersv1.Trigger{
+	trigger := mustDecoded(TriggerFromProto(&triggersv1.Trigger{
 		TriggerId: 3,
 		Status:    triggersv1.TriggerStatus_STATUS_FAILED,
 		TerminalReason: &triggersv1.Trigger_FailureReason{
 			FailureReason: triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_PRICE_BAND_VIOLATION,
 		},
 		SelfTradePreventionMode: orderv1.SelfTradePreventionMode_DECREMENT,
-	})
+	}))
 	if trigger.FailureReason != "price_band_violation" || trigger.SelfTradePreventionMode != "decrement" {
 		t.Fatalf("trigger=%+v", trigger)
 	}

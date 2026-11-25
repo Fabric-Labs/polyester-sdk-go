@@ -170,33 +170,54 @@ func pairStatusLabel(status marketdatav1.PairStatus) string {
 	}
 }
 
-func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) models.MarketTradesResult {
-	out := make([]models.MarketTrade, 0, len(msg.GetTrades()))
-	for _, t := range msg.GetTrades() {
-		out = append(out, marketTradeFromProto(t, quantityScale))
+// MarketTradesFromProto decodes a GetTrades response. A trade with a
+// negative quantity returns a *errors.ResponseContractError.
+func MarketTradesFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) (models.MarketTradesResult, error) {
+	out, err := marketTradesFromProto(msg.GetTrades(), quantityScale)
+	if err != nil {
+		return models.MarketTradesResult{}, err
 	}
-	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}
+	return models.MarketTradesResult{Trades: out, NextPageToken: msg.GetNextPageToken()}, nil
 }
 
-func marketTradeFromProto(t *marketdatav1.MarketTrade, quantityScale int) models.MarketTrade {
+func marketTradesFromProto(trades []*marketdatav1.MarketTrade, quantityScale int) ([]models.MarketTrade, error) {
+	out := make([]models.MarketTrade, 0, len(trades))
+	for _, t := range trades {
+		trade, err := marketTradeFromProto(t, quantityScale)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, trade)
+	}
+	return out, nil
+}
+
+func marketTradeFromProto(t *marketdatav1.MarketTrade, quantityScale int) (models.MarketTrade, error) {
 	side := "sell"
 	if t.GetIsBuy() {
 		side = "buy"
 	}
+	qty, err := codecs.DecodeQtyScaled(t.GetQtyScaled(), quantityScale, "", nil, "MarketTrade.qty_scaled")
+	if err != nil {
+		return models.MarketTrade{}, err
+	}
 	return models.MarketTrade{
 		SymbolID: t.GetSymbolId(), MatchID: strconv.FormatUint(t.GetMatchId(), 10),
 		Price: codecs.DecodePriceTicks(t.GetPriceTicks(), ""),
-		Qty:   codecs.DecodeQtyScaled(t.GetQtyScaled(), quantityScale, "", nil),
+		Qty:   qty,
 		TsNs:  strconv.FormatUint(t.GetTsNs(), 10), Side: side,
-	}
+	}, nil
 }
 
 // MarketTradesBackfillFromProto decodes a GetTrades response to an
 // after_trade_id request. Both watermarks are always set as decimals, "0"
 // included: an initial backfill with nothing available yet answers
 // next_after_trade_id 0, which is the cursor of the retry.
-func MarketTradesBackfillFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) models.MarketTradesResult {
-	result := MarketTradesFromProto(msg, quantityScale)
+func MarketTradesBackfillFromProto(msg *marketdatav1.GetTradesResponse, quantityScale int) (models.MarketTradesResult, error) {
+	result, err := MarketTradesFromProto(msg, quantityScale)
+	if err != nil {
+		return models.MarketTradesResult{}, err
+	}
 	result.CompleteThroughTradeID = strconv.FormatUint(msg.GetCompleteThroughTradeId(), 10)
 	result.NextAfterTradeID = strconv.FormatUint(msg.GetNextAfterTradeId(), 10)
 	for _, end := range msg.GetEpochEnds() {
@@ -205,7 +226,7 @@ func MarketTradesBackfillFromProto(msg *marketdatav1.GetTradesResponse, quantity
 			LastTradeID: strconv.FormatUint(end.GetLastTradeId(), 10),
 		})
 	}
-	return result
+	return result, nil
 }
 
 func CandlesFromProto(msg *marketdatav1.GetCandlesResponse, volumeScale int, referencePriceScale int) (models.CandlesResult, error) {

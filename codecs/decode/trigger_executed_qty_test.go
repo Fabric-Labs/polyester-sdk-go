@@ -24,7 +24,7 @@ func TestTriggerExecutedQtyFormatsBeforeAndAfterExecution(t *testing.T) {
 		{"ladder partly executed", 25_000, "0.00025", ladderTrigger},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			trigger := decode.ScaleTrigger(decode.TriggerFromProto(tc.build(tc.executed)), scales)
+			trigger := decode.ScaleTrigger(mustDecoded(decode.TriggerFromProto(tc.build(tc.executed))), scales)
 			if got, err := trigger.Qty.Format(); err != nil || got != "0.0006" {
 				t.Fatalf("Qty.Format() = %q, %v", got, err)
 			}

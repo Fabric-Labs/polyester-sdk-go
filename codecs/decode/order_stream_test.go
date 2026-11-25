@@ -14,7 +14,7 @@ func orderEvent(event *privatewsv1.OrderEvent) *privatewsv1.UnitEvent {
 }
 
 func TestOrderEventReasons(t *testing.T) {
-	events := decode.OrderUnitEventsFromProto([]*privatewsv1.UnitEvent{
+	events := mustDecoded(decode.OrderUnitEventsFromProto([]*privatewsv1.UnitEvent{
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 1, Kind: privatewsv1.OrderEvent_REJECTED, RejectReason: orderv1.ErrorCode_ERROR_CODE_POST_ONLY_CROSS}),
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 2, Kind: privatewsv1.OrderEvent_CANCELED, CancelReason: orderv1.CancelReason_CANCEL_REASON_USER_REQUEST}),
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 3, Kind: privatewsv1.OrderEvent_REPLACED, CancelReason: orderv1.CancelReason_CANCEL_REASON_REPLACED, ReplacementOrderId: 4}),
@@ -22,7 +22,7 @@ func TestOrderEventReasons(t *testing.T) {
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 6, Kind: privatewsv1.OrderEvent_CANCELED, CancelReason: orderv1.CancelReason(999)}),
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 7, Kind: privatewsv1.OrderEvent_REJECTED, RejectReason: orderv1.ErrorCode(9999)}),
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 8, Kind: privatewsv1.OrderEvent_CANCELED, CancelReason: orderv1.CancelReason_CANCEL_REASON_STP_EXPIRE_MAKER}),
-	}, nil)
+	}, nil))
 	want := []struct {
 		kind   models.OrderEventKind
 		reject string

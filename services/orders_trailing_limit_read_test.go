@@ -183,6 +183,6 @@ func TestOrderReadsExposeAttachedTrailingStopLimitPrice(t *testing.T) {
 	}
 	// Orders.Subscribe decodes its snapshots and updates with this decoder.
 	t.Run("stream", func(t *testing.T) {
-		assertTrailingLimitRead(t, decode.OrdersFromProto(trailingLimitOrders()))
+		assertTrailingLimitRead(t, mustDecoded(decode.OrdersFromProto(trailingLimitOrders())))
 	})
 }

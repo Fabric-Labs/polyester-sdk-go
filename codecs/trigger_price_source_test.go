@@ -18,7 +18,7 @@ func TestTriggerPriceSourceRoundTripsFromReadsToWrites(t *testing.T) {
 	marketChild := &orderv1.RiskExecution{
 		Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}},
 	}
-	read := decode.OrderFromProto(&orderv1.Order{
+	read := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  1,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -34,8 +34,8 @@ func TestTriggerPriceSourceRoundTripsFromReadsToWrites(t *testing.T) {
 			}},
 			Oco: true,
 		},
-	}).AttachedRisk
-	readTrailing := decode.OrderFromProto(&orderv1.Order{
+	})).AttachedRisk
+	readTrailing := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  2,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -44,7 +44,7 @@ func TestTriggerPriceSourceRoundTripsFromReadsToWrites(t *testing.T) {
 				TriggerPriceSource: orderv1.TriggerPriceSource_INDEX_PRICE,
 			}},
 		},
-	}).AttachedRisk
+	})).AttachedRisk
 	if read == nil || read.TakeProfit == nil || read.StopLoss == nil || readTrailing == nil || readTrailing.TrailingStop == nil {
 		t.Fatalf("read=%+v trailing=%+v", read, readTrailing)
 	}
@@ -104,22 +104,22 @@ func TestTriggerPriceSourceRoundTripsFromReadsToWrites(t *testing.T) {
 		}
 	}
 
-	stopRead := decode.TriggerFromProto(&triggersv1.Trigger{
+	stopRead := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{
 		TriggerId: 3,
 		SymbolId:  1,
 		RuntimeDetails: &triggersv1.Trigger_Stop{Stop: &triggersv1.StopDetails{
 			TriggerPriceTicks:  58000000000000,
 			TriggerPriceSource: orderv1.TriggerPriceSource_INDEX_PRICE,
 		}},
-	})
-	trailingRead := decode.TriggerFromProto(&triggersv1.Trigger{
+	}))
+	trailingRead := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{
 		TriggerId: 4,
 		SymbolId:  1,
 		RuntimeDetails: &triggersv1.Trigger_Trailing{Trailing: &triggersv1.TrailingDetails{
 			TrailingDistanceBps: 100,
 			TriggerPriceSource:  orderv1.TriggerPriceSource_INDEX_PRICE,
 		}},
-	})
+	}))
 	if stopRead.Details == nil || trailingRead.Details == nil {
 		t.Fatalf("stop=%+v trailing=%+v", stopRead, trailingRead)
 	}

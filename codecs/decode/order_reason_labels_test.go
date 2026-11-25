@@ -13,16 +13,16 @@ import (
 // without the enum prefix. Order reads, order events and command outcomes
 // spell a refusal the same way.
 func TestOrderReasonsReadAsLowercaseLabels(t *testing.T) {
-	order := decode.OrderFromProto(&orderv1.Order{OrderId: 1, Status: orderv1.OrderStatus_REJECTED, RejectReason: orderv1.ErrorCode_ERROR_CODE_PEG_LIMIT_VIOLATION})
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{OrderId: 1, Status: orderv1.OrderStatus_REJECTED, RejectReason: orderv1.ErrorCode_ERROR_CODE_PEG_LIMIT_VIOLATION}))
 	if order.RejectReason != "peg_limit_violation" {
 		t.Fatalf("order reject reason = %q, want peg_limit_violation", order.RejectReason)
 	}
-	order = decode.OrderFromProto(&orderv1.Order{OrderId: 2, Status: orderv1.OrderStatus_CANCELED, CancelReason: orderv1.CancelReason_CANCEL_REASON_STP_DECREMENT})
+	order = mustDecoded(decode.OrderFromProto(&orderv1.Order{OrderId: 2, Status: orderv1.OrderStatus_CANCELED, CancelReason: orderv1.CancelReason_CANCEL_REASON_STP_DECREMENT}))
 	if order.CancelReason != "stp_decrement" {
 		t.Fatalf("order cancel reason = %q, want stp_decrement", order.CancelReason)
 	}
 
-	units := decode.OrderUnitEventsFromProto([]*privatewsv1.UnitEvent{
+	units := mustDecoded(decode.OrderUnitEventsFromProto([]*privatewsv1.UnitEvent{
 		orderEvent(&privatewsv1.OrderEvent{OrderId: 3, Kind: privatewsv1.OrderEvent_REJECTED, RejectReason: orderv1.ErrorCode_ERROR_CODE_POST_ONLY_CROSS}),
 		{Kind: &privatewsv1.UnitEvent_Outcome{Outcome: &privatewsv1.CommandOutcome{
 			Kind: privatewsv1.CommandOutcome_AMEND_REJECTED, OrderId: 4, Reason: orderv1.ErrorCode_ERROR_CODE_INSUFFICIENT_FUNDS,
@@ -30,7 +30,7 @@ func TestOrderReasonsReadAsLowercaseLabels(t *testing.T) {
 		{Kind: &privatewsv1.UnitEvent_Outcome{Outcome: &privatewsv1.CommandOutcome{
 			Kind: privatewsv1.CommandOutcome_CANCEL_REJECTED, OrderId: 5, Reason: orderv1.ErrorCode(9999),
 		}}},
-	}, nil)
+	}, nil))
 	if got := units[0].Order.RejectReason; got != "post_only_cross" {
 		t.Fatalf("order event reject reason = %q, want post_only_cross", got)
 	}
@@ -43,9 +43,9 @@ func TestOrderReasonsReadAsLowercaseLabels(t *testing.T) {
 	}
 
 	// Trigger reasons already follow the rule.
-	trigger := decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 6, TerminalReason: &triggersv1.Trigger_FailureReason{
+	trigger := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 6, TerminalReason: &triggersv1.Trigger_FailureReason{
 		FailureReason: triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_INSUFFICIENT_FUNDS,
-	}})
+	}}))
 	if trigger.FailureReason != "insufficient_funds" {
 		t.Fatalf("trigger failure reason = %q", trigger.FailureReason)
 	}

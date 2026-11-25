@@ -236,8 +236,8 @@ func sideToLevels(book BookSide, side, symbol string, limit, bucketTicks, quanti
 		if price.Ticks() < 0 {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing price"}
 		}
-		qty := codecs.DecodeQtyScaled(int64(entry[1]), quantityScale, symbol, nil)
-		if qty.Scaled() < 0 {
+		qty, err := codecs.DecodeQtyScaled(int64(entry[1]), quantityScale, symbol, nil, "orderbook level qty")
+		if err != nil {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing quantity"}
 		}
 		out = append(out, models.OrderbookLevel{

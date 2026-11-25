@@ -37,7 +37,7 @@ func TestLadderDetailsDecodeExecutedFields(t *testing.T) {
 			},
 		},
 	}
-	trigger := TriggerFromProto(msg)
+	trigger := mustDecoded(TriggerFromProto(msg))
 	if trigger.Details == nil || trigger.Details.Case != "ladder" {
 		t.Fatalf("details=%+v", trigger.Details)
 	}
@@ -83,12 +83,12 @@ func TestCandlePointPreservesQuoteVolume(t *testing.T) {
 }
 
 func TestMarketOverviewOptionalVolumeFields(t *testing.T) {
-	present := MarketOverviewEntryFromProto(&marketoverviewv1.MarketOverview{
+	present := mustDecoded(MarketOverviewEntryFromProto(&marketoverviewv1.MarketOverview{
 		SymbolId:              1,
 		Volume_24HBaseScaled:  ptrInt64(10),
 		Volume_24HQuoteScaled: ptrInt64(20),
 		Volume_24HUsdScaled:   ptrInt64(30),
-	}, nil)
+	}, nil))
 	if present.Volume24HBaseScaled == nil || *present.Volume24HBaseScaled != "10" {
 		t.Fatalf("base=%v", present.Volume24HBaseScaled)
 	}
@@ -99,7 +99,7 @@ func TestMarketOverviewOptionalVolumeFields(t *testing.T) {
 		t.Fatalf("usd=%v", present.Volume24HUsdScaled)
 	}
 
-	absent := MarketOverviewEntryFromProto(&marketoverviewv1.MarketOverview{SymbolId: 2}, nil)
+	absent := mustDecoded(MarketOverviewEntryFromProto(&marketoverviewv1.MarketOverview{SymbolId: 2}, nil))
 	if absent.Volume24HBaseScaled != nil || absent.Volume24HQuoteScaled != nil || absent.Volume24HUsdScaled != nil {
 		t.Fatalf("absent volumes should stay nil: %+v", absent)
 	}

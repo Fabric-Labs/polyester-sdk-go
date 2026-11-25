@@ -33,9 +33,10 @@ func decodedBaseVolume(value *int64, symbolID uint32, cats *catalogs.Manager) *s
 	return &formatted
 }
 
-func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *catalogs.Manager) models.MarketOverviewEntry {
+// A negative best bid or ask size returns a *errors.ResponseContractError.
+func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *catalogs.Manager) (models.MarketOverviewEntry, error) {
 	if m == nil {
-		return models.MarketOverviewEntry{}
+		return models.MarketOverviewEntry{}, nil
 	}
 	symbol := catalogSymbol(cats, m.GetSymbolId())
 	entry := models.MarketOverviewEntry{
@@ -65,8 +66,15 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *cata
 		}
 	}
 	symbolID := m.GetSymbolId()
-	entry.BestBid, entry.BestBidQty = bookSide(m.GetBestBidTicks(), m.GetBestBidQtyScaled(), baseScale, symbol, symbolID)
-	entry.BestAsk, entry.BestAskQty = bookSide(m.GetBestAskTicks(), m.GetBestAskQtyScaled(), baseScale, symbol, symbolID)
+	var err error
+	entry.BestBid, entry.BestBidQty, err = bookSide(m.GetBestBidTicks(), m.GetBestBidQtyScaled(), baseScale, symbol, symbolID, "MarketOverview.best_bid_qty_scaled")
+	if err != nil {
+		return models.MarketOverviewEntry{}, err
+	}
+	entry.BestAsk, entry.BestAskQty, err = bookSide(m.GetBestAskTicks(), m.GetBestAskQtyScaled(), baseScale, symbol, symbolID, "MarketOverview.best_ask_qty_scaled")
+	if err != nil {
+		return models.MarketOverviewEntry{}, err
+	}
 	if ts := m.GetLastTradeTsNs(); ts != 0 {
 		entry.LastTradeTsNs = strconv.FormatUint(ts, 10)
 	}
@@ -74,7 +82,7 @@ func MarketOverviewEntryFromProto(m *marketoverviewv1.MarketOverview, cats *cata
 		entry.ListedTsNs = strconv.FormatUint(ts, 10)
 	}
 	entry.PriceBand = LivePriceBandFromProto(m.GetPriceBand(), symbol)
-	return entry
+	return entry, nil
 }
 
 // LivePriceBandFromProto decodes a live price band; nil when band is nil.
@@ -131,13 +139,16 @@ func optionalPrice(ticks int64, symbol string) *models.PriceTicks {
 
 // bookSide is the best price of one side of the book and the base quantity
 // at it; both nil when that side is empty.
-func bookSide(ticks, qtyScaled int64, scale int, symbol string, symbolID uint32) (*models.PriceTicks, *models.QtyScaled) {
+func bookSide(ticks, qtyScaled int64, scale int, symbol string, symbolID uint32, field string) (*models.PriceTicks, *models.QtyScaled, error) {
 	price := optionalPrice(ticks, symbol)
 	if price == nil {
-		return nil, nil
+		return nil, nil, nil
 	}
-	qty := codecs.DecodeQtyScaled(qtyScaled, scale, symbol, &symbolID)
-	return price, &qty
+	qty, err := codecs.DecodeQtyScaled(qtyScaled, scale, symbol, &symbolID, field)
+	if err != nil {
+		return nil, nil, err
+	}
+	return price, &qty, nil
 }
 
 // MarketOverviewSparklineFromProto decodes a sparkline's interval name and its
@@ -150,12 +161,27 @@ func MarketOverviewSparklineFromProto(m *marketoverviewv1.Sparkline, symbol stri
 	return models.MarketOverviewSparkline{Interval: m.GetInterval().String(), ClosePrices: closes}
 }
 
-func MarketOverviewListFromProto(msg *marketoverviewv1.ListMarketOverviewResponse, cats *catalogs.Manager) models.MarketOverviewList {
-	out := make([]models.MarketOverviewEntry, 0, len(msg.GetMarkets()))
-	for _, m := range msg.GetMarkets() {
-		out = append(out, MarketOverviewEntryFromProto(m, cats))
+// MarketOverviewListFromProto decodes a ListMarketOverview response. A row
+// with a negative best bid or ask size returns a
+// *errors.ResponseContractError.
+func MarketOverviewListFromProto(msg *marketoverviewv1.ListMarketOverviewResponse, cats *catalogs.Manager) (models.MarketOverviewList, error) {
+	out, err := marketOverviewEntriesFromProto(msg.GetMarkets(), cats)
+	if err != nil {
+		return models.MarketOverviewList{}, err
 	}
-	return models.MarketOverviewList{Markets: out, NextPageToken: msg.GetNextPageToken()}
+	return models.MarketOverviewList{Markets: out, NextPageToken: msg.GetNextPageToken()}, nil
+}
+
+func marketOverviewEntriesFromProto(rows []*marketoverviewv1.MarketOverview, cats *catalogs.Manager) ([]models.MarketOverviewEntry, error) {
+	out := make([]models.MarketOverviewEntry, 0, len(rows))
+	for _, row := range rows {
+		entry, err := MarketOverviewEntryFromProto(row, cats)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, entry)
+	}
+	return out, nil
 }
 
 func SpotVolumeHistoryFromProto(msg *marketoverviewv1.GetSpotVolumeHistoryResponse, cats *catalogs.Manager) models.SpotVolumeHistory {
