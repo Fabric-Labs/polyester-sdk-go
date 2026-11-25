@@ -214,7 +214,8 @@ const (
 	// Create, change, or disable the sub-account's auto-withdraw rule; requires
 	// fresh MFA and is never available to API keys.
 	SubaccountPermission_SUBACCOUNT_PERMISSION_MANAGE_AUTO_WITHDRAW SubaccountPermission = 27
-	// Quote, create, and view Swaps of the sub-account's Trading balance.
+	// Quote, create, view and cancel Swaps of the sub-account's Trading
+	// balance.
 	SubaccountPermission_SUBACCOUNT_PERMISSION_SWAP SubaccountPermission = 28
 	// Export account statements of the sub-account.
 	SubaccountPermission_SUBACCOUNT_PERMISSION_READ_STATEMENTS SubaccountPermission = 29

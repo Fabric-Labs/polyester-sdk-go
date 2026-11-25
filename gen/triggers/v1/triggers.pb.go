@@ -209,15 +209,20 @@ const (
 	// A fire of the trigger was refused and the trigger stayed live: an
 	// attached take-profit, stop-loss or trailing stop waits for the next price
 	// through its trigger price, or, refused because its order would be below
-	// the market's minimums, waits until its position changes; a trigger
-	// refused for a rate limit or an account repair fires again shortly. An
+	// the market's minimums while its parent order is still open, waits until
+	// its position grows; a trigger refused for a rate limit or an account
+	// repair fires again shortly. An
 	// attached take-profit, stop-loss or trailing stop whose order self-trade
 	// prevention expired against another of the account's resting orders stays
 	// live too (TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED), reported once
 	// while that order blocks it. New trades and price updates do not fire it
 	// while the other order is first in line at the best price; once that order
 	// is gone or no longer first there, it fires again if its trigger condition
-	// still holds. Not terminal: the trigger keeps its status. child_seq names
+	// still holds. Once the parent order has ended, the position can no
+	// longer grow: an attached leg whose exit is then below the minimums ends
+	// with EVENT_FAILED and TRIGGER_FAILURE_REASON_MIN_NOTIONAL or
+	// TRIGGER_FAILURE_REASON_MIN_QUANTITY instead (orders.v1.RiskPolicy).
+	// Not terminal: the trigger keeps its status. child_seq names
 	// the refused attempt, which placed no child order, and fire_refusal_reason
 	// says why; the next fire takes the next child_seq.
 	// With TRIGGER_FAILURE_REASON_SELF_TRADE_PREVENTED, child_seq names the
@@ -415,7 +420,10 @@ const (
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_UNKNOWN_SYMBOL TriggerFailureReason = 1
 	// The trading pair was not accepting new orders.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_PAIR_DISABLED TriggerFailureReason = 2
-	// The child order value was below the pair's minimum notional.
+	// The child order value was below the pair's minimum notional. An attached
+	// take-profit, stop-loss or trailing stop also ends with it, without
+	// firing, when its parent order ends with a filled quantity whose exit
+	// would be below the minimum order value (orders.v1.RiskPolicy).
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_MIN_NOTIONAL TriggerFailureReason = 3
 	// The child order price was not aligned to the pair's tick size.
 	TriggerFailureReason_TRIGGER_FAILURE_REASON_TICK_SIZE TriggerFailureReason = 4
@@ -5267,6 +5275,12 @@ type Trigger struct {
 	//	*Trigger_FailureReason
 	TerminalReason isTrigger_TerminalReason `protobuf_oneof:"terminal_reason"`
 	// Child quantity scaled by the pair's base_quantity_scale from GetSpotConfig.
+	// An attached leg shows its parent order's quantity until a parent fill
+	// arms it, then the filled position it protects, rounded down to the
+	// pair's quantity step. A leg that ends with
+	// TRIGGER_FAILURE_REASON_MIN_NOTIONAL or TRIGGER_FAILURE_REASON_MIN_QUANTITY
+	// when its parent order ends shows that rounded filled quantity, the one
+	// it was checked at.
 	QtyScaled int64 `protobuf:"varint,20,opt,name=qty_scaled,json=qtyScaled,proto3" json:"qty_scaled,omitempty"`
 	// Fee asset for BUY child orders.
 	FeeAsset v1.FeeAsset `protobuf:"varint,21,opt,name=fee_asset,json=feeAsset,proto3,enum=orders.v1.FeeAsset" json:"fee_asset,omitempty"`

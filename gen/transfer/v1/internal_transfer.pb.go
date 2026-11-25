@@ -112,6 +112,10 @@ const (
 	ErrorCode_ERROR_CODE_DUST_CONVERSION_FAILED ErrorCode = 36
 	// The batch debits more distinct source accounts than its limit of 10.
 	ErrorCode_ERROR_CODE_BATCH_TOO_MANY_SOURCES ErrorCode = 37
+	// The idempotency key was abandoned with AbandonInternalTransferBatch
+	// before any batch was submitted under it. Nothing moved under the key,
+	// and nothing ever will: submit the batch under a new idempotency key.
+	ErrorCode_ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED ErrorCode = 38
 )
 
 // Enum value maps for ErrorCode.
@@ -155,6 +159,7 @@ var (
 		35: "ERROR_CODE_DUST_BALANCE_CHANGED",
 		36: "ERROR_CODE_DUST_CONVERSION_FAILED",
 		37: "ERROR_CODE_BATCH_TOO_MANY_SOURCES",
+		38: "ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                 0,
@@ -195,6 +200,7 @@ var (
 		"ERROR_CODE_DUST_BALANCE_CHANGED":        35,
 		"ERROR_CODE_DUST_CONVERSION_FAILED":      36,
 		"ERROR_CODE_BATCH_TOO_MANY_SOURCES":      37,
+		"ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED":   38,
 	}
 )
 
@@ -302,6 +308,11 @@ const (
 	InternalTransferBatchStatus_BATCH_PROCESSING InternalTransferBatchStatus = 3
 	// Every leg is credited to its destination.
 	InternalTransferBatchStatus_BATCH_ACCEPTED InternalTransferBatchStatus = 4
+	// The idempotency key was abandoned before any batch was submitted under
+	// it (AbandonInternalTransferBatch). This is final: no funds moved under
+	// the key, and none ever will; a later batch under it is refused. The
+	// answer carries no request ID and no legs.
+	InternalTransferBatchStatus_BATCH_ABANDONED InternalTransferBatchStatus = 8
 )
 
 // Enum value maps for InternalTransferBatchStatus.
@@ -311,12 +322,14 @@ var (
 		2: "BATCH_REFUSED",
 		3: "BATCH_PROCESSING",
 		4: "BATCH_ACCEPTED",
+		8: "BATCH_ABANDONED",
 	}
 	InternalTransferBatchStatus_value = map[string]int32{
 		"BATCH_STATUS_UNSPECIFIED": 0,
 		"BATCH_REFUSED":            2,
 		"BATCH_PROCESSING":         3,
 		"BATCH_ACCEPTED":           4,
+		"BATCH_ABANDONED":          8,
 	}
 )
 
@@ -1320,6 +1333,121 @@ func (x *GetInternalTransferBatchResponse) GetLegs() []*InternalTransferBatchLeg
 	return nil
 }
 
+// AbandonInternalTransferBatchRequest names the idempotency key to abandon.
+type AbandonInternalTransferBatchRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Idempotency key the caller sends, or may have sent, to
+	// BatchCreateInternalTransfers, scoped to the authenticated caller as that
+	// request scopes it: the session's account, or the API key.
+	IdempotencyKey string `protobuf:"bytes,1,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *AbandonInternalTransferBatchRequest) Reset() {
+	*x = AbandonInternalTransferBatchRequest{}
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbandonInternalTransferBatchRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbandonInternalTransferBatchRequest) ProtoMessage() {}
+
+func (x *AbandonInternalTransferBatchRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbandonInternalTransferBatchRequest.ProtoReflect.Descriptor instead.
+func (*AbandonInternalTransferBatchRequest) Descriptor() ([]byte, []int) {
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *AbandonInternalTransferBatchRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+// AbandonInternalTransferBatchResponse is the key's current outcome: the
+// batch submitted under it, as GetInternalTransferBatch reads it by key,
+// which may still be BATCH_PROCESSING, or BATCH_ABANDONED, which is final and
+// guarantees that no funds moved under the key.
+type AbandonInternalTransferBatchResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Stable server-owned identifier of the batch; empty for BATCH_ABANDONED.
+	RequestId string `protobuf:"bytes,1,opt,name=request_id,json=requestId,proto3" json:"request_id,omitempty"`
+	// Outcome of the batch, or BATCH_ABANDONED.
+	Status InternalTransferBatchStatus `protobuf:"varint,2,opt,name=status,proto3,enum=transfer.v1.InternalTransferBatchStatus" json:"status,omitempty"`
+	// One result per leg, in request order; empty for BATCH_ABANDONED.
+	Legs          []*InternalTransferBatchLegResult `protobuf:"bytes,3,rep,name=legs,proto3" json:"legs,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AbandonInternalTransferBatchResponse) Reset() {
+	*x = AbandonInternalTransferBatchResponse{}
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AbandonInternalTransferBatchResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AbandonInternalTransferBatchResponse) ProtoMessage() {}
+
+func (x *AbandonInternalTransferBatchResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AbandonInternalTransferBatchResponse.ProtoReflect.Descriptor instead.
+func (*AbandonInternalTransferBatchResponse) Descriptor() ([]byte, []int) {
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *AbandonInternalTransferBatchResponse) GetRequestId() string {
+	if x != nil {
+		return x.RequestId
+	}
+	return ""
+}
+
+func (x *AbandonInternalTransferBatchResponse) GetStatus() InternalTransferBatchStatus {
+	if x != nil {
+		return x.Status
+	}
+	return InternalTransferBatchStatus_BATCH_STATUS_UNSPECIFIED
+}
+
+func (x *AbandonInternalTransferBatchResponse) GetLegs() []*InternalTransferBatchLegResult {
+	if x != nil {
+		return x.Legs
+	}
+	return nil
+}
+
 // GetInternalTransferRequest selects an accepted transfer from the source account.
 type GetInternalTransferRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1337,7 +1465,7 @@ type GetInternalTransferRequest struct {
 
 func (x *GetInternalTransferRequest) Reset() {
 	*x = GetInternalTransferRequest{}
-	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[10]
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1349,7 +1477,7 @@ func (x *GetInternalTransferRequest) String() string {
 func (*GetInternalTransferRequest) ProtoMessage() {}
 
 func (x *GetInternalTransferRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[10]
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1362,7 +1490,7 @@ func (x *GetInternalTransferRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInternalTransferRequest.ProtoReflect.Descriptor instead.
 func (*GetInternalTransferRequest) Descriptor() ([]byte, []int) {
-	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{10}
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *GetInternalTransferRequest) GetSubaccountId() uint64 {
@@ -1433,7 +1561,7 @@ type GetInternalTransferResponse struct {
 
 func (x *GetInternalTransferResponse) Reset() {
 	*x = GetInternalTransferResponse{}
-	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[11]
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1445,7 +1573,7 @@ func (x *GetInternalTransferResponse) String() string {
 func (*GetInternalTransferResponse) ProtoMessage() {}
 
 func (x *GetInternalTransferResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[11]
+	mi := &file_transfer_v1_internal_transfer_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1458,7 +1586,7 @@ func (x *GetInternalTransferResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetInternalTransferResponse.ProtoReflect.Descriptor instead.
 func (*GetInternalTransferResponse) Descriptor() ([]byte, []int) {
-	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{11}
+	return file_transfer_v1_internal_transfer_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *GetInternalTransferResponse) GetRequestId() string {
@@ -1576,6 +1704,13 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\n" +
 	"request_id\x18\x01 \x01(\tR\trequestId\x12@\n" +
 	"\x06status\x18\x02 \x01(\x0e2(.transfer.v1.InternalTransferBatchStatusR\x06status\x12?\n" +
+	"\x04legs\x18\x03 \x03(\v2+.transfer.v1.InternalTransferBatchLegResultR\x04legs\"]\n" +
+	"#AbandonInternalTransferBatchRequest\x126\n" +
+	"\x0fidempotency_key\x18\x01 \x01(\tB\r\xe0A\x02\xbaH\ar\x05\x10\x01\x18\x80\x01R\x0eidempotencyKey\"\xc8\x01\n" +
+	"$AbandonInternalTransferBatchResponse\x12\x1d\n" +
+	"\n" +
+	"request_id\x18\x01 \x01(\tR\trequestId\x12@\n" +
+	"\x06status\x18\x02 \x01(\x0e2(.transfer.v1.InternalTransferBatchStatusR\x06status\x12?\n" +
 	"\x04legs\x18\x03 \x03(\v2+.transfer.v1.InternalTransferBatchLegResultR\x04legs\"\xc0\x01\n" +
 	"\x1aGetInternalTransferRequest\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x12+\n" +
@@ -1592,7 +1727,7 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\vtransfer_id\x18\x02 \x01(\tR\n" +
 	"transferId\x12\x17\n" +
 	"\aflow_id\x18\x03 \x01(\tR\x06flowId\x12)\n" +
-	"\x11accepted_at_ts_ns\x18\x04 \x01(\x04R\x0eacceptedAtTsNs*\xc8\n" +
+	"\x11accepted_at_ts_ns\x18\x04 \x01(\x04R\x0eacceptedAtTsNs*\xf2\n" +
 	"\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12!\n" +
@@ -1633,22 +1768,24 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\"ERROR_CODE_DUST_TARGET_UNAVAILABLE\x10\"\x12#\n" +
 	"\x1fERROR_CODE_DUST_BALANCE_CHANGED\x10#\x12%\n" +
 	"!ERROR_CODE_DUST_CONVERSION_FAILED\x10$\x12%\n" +
-	"!ERROR_CODE_BATCH_TOO_MANY_SOURCES\x10%*\xb5\x01\n" +
+	"!ERROR_CODE_BATCH_TOO_MANY_SOURCES\x10%\x12(\n" +
+	"$ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED\x10&*\xb5\x01\n" +
 	"\x16InternalTransferStatus\x12(\n" +
 	"$INTERNAL_TRANSFER_STATUS_UNSPECIFIED\x10\x00\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_ACCEPTED\x10\x01\x12%\n" +
 	"!INTERNAL_TRANSFER_STATUS_REJECTED\x10\x02\x12#\n" +
-	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x03*x\n" +
+	"\x1fINTERNAL_TRANSFER_STATUS_FAILED\x10\x03*\x8d\x01\n" +
 	"\x1bInternalTransferBatchStatus\x12\x1c\n" +
 	"\x18BATCH_STATUS_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rBATCH_REFUSED\x10\x02\x12\x14\n" +
 	"\x10BATCH_PROCESSING\x10\x03\x12\x12\n" +
-	"\x0eBATCH_ACCEPTED\x10\x04*u\n" +
+	"\x0eBATCH_ACCEPTED\x10\x04\x12\x13\n" +
+	"\x0fBATCH_ABANDONED\x10\b*u\n" +
 	"\x1eInternalTransferBatchLegStatus\x12\x1a\n" +
 	"\x16LEG_STATUS_UNSPECIFIED\x10\x00\x12\x12\n" +
 	"\x0eLEG_PROCESSING\x10\x05\x12\x10\n" +
 	"\fLEG_CREDITED\x10\x06\x12\x11\n" +
-	"\rLEG_NOT_MOVED\x10\a2\xbc\x10\n" +
+	"\rLEG_NOT_MOVED\x10\a2\x8e\x14\n" +
 	"\x17InternalTransferService\x12\xc0\x02\n" +
 	"\x13GetInternalTransfer\x12'.transfer.v1.GetInternalTransferRequest\x1a(.transfer.v1.GetInternalTransferResponse\"\xd5\x01\xbaG\xa6\x01\n" +
 	"\x12Internal Transfers\x12\x15Get Internal Transfer\x1ayRead an accepted transfer by request ID or transfer ID for an authorized source account. JWT session authentication only.\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02 \x12\x1e/v1/trading/internal-transfers\x12\xfa\x04\n" +
@@ -1657,7 +1794,9 @@ const file_transfer_v1_internal_transfer_proto_rawDesc = "" +
 	"\x1cBatchCreateInternalTransfers\x120.transfer.v1.BatchCreateInternalTransfersRequest\x1a1.transfer.v1.BatchCreateInternalTransfersResponse\"\xe7\x03\xbaG\xaa\x03\n" +
 	"\x12Internal Transfers\x12\x1fBatch Create Internal Transfers\x1a\xf2\x02Move up to 500 Trading to Trading transfers together, authorized by one MFA check: every leg is credited, or none moves. A batch debits at most 50 distinct source account and asset pairs from at most 10 source accounts. A batch without the MFA-elevated session or fresh step-up it needs is refused HTTP 403 with code AUTH_MFA_ELEVATION_REQUIRED or AUTH_STEP_UP_REQUIRED.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02):\x01*\"$/v1/trading/internal-transfers/batch\x12\xe3\x03\n" +
 	"\x18GetInternalTransferBatch\x12,.transfer.v1.GetInternalTransferBatchRequest\x1a-.transfer.v1.GetInternalTransferBatchResponse\"\xe9\x02\xbaG\xb3\x02\n" +
-	"\x12Internal Transfers\x12\x1bGet Internal Transfer Batch\x1a\xff\x01Read a batch's current outcome and the state of every leg by the request ID that Batch Create Internal Transfers returned, or by the idempotency key the caller sent it. The caller must be allowed to read the transfers of every source account of the batch.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/trading/internal-transfers/batch\x1a\v\x8a\xb5\x18\aaccountB\x99\x01\xbaGR:P\n" +
+	"\x12Internal Transfers\x12\x1bGet Internal Transfer Batch\x1a\xff\x01Read a batch's current outcome and the state of every leg by the request ID that Batch Create Internal Transfers returned, or by the idempotency key the caller sent it. The caller must be allowed to read the transfers of every source account of the batch.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&\x12$/v1/trading/internal-transfers/batch\x12\xcf\x03\n" +
+	"\x1cAbandonInternalTransferBatch\x120.transfer.v1.AbandonInternalTransferBatchRequest\x1a1.transfer.v1.AbandonInternalTransferBatchResponse\"\xc9\x02\xbaG\x88\x02\n" +
+	"\x12Internal Transfers\x12\x1fAbandon Internal Transfer Batch\x1a\xd0\x01Make the absence of a batch under an idempotency key final: answer the batch submitted under the key, or record the key as abandoned, after which no batch is ever accepted under it and no funds move under it.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x021:\x01*\",/v1/trading/internal-transfers/batch/abandon\x1a\v\x8a\xb5\x18\aaccountB\x99\x01\xbaGR:P\n" +
 	"\x12Internal Transfers\x12:Authenticated Trading to Trading internal transfer intake.ZBgithub.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1;transferv1b\x06proto3"
 
 var (
@@ -1673,7 +1812,7 @@ func file_transfer_v1_internal_transfer_proto_rawDescGZIP() []byte {
 }
 
 var file_transfer_v1_internal_transfer_proto_enumTypes = make([]protoimpl.EnumInfo, 4)
-var file_transfer_v1_internal_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 12)
+var file_transfer_v1_internal_transfer_proto_msgTypes = make([]protoimpl.MessageInfo, 14)
 var file_transfer_v1_internal_transfer_proto_goTypes = []any{
 	(ErrorCode)(0),                               // 0: transfer.v1.ErrorCode
 	(InternalTransferStatus)(0),                  // 1: transfer.v1.InternalTransferStatus
@@ -1689,39 +1828,45 @@ var file_transfer_v1_internal_transfer_proto_goTypes = []any{
 	(*BatchCreateInternalTransfersResponse)(nil), // 11: transfer.v1.BatchCreateInternalTransfersResponse
 	(*GetInternalTransferBatchRequest)(nil),      // 12: transfer.v1.GetInternalTransferBatchRequest
 	(*GetInternalTransferBatchResponse)(nil),     // 13: transfer.v1.GetInternalTransferBatchResponse
-	(*GetInternalTransferRequest)(nil),           // 14: transfer.v1.GetInternalTransferRequest
-	(*GetInternalTransferResponse)(nil),          // 15: transfer.v1.GetInternalTransferResponse
-	(*v1.U128)(nil),                              // 16: polyester.type.v1.U128
+	(*AbandonInternalTransferBatchRequest)(nil),  // 14: transfer.v1.AbandonInternalTransferBatchRequest
+	(*AbandonInternalTransferBatchResponse)(nil), // 15: transfer.v1.AbandonInternalTransferBatchResponse
+	(*GetInternalTransferRequest)(nil),           // 16: transfer.v1.GetInternalTransferRequest
+	(*GetInternalTransferResponse)(nil),          // 17: transfer.v1.GetInternalTransferResponse
+	(*v1.U128)(nil),                              // 18: polyester.type.v1.U128
 }
 var file_transfer_v1_internal_transfer_proto_depIdxs = []int32{
-	16, // 0: transfer.v1.CreateInternalTransferRequest.amount_e18:type_name -> polyester.type.v1.U128
+	18, // 0: transfer.v1.CreateInternalTransferRequest.amount_e18:type_name -> polyester.type.v1.U128
 	0,  // 1: transfer.v1.ErrorDetail.code:type_name -> transfer.v1.ErrorCode
-	16, // 2: transfer.v1.CreateInternalTransferResponse.amount_e18:type_name -> polyester.type.v1.U128
+	18, // 2: transfer.v1.CreateInternalTransferResponse.amount_e18:type_name -> polyester.type.v1.U128
 	5,  // 3: transfer.v1.CreateInternalTransferResponse.destination:type_name -> transfer.v1.ResolvedDestination
 	1,  // 4: transfer.v1.CreateInternalTransferResponse.status:type_name -> transfer.v1.InternalTransferStatus
-	16, // 5: transfer.v1.InternalTransferBatchLeg.amount_e18:type_name -> polyester.type.v1.U128
+	18, // 5: transfer.v1.InternalTransferBatchLeg.amount_e18:type_name -> polyester.type.v1.U128
 	8,  // 6: transfer.v1.BatchCreateInternalTransfersRequest.legs:type_name -> transfer.v1.InternalTransferBatchLeg
 	3,  // 7: transfer.v1.InternalTransferBatchLegResult.status:type_name -> transfer.v1.InternalTransferBatchLegStatus
-	16, // 8: transfer.v1.InternalTransferBatchLegResult.amount_e18:type_name -> polyester.type.v1.U128
+	18, // 8: transfer.v1.InternalTransferBatchLegResult.amount_e18:type_name -> polyester.type.v1.U128
 	5,  // 9: transfer.v1.InternalTransferBatchLegResult.destination:type_name -> transfer.v1.ResolvedDestination
 	0,  // 10: transfer.v1.InternalTransferBatchLegResult.error_code:type_name -> transfer.v1.ErrorCode
 	2,  // 11: transfer.v1.BatchCreateInternalTransfersResponse.status:type_name -> transfer.v1.InternalTransferBatchStatus
 	10, // 12: transfer.v1.BatchCreateInternalTransfersResponse.legs:type_name -> transfer.v1.InternalTransferBatchLegResult
 	2,  // 13: transfer.v1.GetInternalTransferBatchResponse.status:type_name -> transfer.v1.InternalTransferBatchStatus
 	10, // 14: transfer.v1.GetInternalTransferBatchResponse.legs:type_name -> transfer.v1.InternalTransferBatchLegResult
-	14, // 15: transfer.v1.InternalTransferService.GetInternalTransfer:input_type -> transfer.v1.GetInternalTransferRequest
-	4,  // 16: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
-	9,  // 17: transfer.v1.InternalTransferService.BatchCreateInternalTransfers:input_type -> transfer.v1.BatchCreateInternalTransfersRequest
-	12, // 18: transfer.v1.InternalTransferService.GetInternalTransferBatch:input_type -> transfer.v1.GetInternalTransferBatchRequest
-	15, // 19: transfer.v1.InternalTransferService.GetInternalTransfer:output_type -> transfer.v1.GetInternalTransferResponse
-	7,  // 20: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
-	11, // 21: transfer.v1.InternalTransferService.BatchCreateInternalTransfers:output_type -> transfer.v1.BatchCreateInternalTransfersResponse
-	13, // 22: transfer.v1.InternalTransferService.GetInternalTransferBatch:output_type -> transfer.v1.GetInternalTransferBatchResponse
-	19, // [19:23] is the sub-list for method output_type
-	15, // [15:19] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	2,  // 15: transfer.v1.AbandonInternalTransferBatchResponse.status:type_name -> transfer.v1.InternalTransferBatchStatus
+	10, // 16: transfer.v1.AbandonInternalTransferBatchResponse.legs:type_name -> transfer.v1.InternalTransferBatchLegResult
+	16, // 17: transfer.v1.InternalTransferService.GetInternalTransfer:input_type -> transfer.v1.GetInternalTransferRequest
+	4,  // 18: transfer.v1.InternalTransferService.CreateInternalTransfer:input_type -> transfer.v1.CreateInternalTransferRequest
+	9,  // 19: transfer.v1.InternalTransferService.BatchCreateInternalTransfers:input_type -> transfer.v1.BatchCreateInternalTransfersRequest
+	12, // 20: transfer.v1.InternalTransferService.GetInternalTransferBatch:input_type -> transfer.v1.GetInternalTransferBatchRequest
+	14, // 21: transfer.v1.InternalTransferService.AbandonInternalTransferBatch:input_type -> transfer.v1.AbandonInternalTransferBatchRequest
+	17, // 22: transfer.v1.InternalTransferService.GetInternalTransfer:output_type -> transfer.v1.GetInternalTransferResponse
+	7,  // 23: transfer.v1.InternalTransferService.CreateInternalTransfer:output_type -> transfer.v1.CreateInternalTransferResponse
+	11, // 24: transfer.v1.InternalTransferService.BatchCreateInternalTransfers:output_type -> transfer.v1.BatchCreateInternalTransfersResponse
+	13, // 25: transfer.v1.InternalTransferService.GetInternalTransferBatch:output_type -> transfer.v1.GetInternalTransferBatchResponse
+	15, // 26: transfer.v1.InternalTransferService.AbandonInternalTransferBatch:output_type -> transfer.v1.AbandonInternalTransferBatchResponse
+	22, // [22:27] is the sub-list for method output_type
+	17, // [17:22] is the sub-list for method input_type
+	17, // [17:17] is the sub-list for extension type_name
+	17, // [17:17] is the sub-list for extension extendee
+	0,  // [0:17] is the sub-list for field type_name
 }
 
 func init() { file_transfer_v1_internal_transfer_proto_init() }
@@ -1739,7 +1884,7 @@ func file_transfer_v1_internal_transfer_proto_init() {
 		(*InternalTransferBatchLeg_DestinationSubaccountId)(nil),
 		(*InternalTransferBatchLeg_DestinationSmartAccountAddress)(nil),
 	}
-	file_transfer_v1_internal_transfer_proto_msgTypes[10].OneofWrappers = []any{
+	file_transfer_v1_internal_transfer_proto_msgTypes[12].OneofWrappers = []any{
 		(*GetInternalTransferRequest_RequestId)(nil),
 		(*GetInternalTransferRequest_TransferId)(nil),
 	}
@@ -1749,7 +1894,7 @@ func file_transfer_v1_internal_transfer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_transfer_v1_internal_transfer_proto_rawDesc), len(file_transfer_v1_internal_transfer_proto_rawDesc)),
 			NumEnums:      4,
-			NumMessages:   12,
+			NumMessages:   14,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
