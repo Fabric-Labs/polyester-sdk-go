@@ -10,7 +10,7 @@ normal development).
 **Status:** `v0.34.0`, pre-1.0: a minor release may change the API. The Go,
 Python and Rust SDKs are released together. Their versions match unless a
 change breaks only one SDK's API: Go `v0.34.0` is the release of Python `0.33.0` and Rust `0.32.0`.
-Proprietary license (not open source).
+Licensed under the [Apache License 2.0](LICENSE); see also [NOTICE](NOTICE).
 API-key only; no browser login or session MFA.
 
 Requires a recent Go toolchain (see `go.mod`).
