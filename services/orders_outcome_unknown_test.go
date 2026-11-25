@@ -3,6 +3,7 @@ package services
 import (
 	"connectrpc.com/connect"
 	"context"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1/authv1connect"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
@@ -175,9 +176,9 @@ func TestGateway504ReadRetriesRemainSafe(t *testing.T) {
 					defer cancel()
 					switch operation {
 					case "trigger":
-						_, err = NewTriggersService(factory, nil, nil, nil, nil, nil, nil).Get(ctx, nil, "9", nil)
+						_, err = NewTriggersService(factory, nil, nil, nil, nil, nil, nil).Get(ctx, nil, codecs.FormatID(9), nil)
 					case "batch-status":
-						_, err = NewOrdersService(factory, nil, nil, nil, nil, nil, nil).WaitBatchReplace(ctx, nil, "77", nil)
+						_, err = NewOrdersService(factory, nil, nil, nil, nil, nil, nil).WaitBatchReplace(ctx, nil, codecs.FormatID(77), nil)
 					default:
 						client := authv1connect.NewAuthServiceClient(factory.HTTP, srv.URL, factory.ConnectOptions(false)...)
 						stream := realtime.NewSnapshotThenStream[int, int](realtime.SnapshotThenStreamConfig[int, int]{

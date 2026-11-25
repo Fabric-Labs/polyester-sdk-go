@@ -100,7 +100,9 @@ func (s *DustConversionsService) Get(ctx context.Context, conversionID string, a
 	if err := s.scoped.ApplyOptionalSubaccountID(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.DustConversion{}, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.client().GetDustConversion, req, decode.DustConversionFromGet)
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetDustConversion, req, echoed("GetDustConversion", "conversion_id", conversionID, func(msg *transferv1.GetDustConversionResponse) (string, bool) {
+		return msg.GetConversion().GetConversionId(), msg.GetConversion() != nil
+	}, decode.DustConversionFromGet))
 }
 
 // ListDustConversionsOptions selects a page of conversions.

@@ -232,7 +232,17 @@ func (s *OrdersService) Get(ctx context.Context, account AccountScope, key model
 	if err != nil {
 		return models.GetOrderResult{}, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOrder, req, scaledRead(decode.GetOrderFromProto, decode.ScaleGetOrderResult, scales))
+	decodeFn := scaledRead(decode.GetOrderFromProto, decode.ScaleGetOrderResult, scales)
+	if id, ok := req.Key.(*orderv1.GetOrderRequest_OrderId); ok {
+		decodeFn = echoed("GetOrder", "order_id", codecs.FormatID(id.OrderId), func(msg *orderv1.GetOrderResponse) (string, bool) {
+			return codecs.FormatID(msg.GetOrder().GetOrderId()), msg.GetOrder() != nil
+		}, decodeFn)
+	} else {
+		decodeFn = echoed("GetOrder", "client_order_id", req.GetClientOrderId(), func(msg *orderv1.GetOrderResponse) (string, bool) {
+			return msg.GetOrder().GetClientOrderId(), msg.GetOrder() != nil
+		}, decodeFn)
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetOrder, req, decodeFn)
 }
 
 // Create places a new order.
@@ -742,7 +752,16 @@ func (s *OrdersService) GetBatchReplaceStatus(ctx context.Context, account Accou
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.BatchReplaceStatusResult{}, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetBatchReplaceStatus, req, decode.BatchReplaceStatusFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.readClient().GetBatchReplaceStatus, req, batchReplaceStatusOf(id))
+}
+
+// batchReplaceStatusOf decodes a GetBatchReplaceStatus reply for the batch
+// with request ID id: a reply naming another batch is a
+// *errors.ResponseContractError.
+func batchReplaceStatusOf(id uint64) func(*orderv1.GetBatchReplaceStatusResponse) (models.BatchReplaceStatusResult, error) {
+	return echoed("GetBatchReplaceStatus", "batch_request_id", codecs.FormatID(id), func(msg *orderv1.GetBatchReplaceStatusResponse) (string, bool) {
+		return codecs.FormatID(msg.GetBatchRequestId()), true
+	}, decode.BatchReplaceStatusFromProto)
 }
 
 // batchReplaceStatusWindow is how long GetBatchReplaceStatus keeps a batch's

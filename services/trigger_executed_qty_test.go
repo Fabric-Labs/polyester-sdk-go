@@ -8,6 +8,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	triggers "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1/triggersv1connect"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
@@ -65,7 +66,7 @@ func TestTriggerReadsFormatUnfilledExecutedQty(t *testing.T) {
 			}
 			svc := NewTriggersService(transport.NewFactory(cfg, creds, nil), cats, nil, nil, nil, nil, nil)
 			ctx := context.Background()
-			got, err := svc.Get(ctx, nil, "9", nil)
+			got, err := svc.Get(ctx, nil, codecs.FormatID(9), nil)
 			if err != nil {
 				t.Fatal(err)
 			}

@@ -146,7 +146,10 @@ func (s *TriggersService) Get(ctx context.Context, account AccountScope, trigger
 	if err != nil {
 		return nil, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, scaledRead(decode.GetTriggerFromProto, s.readTrigger, scales))
+	decodeFn := echoed("GetTrigger", "trigger_id", codecs.FormatID(id), func(msg *triggersv1.GetTriggerResponse) (string, bool) {
+		return codecs.FormatID(msg.GetTrigger().GetTriggerId()), msg.GetTrigger() != nil
+	}, scaledRead(decode.GetTriggerFromProto, s.readTrigger, scales))
+	return UnaryAuthDecoded(ctx, s.transport, retryUnavailable(triggerReadRetry, s.client().GetTrigger), req, decodeFn)
 }
 
 func (s *TriggersService) Create(ctx context.Context, account AccountScope, symbol, triggerType string, triggerPrice *models.PriceInput, side string, qty models.QtyInput, orderType string, limitPrice *models.PriceInput, triggerPriceSource, tif string, subAccountID *string, clientTriggerID *string, postOnly bool, opts codecs.CreateTriggerOptions) (models.TriggerMutationResult, error) {

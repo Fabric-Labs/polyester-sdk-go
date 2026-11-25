@@ -16,6 +16,7 @@ import (
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	ratelimitv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/polyester/ratelimit/v1"
@@ -105,7 +106,7 @@ func callWithErrorBody(t *testing.T, op string, status int, body errorBody, fail
 		// The read's retry budget counts its waits on the fake clock, not
 		// how fast a loaded machine answers each attempt.
 		clock := useFakeClock(t)
-		_, err = NewTriggersService(factory, nil, nil, nil, nil, nil, nil).Get(context.Background(), nil, "9", nil)
+		_, err = NewTriggersService(factory, nil, nil, nil, nil, nil, nil).Get(context.Background(), nil, codecs.FormatID(9), nil)
 		n := calls.Load()
 		if want := triggerReadBackoff(int(n)); !slices.Equal(clock.Waits(), want) {
 			t.Fatalf("%d requests after waits %v, want %v", n, clock.Waits(), want)

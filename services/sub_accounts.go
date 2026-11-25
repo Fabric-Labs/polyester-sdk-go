@@ -87,7 +87,9 @@ func (s *SubAccountsService) Get(ctx context.Context, account AccountScope, subA
 		return models.GetSubaccountResult{}, err
 	}
 	req := &authv1.GetSubaccountRequest{SubaccountId: *parsed, IncludeApiKeys: includeAPIKeys, IncludeMembers: includeMembers, IncludeInvites: includeInvites, IncludePolicy: includePolicy, IncludeBalances: includeBalances, InvitesDirection: direction}
-	return UnaryAuthDecoded(ctx, s.transport, s.viewClient().GetSubaccount, req, decode.GetSubaccountFromProto)
+	return UnaryAuthDecoded(ctx, s.transport, s.viewClient().GetSubaccount, req, echoed("GetSubaccount", "subaccount_id", codecs.FormatID(req.SubaccountId), func(msg *authv1.GetSubaccountResponse) (string, bool) {
+		return codecs.FormatID(msg.GetSubaccount().GetId()), msg.GetSubaccount() != nil
+	}, decode.GetSubaccountFromProto))
 }
 
 // ListMembers lists a sub-account's members. It accepts API keys with
