@@ -641,6 +641,49 @@ func TestPrivateOrdersUnitWithANegativeQuantityIsRefused(t *testing.T) {
 	}
 }
 
+// A unit that breaks the contract is its own account's error alone: another
+// account on the same socket sees nothing of it and keeps its stream.
+func TestPrivateOrdersContractErrorReachesOnlyItsAccount(t *testing.T) {
+	const otherAccount uint64 = 43
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	first, ws := connectOrders(t, f, c)
+	seq := ws.snapshot(t, "s1", 1, "c1", testOrder(1, 1))
+	expectEvent[OrderSnapshot](t, first)
+
+	second := subscribeOrders(t, c, otherAccount)
+	request := ws.expectSubscribe(t)
+	if request.GetAccount() != otherAccount {
+		t.Fatalf("subscribed account %d, want %d", request.GetAccount(), otherAccount)
+	}
+	ws.confirm(t, "s2", request)
+	expectEvent[OrderStreamConnected](t, second)
+	otherSeq := ws.snapshot(t, "s2", 1, "d1", testOrder(2, 1))
+	expectEvent[OrderSnapshot](t, second)
+
+	corrupt := testOrder(1, 2)
+	corrupt.OrigQtyScaled = -1
+	ws.send(t, "s1", seq+1, unitFrame("c2", []*orderv1.Order{corrupt}, nil))
+	failure := expectEvent[OrderStreamError](t, first)
+	var contract *sdkerrors.ResponseContractError
+	if !errors.As(failure.Err, &contract) || contract.Operation != "Order.orig_qty_scaled" {
+		t.Fatalf("err = %v, want the Order.orig_qty_scaled contract error", failure.Err)
+	}
+	if got := ws.expectUnsubscribe(t).GetSub(); got != "s1" {
+		t.Fatalf("unsubscribed %q", got)
+	}
+	if again := ws.expectSubscribe(t); again.GetAccount() != testAccount || again.GetCursor() != "c1" {
+		t.Fatalf("resubscribe %v, want account %d from c1", again, testAccount)
+	}
+	expectEvent[OrderStreamDisconnected](t, first)
+	expectNoEvent(t, second, 50*time.Millisecond)
+
+	ws.send(t, "s2", otherSeq+1, unitFrame("d2", []*orderv1.Order{testOrder(2, 2)}, nil))
+	if unit := expectEvent[OrderUnit](t, second); !reflect.DeepEqual(orderIDs(unit.Orders), ids(2)) {
+		t.Fatalf("other account's unit %#v", unit)
+	}
+}
+
 func TestPrivateOrdersUnknownFrameKindCountsInSeq(t *testing.T) {
 	f := newFakePrivateServer(t)
 	c := newTestOrderClient(t, f, testTiming())
