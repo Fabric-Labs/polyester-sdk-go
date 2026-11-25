@@ -45,6 +45,9 @@ const (
 	// InternalTransferServiceGetInternalTransferBatchProcedure is the fully-qualified name of the
 	// InternalTransferService's GetInternalTransferBatch RPC.
 	InternalTransferServiceGetInternalTransferBatchProcedure = "/transfer.v1.InternalTransferService/GetInternalTransferBatch"
+	// InternalTransferServiceAbandonInternalTransferBatchProcedure is the fully-qualified name of the
+	// InternalTransferService's AbandonInternalTransferBatch RPC.
+	InternalTransferServiceAbandonInternalTransferBatchProcedure = "/transfer.v1.InternalTransferService/AbandonInternalTransferBatch"
 )
 
 // InternalTransferServiceClient is a client for the transfer.v1.InternalTransferService service.
@@ -93,10 +96,28 @@ type InternalTransferServiceClient interface {
 	// both: a batch its checks refused reads its refusal, and a caller who may
 	// not read one of its sources is refused PERMISSION_DENIED, or UNAVAILABLE
 	// while that permission cannot be decided yet (retry). NOT_FOUND means the
-	// caller submitted no batch under that key.
+	// caller submitted no batch under that key. A key the caller abandoned
+	// (AbandonInternalTransferBatch) reads BATCH_ABANDONED.
 	//
 	// This read does not submit or retry the batch and requires no fresh MFA.
 	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
+	// Make the absence of a batch under an idempotency key final. If a batch
+	// was submitted under the key, this answers its outcome exactly as
+	// GetInternalTransferBatch reads it by key, and changes nothing. Otherwise
+	// it records the key as abandoned and answers BATCH_ABANDONED: no funds
+	// moved under the key and none ever will. Every later
+	// BatchCreateInternalTransfers under it, a retry included, is refused
+	// FAILED_PRECONDITION with ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED, and every
+	// later read or abandon under it answers BATCH_ABANDONED. A create and an
+	// abandon racing on one key end in exactly one of the two outcomes.
+	//
+	// The key is scoped to the caller as BatchCreateInternalTransfers scopes
+	// it: the session's account, or the API key. The caller needs the
+	// INTERNAL_TRANSFER permission, and to answer an existing batch also the
+	// read permission on every source account of the batch, refused as the
+	// read is. It requires no MFA, as it never moves funds, and is charged as
+	// one BatchCreateInternalTransfers admission.
+	AbandonInternalTransferBatch(context.Context, *connect.Request[v1.AbandonInternalTransferBatchRequest]) (*connect.Response[v1.AbandonInternalTransferBatchResponse], error)
 }
 
 // NewInternalTransferServiceClient constructs a client for the transfer.v1.InternalTransferService
@@ -134,6 +155,12 @@ func NewInternalTransferServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithSchema(internalTransferServiceMethods.ByName("GetInternalTransferBatch")),
 			connect.WithClientOptions(opts...),
 		),
+		abandonInternalTransferBatch: connect.NewClient[v1.AbandonInternalTransferBatchRequest, v1.AbandonInternalTransferBatchResponse](
+			httpClient,
+			baseURL+InternalTransferServiceAbandonInternalTransferBatchProcedure,
+			connect.WithSchema(internalTransferServiceMethods.ByName("AbandonInternalTransferBatch")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -143,6 +170,7 @@ type internalTransferServiceClient struct {
 	createInternalTransfer       *connect.Client[v1.CreateInternalTransferRequest, v1.CreateInternalTransferResponse]
 	batchCreateInternalTransfers *connect.Client[v1.BatchCreateInternalTransfersRequest, v1.BatchCreateInternalTransfersResponse]
 	getInternalTransferBatch     *connect.Client[v1.GetInternalTransferBatchRequest, v1.GetInternalTransferBatchResponse]
+	abandonInternalTransferBatch *connect.Client[v1.AbandonInternalTransferBatchRequest, v1.AbandonInternalTransferBatchResponse]
 }
 
 // GetInternalTransfer calls transfer.v1.InternalTransferService.GetInternalTransfer.
@@ -164,6 +192,12 @@ func (c *internalTransferServiceClient) BatchCreateInternalTransfers(ctx context
 // GetInternalTransferBatch calls transfer.v1.InternalTransferService.GetInternalTransferBatch.
 func (c *internalTransferServiceClient) GetInternalTransferBatch(ctx context.Context, req *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error) {
 	return c.getInternalTransferBatch.CallUnary(ctx, req)
+}
+
+// AbandonInternalTransferBatch calls
+// transfer.v1.InternalTransferService.AbandonInternalTransferBatch.
+func (c *internalTransferServiceClient) AbandonInternalTransferBatch(ctx context.Context, req *connect.Request[v1.AbandonInternalTransferBatchRequest]) (*connect.Response[v1.AbandonInternalTransferBatchResponse], error) {
+	return c.abandonInternalTransferBatch.CallUnary(ctx, req)
 }
 
 // InternalTransferServiceHandler is an implementation of the transfer.v1.InternalTransferService
@@ -213,10 +247,28 @@ type InternalTransferServiceHandler interface {
 	// both: a batch its checks refused reads its refusal, and a caller who may
 	// not read one of its sources is refused PERMISSION_DENIED, or UNAVAILABLE
 	// while that permission cannot be decided yet (retry). NOT_FOUND means the
-	// caller submitted no batch under that key.
+	// caller submitted no batch under that key. A key the caller abandoned
+	// (AbandonInternalTransferBatch) reads BATCH_ABANDONED.
 	//
 	// This read does not submit or retry the batch and requires no fresh MFA.
 	GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error)
+	// Make the absence of a batch under an idempotency key final. If a batch
+	// was submitted under the key, this answers its outcome exactly as
+	// GetInternalTransferBatch reads it by key, and changes nothing. Otherwise
+	// it records the key as abandoned and answers BATCH_ABANDONED: no funds
+	// moved under the key and none ever will. Every later
+	// BatchCreateInternalTransfers under it, a retry included, is refused
+	// FAILED_PRECONDITION with ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED, and every
+	// later read or abandon under it answers BATCH_ABANDONED. A create and an
+	// abandon racing on one key end in exactly one of the two outcomes.
+	//
+	// The key is scoped to the caller as BatchCreateInternalTransfers scopes
+	// it: the session's account, or the API key. The caller needs the
+	// INTERNAL_TRANSFER permission, and to answer an existing batch also the
+	// read permission on every source account of the batch, refused as the
+	// read is. It requires no MFA, as it never moves funds, and is charged as
+	// one BatchCreateInternalTransfers admission.
+	AbandonInternalTransferBatch(context.Context, *connect.Request[v1.AbandonInternalTransferBatchRequest]) (*connect.Response[v1.AbandonInternalTransferBatchResponse], error)
 }
 
 // NewInternalTransferServiceHandler builds an HTTP handler from the service implementation. It
@@ -250,6 +302,12 @@ func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts 
 		connect.WithSchema(internalTransferServiceMethods.ByName("GetInternalTransferBatch")),
 		connect.WithHandlerOptions(opts...),
 	)
+	internalTransferServiceAbandonInternalTransferBatchHandler := connect.NewUnaryHandler(
+		InternalTransferServiceAbandonInternalTransferBatchProcedure,
+		svc.AbandonInternalTransferBatch,
+		connect.WithSchema(internalTransferServiceMethods.ByName("AbandonInternalTransferBatch")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/transfer.v1.InternalTransferService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case InternalTransferServiceGetInternalTransferProcedure:
@@ -260,6 +318,8 @@ func NewInternalTransferServiceHandler(svc InternalTransferServiceHandler, opts 
 			internalTransferServiceBatchCreateInternalTransfersHandler.ServeHTTP(w, r)
 		case InternalTransferServiceGetInternalTransferBatchProcedure:
 			internalTransferServiceGetInternalTransferBatchHandler.ServeHTTP(w, r)
+		case InternalTransferServiceAbandonInternalTransferBatchProcedure:
+			internalTransferServiceAbandonInternalTransferBatchHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -283,4 +343,8 @@ func (UnimplementedInternalTransferServiceHandler) BatchCreateInternalTransfers(
 
 func (UnimplementedInternalTransferServiceHandler) GetInternalTransferBatch(context.Context, *connect.Request[v1.GetInternalTransferBatchRequest]) (*connect.Response[v1.GetInternalTransferBatchResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.GetInternalTransferBatch is not implemented"))
+}
+
+func (UnimplementedInternalTransferServiceHandler) AbandonInternalTransferBatch(context.Context, *connect.Request[v1.AbandonInternalTransferBatchRequest]) (*connect.Response[v1.AbandonInternalTransferBatchResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("transfer.v1.InternalTransferService.AbandonInternalTransferBatch is not implemented"))
 }
