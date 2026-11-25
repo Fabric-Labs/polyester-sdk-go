@@ -10,9 +10,9 @@ import (
 
 func TestMillisecondShapedTimestampsDecodeSuccessfully(t *testing.T) {
 	ms := uint64(1_700_000_000_000)
-	result := MarketTradesFromProto(&marketdatav1.GetTradesResponse{
+	result := mustDecoded(MarketTradesFromProto(&marketdatav1.GetTradesResponse{
 		Trades: []*marketdatav1.MarketTrade{{TsNs: ms, QtyScaled: 1, PriceTicks: 1}},
-	}, 8)
+	}, 8))
 	if len(result.Trades) != 1 {
 		t.Fatalf("expected one trade, got %d", len(result.Trades))
 	}
@@ -20,7 +20,7 @@ func TestMillisecondShapedTimestampsDecodeSuccessfully(t *testing.T) {
 		t.Fatalf("ts_ns=%q", result.Trades[0].TsNs)
 	}
 
-	order := OrderFromProto(&orderv1.Order{OrderId: 7, CreatedTsNs: ms})
+	order := mustDecoded(OrderFromProto(&orderv1.Order{OrderId: 7, CreatedTsNs: ms}))
 	if order.CreatedTsNs != strconv.FormatUint(ms, 10) {
 		t.Fatalf("created_ts_ns=%q", order.CreatedTsNs)
 	}

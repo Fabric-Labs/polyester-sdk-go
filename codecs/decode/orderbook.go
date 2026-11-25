@@ -64,15 +64,21 @@ func levelsFromProto(levels []*orderbookv1.PriceLevel, symbol string, scale int)
 		if l == nil {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level is missing"}
 		}
+		// A negative quantity is corrupt, not a missing one: refuse it
+		// before the checks that refuse an omitted (0) price or quantity.
+		qty, err := codecs.DecodeQtyScaled(l.GetQtyScaled(), scale, symbol, nil, "PriceLevel.qty_scaled")
+		if err != nil {
+			return nil, err
+		}
 		if l.GetPriceTicks() <= 0 {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing price"}
 		}
-		if l.GetQtyScaled() <= 0 {
+		if qty.Scaled() == 0 {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level has invalid or missing quantity"}
 		}
 		out = append(out, models.OrderbookLevel{
 			Price: codecs.DecodePriceTicks(l.GetPriceTicks(), symbol),
-			Qty:   codecs.DecodeQtyScaled(l.GetQtyScaled(), scale, symbol, nil),
+			Qty:   qty,
 		})
 	}
 	return out, nil

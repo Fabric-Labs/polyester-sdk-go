@@ -452,7 +452,7 @@ func TestPrivateOrdersSnapshotInstalledAtSnapshotEnd(t *testing.T) {
 	ws.send(t, "s1", 4, &privatewsv1.ServerMessage{Frame: &privatewsv1.ServerMessage_SnapshotEnd{SnapshotEnd: &privatewsv1.SnapshotEnd{Cursor: "c1", Count: 2}}})
 
 	snapshot := expectEvent[OrderSnapshot](t, sub)
-	want := []models.Order{decode.OrderFromProto(first), decode.OrderFromProto(second)}
+	want := []models.Order{mustDecoded(decode.OrderFromProto(first)), mustDecoded(decode.OrderFromProto(second))}
 	if !reflect.DeepEqual(snapshot.Orders, want) {
 		t.Fatalf("snapshot %#v, want %#v", snapshot.Orders, want)
 	}
@@ -502,7 +502,7 @@ func TestPrivateOrdersUnitDecodesOrdersRemovalsAndEvents(t *testing.T) {
 	))
 
 	unit := expectEvent[OrderUnit](t, sub)
-	if !reflect.DeepEqual(unit.Orders, []models.Order{decode.OrderFromProto(filled)}) {
+	if !reflect.DeepEqual(unit.Orders, []models.Order{mustDecoded(decode.OrderFromProto(filled))}) {
 		t.Fatalf("unit orders %#v", unit.Orders)
 	}
 	if !reflect.DeepEqual(unit.RemovedOrderIDs, ids(2)) {
@@ -529,7 +529,7 @@ func TestPrivateOrdersUnitDecodesOrdersRemovalsAndEvents(t *testing.T) {
 	// A consumer joining now starts from the applied state.
 	late := subscribeOrders(t, c, testAccount)
 	expectEvent[OrderStreamConnected](t, late)
-	if got := expectEvent[OrderSnapshot](t, late); !reflect.DeepEqual(got.Orders, []models.Order{decode.OrderFromProto(filled)}) {
+	if got := expectEvent[OrderSnapshot](t, late); !reflect.DeepEqual(got.Orders, []models.Order{mustDecoded(decode.OrderFromProto(filled))}) {
 		t.Fatalf("late snapshot %#v", got.Orders)
 	}
 }
@@ -597,6 +597,46 @@ func TestPrivateOrdersSeqGapResubscribesFromCursor(t *testing.T) {
 	expectEvent[OrderStreamConnected](t, sub)
 	ws.send(t, "s2", 1, unitFrame("c2", []*orderv1.Order{testOrder(1, 2)}, nil))
 	if unit := expectEvent[OrderUnit](t, sub); !reflect.DeepEqual(orderIDs(unit.Orders), ids(1)) || unit.Orders[0].Version != 2 {
+		t.Fatalf("unit after resume %#v", unit)
+	}
+}
+
+// A unit with a negative quantity breaks the contract: subscribers get the
+// typed error, nothing of the unit is delivered, and the stream subscribes
+// again from the last cursor.
+func TestPrivateOrdersUnitWithANegativeQuantityIsRefused(t *testing.T) {
+	f := newFakePrivateServer(t)
+	c := newTestOrderClient(t, f, testTiming())
+	sub, ws := connectOrders(t, f, c)
+	seq := ws.snapshot(t, "s1", 1, "c1", testOrder(1, 1))
+	expectEvent[OrderSnapshot](t, sub)
+
+	corrupt := testOrder(1, 2)
+	corrupt.OrigQtyScaled = -1
+	ws.send(t, "s1", seq+1, unitFrame("c2", []*orderv1.Order{corrupt}, nil))
+
+	failure := expectEvent[OrderStreamError](t, sub)
+	var realtimeErr *sdkerrors.RealtimeError
+	var contract *sdkerrors.ResponseContractError
+	if !errors.As(failure.Err, &realtimeErr) || !errors.As(failure.Err, &contract) {
+		t.Fatalf("err = %v, want a *RealtimeError wrapping a *ResponseContractError", failure.Err)
+	}
+	if contract.Operation != "Order.orig_qty_scaled" || contract.Msg != "negative quantity -1" {
+		t.Fatalf("contract error %+v", contract)
+	}
+	if got := ws.expectUnsubscribe(t).GetSub(); got != "s1" {
+		t.Fatalf("unsubscribed %q", got)
+	}
+	request := ws.expectSubscribe(t)
+	if request.GetCursor() != "c1" {
+		t.Fatalf("resubscribe cursor %q, want c1", request.GetCursor())
+	}
+	expectEvent[OrderStreamDisconnected](t, sub)
+
+	ws.confirm(t, "s2", request)
+	expectEvent[OrderStreamConnected](t, sub)
+	ws.send(t, "s2", 1, unitFrame("c2", []*orderv1.Order{testOrder(1, 2)}, nil))
+	if unit := expectEvent[OrderUnit](t, sub); unit.Orders[0].OrigQty.Scaled() != testOrder(1, 2).GetOrigQtyScaled() {
 		t.Fatalf("unit after resume %#v", unit)
 	}
 }

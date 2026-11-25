@@ -184,9 +184,11 @@ func ladderDistributionLabel(v triggersv1.LadderDistribution) string {
 	}
 }
 
-func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
+// triggerDetailsFromProto decodes a trigger's runtime details. A negative
+// executed quantity returns a *errors.ResponseContractError.
+func triggerDetailsFromProto(msg *triggersv1.Trigger) (*models.TriggerDetails, error) {
 	if msg == nil {
-		return nil
+		return nil, nil
 	}
 	sid := msg.GetSymbolId()
 	symbol := ""
@@ -194,18 +196,18 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 	case *triggersv1.Trigger_Stop:
 		stop := d.Stop
 		if stop == nil {
-			return nil
+			return nil, nil
 		}
 		return &models.TriggerDetails{
 			Case:               "stop",
 			TriggerPrice:       codecs.DecodePriceTicks(stop.GetTriggerPriceTicks(), symbol),
 			TriggerPriceSource: codecs.TriggerPriceSourceName(stop.GetTriggerPriceSource()),
 			TriggerDirection:   triggerDirectionLabel(stop.GetTriggerDirection()),
-		}
+		}, nil
 	case *triggersv1.Trigger_Trailing:
 		tr := d.Trailing
 		if tr == nil {
-			return nil
+			return nil, nil
 		}
 		out := &models.TriggerDetails{
 			Case:                "trailing",
@@ -234,11 +236,11 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 		if tr.GetTriggerPriceTicks() > 0 {
 			out.TriggerPrice = codecs.DecodePriceTicks(tr.GetTriggerPriceTicks(), symbol)
 		}
-		return out
+		return out, nil
 	case *triggersv1.Trigger_TwapState:
 		twap := d.TwapState
 		if twap == nil {
-			return nil
+			return nil, nil
 		}
 		out := &models.TriggerDetails{
 			Case:                "twap",
@@ -249,12 +251,16 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 		}
 		// Zero until the first execution; it names the pair as Qty does, so
 		// it takes the same scale and formats as zero.
-		out.ExecutedQty = codecs.DecodeQtyScaled(twap.GetExecutedQtyScaled(), -1, symbol, &sid)
-		return out
+		executed, err := codecs.DecodeQtyScaled(twap.GetExecutedQtyScaled(), -1, symbol, &sid, "Trigger.twap_state.executed_qty_scaled")
+		if err != nil {
+			return nil, err
+		}
+		out.ExecutedQty = executed
+		return out, nil
 	case *triggersv1.Trigger_LadderState:
 		ladder := d.LadderState
 		if ladder == nil {
-			return nil
+			return nil, nil
 		}
 		out := &models.TriggerDetails{
 			Case:               "ladder",
@@ -275,10 +281,14 @@ func triggerDetailsFromProto(msg *triggersv1.Trigger) *models.TriggerDetails {
 		}
 		// Zero until the first execution; it names the pair as Qty does, so
 		// it takes the same scale and formats as zero.
-		out.ExecutedQty = codecs.DecodeQtyScaled(ladder.GetExecutedQtyScaled(), -1, symbol, &sid)
-		return out
+		executed, err := codecs.DecodeQtyScaled(ladder.GetExecutedQtyScaled(), -1, symbol, &sid, "Trigger.ladder_state.executed_qty_scaled")
+		if err != nil {
+			return nil, err
+		}
+		out.ExecutedQty = executed
+		return out, nil
 	default:
-		return nil
+		return nil, nil
 	}
 }
 
@@ -405,13 +415,21 @@ func conditionalChildProjection(cond *triggersv1.ConditionalTrigger, symbol stri
 	return
 }
 
-// TriggerFromProto decodes a trigger message.
-func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
+// TriggerFromProto decodes a trigger message. A negative quantity returns a
+// *errors.ResponseContractError.
+func TriggerFromProto(msg *triggersv1.Trigger) (models.Trigger, error) {
 	if msg == nil {
-		return models.Trigger{}
+		return models.Trigger{}, nil
 	}
 	sid := msg.GetSymbolId()
-	details := triggerDetailsFromProto(msg)
+	details, err := triggerDetailsFromProto(msg)
+	if err != nil {
+		return models.Trigger{}, err
+	}
+	qty, err := codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid, "Trigger.qty_scaled")
+	if err != nil {
+		return models.Trigger{}, err
+	}
 	triggerType, side, orderType, tif, postOnly, limitPrice, triggerPrice := triggerConfigProjection(msg)
 	// Fall back to stop runtime details for the trigger price convenience field.
 	if triggerPrice.Ticks() == 0 && details != nil && details.Case == "stop" {
@@ -440,7 +458,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		Side:                    side,
 		OrderType:               orderType,
 		TimeInForce:             tif,
-		Qty:                     codecs.DecodeQtyScaled(msg.GetQtyScaled(), -1, "", &sid),
+		Qty:                     qty,
 		FeeAsset:                feeAssetLabel(msg.GetFeeAsset()),
 		SelfTradePreventionMode: stpModeLabel(msg.GetSelfTradePreventionMode()),
 		PostOnly:                postOnly,
@@ -457,7 +475,7 @@ func TriggerFromProto(msg *triggersv1.Trigger) models.Trigger {
 		FailureReason:           failureReason,
 		Details:                 details,
 		Version:                 msg.GetVersion(),
-	}
+	}, nil
 }
 
 // TriggersListFromProto decodes list triggers response. A trigger without
@@ -468,7 +486,11 @@ func TriggersListFromProto(msg *triggersv1.ListTriggersResponse) (models.Trigger
 		if err := requireID("ListTriggers", "trigger_id", t.GetTriggerId()); err != nil {
 			return models.TriggersList{}, err
 		}
-		out = append(out, TriggerFromProto(t))
+		trigger, err := TriggerFromProto(t)
+		if err != nil {
+			return models.TriggersList{}, err
+		}
+		out = append(out, trigger)
 	}
 	return models.TriggersList{
 		Triggers:      out,
@@ -488,7 +510,10 @@ func GetTriggerFromProto(msg *triggersv1.GetTriggerResponse) (*models.Trigger, e
 	if err := requireID("GetTrigger", "trigger_id", msg.GetTrigger().GetTriggerId()); err != nil {
 		return nil, err
 	}
-	t := TriggerFromProto(msg.GetTrigger())
+	t, err := TriggerFromProto(msg.GetTrigger())
+	if err != nil {
+		return nil, err
+	}
 	return &t, nil
 }
 

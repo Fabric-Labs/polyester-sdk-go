@@ -30,7 +30,7 @@ func TestTriggerFromProtoMapsStopPrice(t *testing.T) {
 		},
 		ClientTriggerId: "ct-1",
 	}
-	trigger := decode.TriggerFromProto(msg)
+	trigger := mustDecoded(decode.TriggerFromProto(msg))
 	if trigger.TriggerID != codecs.FormatUint64ID(7) {
 		t.Fatalf("trigger_id=%q", trigger.TriggerID)
 	}
@@ -68,7 +68,7 @@ func TestTriggerFromProtoProjectsTrailingStopSideAndParent(t *testing.T) {
 			},
 		},
 	}
-	trigger := decode.TriggerFromProto(msg)
+	trigger := mustDecoded(decode.TriggerFromProto(msg))
 	if trigger.TriggerType != "trailing_stop" {
 		t.Fatalf("type=%q", trigger.TriggerType)
 	}
@@ -107,7 +107,7 @@ func TestTriggerFromProtoProjectsBuyTrailingStopMaximumPriceAndTrough(t *testing
 			},
 		},
 	}
-	trigger := decode.TriggerFromProto(msg)
+	trigger := mustDecoded(decode.TriggerFromProto(msg))
 	if trigger.TriggerType != "trailing_stop" || trigger.Side != "buy" {
 		t.Fatalf("type=%q side=%q", trigger.TriggerType, trigger.Side)
 	}
@@ -128,7 +128,7 @@ func TestTriggerFromProtoProjectsBuyTrailingStopMaximumPriceAndTrough(t *testing
 	// A sell has no maximum price.
 	msg.GetTrailingStop().Side = orderv1.Side_SELL
 	msg.GetTrailingStop().LimitPriceTicks = 0
-	if sell := decode.TriggerFromProto(msg); sell.Side != "sell" || sell.LimitPrice.Ticks() != 0 || sell.OrderType != "market" || sell.TimeInForce != "ioc" {
+	if sell := mustDecoded(decode.TriggerFromProto(msg)); sell.Side != "sell" || sell.LimitPrice.Ticks() != 0 || sell.OrderType != "market" || sell.TimeInForce != "ioc" {
 		t.Fatalf("sell side=%q limit=%d order_type=%q tif=%q", sell.Side, sell.LimitPrice.Ticks(), sell.OrderType, sell.TimeInForce)
 	}
 }
@@ -147,19 +147,19 @@ func TestTriggerFromProtoProjectsMarketChildSlippageCap(t *testing.T) {
 			}},
 		}
 	}
-	ticks := decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{
+	ticks := mustDecoded(decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{
 		MaxSlippage: &triggersv1.TriggerMarketIoc_MaxSlippageTicks{MaxSlippageTicks: 250_000_000_000},
-	}))
+	})))
 	if ticks.Side != "buy" || ticks.OrderType != "market" || ticks.MaxSlippage.Ticks() != 250_000_000_000 || ticks.MaxSlippageBps != 0 {
 		t.Fatalf("ticks cap: side=%q type=%q cap=%d bps=%d", ticks.Side, ticks.OrderType, ticks.MaxSlippage.Ticks(), ticks.MaxSlippageBps)
 	}
-	bps := decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{
+	bps := mustDecoded(decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{
 		MaxSlippage: &triggersv1.TriggerMarketIoc_MaxSlippageBps{MaxSlippageBps: 75},
-	}))
+	})))
 	if bps.MaxSlippageBps != 75 || bps.MaxSlippage.Ticks() != 0 {
 		t.Fatalf("bps cap: %d / %d", bps.MaxSlippageBps, bps.MaxSlippage.Ticks())
 	}
-	none := decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{}))
+	none := mustDecoded(decode.TriggerFromProto(stop(&triggersv1.TriggerMarketIoc{})))
 	if none.MaxSlippageBps != 0 || none.MaxSlippage.Ticks() != 0 {
 		t.Fatalf("uncapped: %+v", none)
 	}
@@ -192,7 +192,7 @@ func TestTriggerFromProtoProjectsTwapExecutedQty(t *testing.T) {
 		},
 		ClientTriggerId: "twap-1",
 	}
-	trigger := decode.TriggerFromProto(msg)
+	trigger := mustDecoded(decode.TriggerFromProto(msg))
 	if trigger.TriggerType != "twap" || trigger.Side != "buy" || trigger.OrderType != "market" {
 		t.Fatalf("trigger=%+v", trigger)
 	}
@@ -327,13 +327,13 @@ func TestTriggerEventFailureReasonAndUnspecified(t *testing.T) {
 	if unspecified.CancelReason != "" || unspecified.FailureReason != "" {
 		t.Fatalf("unspecified=%+v", unspecified)
 	}
-	armed := decode.TriggerFromProto(&triggersv1.Trigger{
+	armed := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{
 		TriggerId: 4,
 		Status:    triggersv1.TriggerStatus_STATUS_ARMED,
 		TerminalReason: &triggersv1.Trigger_FailureReason{
 			FailureReason: triggersv1.TriggerFailureReason_TRIGGER_FAILURE_REASON_MARKET_HALTED,
 		},
-	})
+	}))
 	if armed.FailureReason != "market_halted" || armed.CancelReason != "" {
 		t.Fatalf("trigger=%+v", armed)
 	}
@@ -421,11 +421,11 @@ func TestTriggerTerminalReasonsNameNewValues(t *testing.T) {
 				EventType:      triggersv1.TriggerEventType_EVENT_CANCELED,
 				TerminalReason: &triggersv1.TriggerEvent_CancelReason{CancelReason: tc.reason},
 			})
-			trigger := decode.TriggerFromProto(&triggersv1.Trigger{
+			trigger := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{
 				TriggerId:      1,
 				Status:         triggersv1.TriggerStatus_STATUS_CANCELED,
 				TerminalReason: &triggersv1.Trigger_CancelReason{CancelReason: tc.reason},
-			})
+			}))
 			if event.CancelReason != tc.want || trigger.CancelReason != tc.want {
 				t.Fatalf("event=%q trigger=%q want %q", event.CancelReason, trigger.CancelReason, tc.want)
 			}
@@ -445,11 +445,11 @@ func TestTriggerTerminalReasonsNameNewValues(t *testing.T) {
 				EventType:      triggersv1.TriggerEventType_EVENT_FAILED,
 				TerminalReason: &triggersv1.TriggerEvent_FailureReason{FailureReason: tc.reason},
 			})
-			trigger := decode.TriggerFromProto(&triggersv1.Trigger{
+			trigger := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{
 				TriggerId:      1,
 				Status:         triggersv1.TriggerStatus_STATUS_FAILED,
 				TerminalReason: &triggersv1.Trigger_FailureReason{FailureReason: tc.reason},
-			})
+			}))
 			if event.FailureReason != tc.want || trigger.FailureReason != tc.want {
 				t.Fatalf("event=%q trigger=%q want %q", event.FailureReason, trigger.FailureReason, tc.want)
 			}
@@ -458,11 +458,11 @@ func TestTriggerTerminalReasonsNameNewValues(t *testing.T) {
 }
 
 func TestTriggerFromProtoDecodesVersion(t *testing.T) {
-	if got := decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 7, Version: 3}).Version; got != 3 {
+	if got := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 7, Version: 3})).Version; got != 3 {
 		t.Fatalf("version=%d, want 3", got)
 	}
 	// A server that predates trigger versions sends none.
-	if got := decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 7}).Version; got != 0 {
+	if got := mustDecoded(decode.TriggerFromProto(&triggersv1.Trigger{TriggerId: 7})).Version; got != 0 {
 		t.Fatalf("version=%d, want 0", got)
 	}
 	list := mustReply(decode.TriggersListFromProto(&triggersv1.ListTriggersResponse{Triggers: []*triggersv1.Trigger{{TriggerId: 7, Version: 5}}}))

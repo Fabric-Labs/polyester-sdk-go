@@ -32,7 +32,7 @@ func spentQuoteBuy() *orderv1.Order {
 }
 
 func TestOrderFromProtoMapsExactExecutionTotals(t *testing.T) {
-	got := decode.OrderFromProto(spentQuoteBuy())
+	got := mustDecoded(decode.OrderFromProto(spentQuoteBuy()))
 	if got.AvgPriceE18 != "2908714285714" || got.AvgPrice() != "0.000002908714285714" || got.AvgPx.Ticks() != 2908 {
 		t.Fatalf("avg=%q %q %d", got.AvgPriceE18, got.AvgPrice(), got.AvgPx.Ticks())
 	}
@@ -55,7 +55,7 @@ func TestOrderFromProtoMapsExactExecutionTotals(t *testing.T) {
 }
 
 func TestOrderTotalsUnsetMeanNoFills(t *testing.T) {
-	got := decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 2})
+	got := mustDecoded(decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 2}))
 	if got.AvgPriceE18 != "0" || got.AvgPrice() != "0" || got.CumNotional != "0" || got.FeeTotal != nil {
 		t.Fatalf("order=%+v", got)
 	}
@@ -67,7 +67,7 @@ func TestOrderTotalsUnsetMeanNoFills(t *testing.T) {
 func TestQuoteUsedWaitsForEveryFillsFee(t *testing.T) {
 	msg := spentQuoteBuy()
 	msg.FeeTotal.QtyScaled = 4000000 // a fill's fee is still being recorded
-	got := decode.OrderFromProto(msg)
+	got := mustDecoded(decode.OrderFromProto(msg))
 	if _, ok := got.QuoteUsed(8); ok {
 		t.Fatal("quote used before every fill's fee is recorded")
 	}
@@ -75,13 +75,13 @@ func TestQuoteUsedWaitsForEveryFillsFee(t *testing.T) {
 		t.Fatal("quote unspent before every fill's fee is recorded")
 	}
 	msg.FeeTotal = nil // open-order reads and stream updates carry no fee total
-	if _, ok := decode.OrderFromProto(msg).QuoteUsed(8); ok {
+	if _, ok := mustDecoded(decode.OrderFromProto(msg)).QuoteUsed(8); ok {
 		t.Fatal("quote used without a fee total")
 	}
 }
 
 func TestQuoteUsedFollowsFeeAssetAndRebate(t *testing.T) {
-	order := decode.OrderFromProto(spentQuoteBuy())
+	order := mustDecoded(decode.OrderFromProto(spentQuoteBuy()))
 	order.FeeTotal.IsRebate = true
 	if used, ok := order.QuoteUsed(8); !ok || used != "3214.61627888684816" {
 		t.Fatalf("rebate used=%q ok=%v", used, ok)

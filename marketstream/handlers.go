@@ -353,10 +353,14 @@ func (c *Client) onTrades(m *tradesMsg) error {
 	transact := timeOf(m.transactNs)
 	ev := &Trades{SymbolID: m.symbolID, Symbol: symbol, BookEpoch: m.epoch, UpdateID: m.updateID, TransactTime: transact, SendTime: timeOf(m.sendNs), Trades: make([]Trade, len(fills))}
 	for i, f := range fills {
+		qty, err := codecs.DecodeQtyScaled(f.qty, scale, symbol, &m.symbolID, "Trades.qty")
+		if err != nil {
+			return &FrameError{TemplateID: ms.TradesSbeTemplateID, Msg: err.Error()}
+		}
 		ev.Trades[i] = Trade{
 			TradeID:      f.tradeID,
 			Price:        codecs.DecodePriceTicks(f.price, symbol),
-			Qty:          codecs.DecodeQtyScaled(f.qty, scale, symbol, &m.symbolID),
+			Qty:          qty,
 			TakerSide:    Side(f.side),
 			TransactTime: transact,
 		}
@@ -444,7 +448,11 @@ func (c *Client) quoteSide(symbolID uint32, price, qty int64) (*Level, error) {
 	}
 	scale, _ := c.cfg.Pairs.BaseQuantityScaleForSymbolID(symbolID)
 	symbol := c.symbol(symbolID)
-	return &Level{Price: codecs.DecodePriceTicks(price, symbol), Qty: codecs.DecodeQtyScaled(qty, scale, symbol, &symbolID)}, nil
+	q, err := codecs.DecodeQtyScaled(qty, scale, symbol, &symbolID, "BestBidOffer.qty")
+	if err != nil {
+		return nil, &FrameError{TemplateID: ms.BestBidOfferSbeTemplateID, Msg: err.Error()}
+	}
+	return &Level{Price: codecs.DecodePriceTicks(price, symbol), Qty: q}, nil
 }
 
 func (c *Client) onDepthSnapshot(m *depthSnapshotMsg) error {

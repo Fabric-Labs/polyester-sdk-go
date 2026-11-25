@@ -4,6 +4,7 @@ import (
 	"math"
 	"math/big"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -241,9 +242,19 @@ func DecodePriceTicks(ticks int64, symbol string) models.PriceTicks {
 	return value.WithSymbol(symbol)
 }
 
-// DecodeQtyScaled builds a read-side order quantity.
-func DecodeQtyScaled(scaled int64, scale int, symbol string, symbolID *uint32) models.QtyScaled {
-	q, _ := models.NewQtyScaled(scaled)
+// DecodeQtyScaled builds a read-side order quantity from the wire field
+// named field, such as "Order.orig_qty_scaled". 0 is a zero quantity: a
+// plain proto3 quantity that is omitted is 0 too. A negative value, which no
+// quantity can be, returns a *errors.ResponseContractError whose Operation
+// is field.
+func DecodeQtyScaled(scaled int64, scale int, symbol string, symbolID *uint32, field string) (models.QtyScaled, error) {
+	q, err := models.NewQtyScaled(scaled)
+	if err != nil {
+		return models.QtyScaled{}, &errors.ResponseContractError{
+			Operation: field,
+			Msg:       "negative quantity " + strconv.FormatInt(scaled, 10),
+		}
+	}
 	if scale >= 0 {
 		q = q.WithScale(scale)
 	}
@@ -251,7 +262,7 @@ func DecodeQtyScaled(scaled int64, scale int, symbol string, symbolID *uint32) m
 	if symbolID != nil {
 		q = q.WithSymbolID(*symbolID)
 	}
-	return q
+	return q, nil
 }
 
 // DecodeAssetAmount builds a read-side asset amount.

@@ -37,6 +37,11 @@ type Order struct {
 	// separately if you need it. CumQty and AvgPx are cumulative execution
 	// values across the lineage through the returned generation, not values
 	// limited to one physical order. LeavesQty is remaining working quantity.
+	//
+	// OrigQty is above 0 on a working order. It is 0 on a base-quantity
+	// order canceled before any fill with CancelReason "stp_decrement" or
+	// "qty_at_or_below_filled": the server sets the total to the filled
+	// quantity. It is 0, too, on a refused batch replacement (see Order).
 	OrigQty QtyScaled `json:"orig_qty,omitempty"`
 	CumQty  QtyScaled `json:"cum_qty,omitempty"`
 	// InheritedCumQty is the filled quantity a replacement inherited from its

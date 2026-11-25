@@ -314,7 +314,7 @@ func TestOrderStreamKeepsBatchRequestID(t *testing.T) {
 		if err := proto.Unmarshal(payload, &msg); err != nil {
 			t.Fatal(err)
 		}
-		streamed := decode.OrdersFromProto([]*orders.Order{&msg})
+		streamed := mustDecoded(decode.OrdersFromProto([]*orders.Order{&msg}))
 		requireBatch(t, "stream", &streamed[0], c.want)
 	}
 }

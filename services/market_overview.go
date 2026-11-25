@@ -67,7 +67,7 @@ func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limi
 		}
 		req.SymbolId = append(req.SymbolId, id)
 	}
-	return UnaryPublic(ctx, s.transport, s.client().ListMarketOverview, req, func(msg *marketoverviewv1.ListMarketOverviewResponse) models.MarketOverviewList {
+	return UnaryPublicDecoded(ctx, s.transport, s.client().ListMarketOverview, req, func(msg *marketoverviewv1.ListMarketOverviewResponse) (models.MarketOverviewList, error) {
 		return decode.MarketOverviewListFromProto(msg, s.catalogs)
 	})
 }

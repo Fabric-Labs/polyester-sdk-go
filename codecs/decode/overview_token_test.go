@@ -10,7 +10,7 @@ import (
 func TestReadOverviewOpaqueToken(t *testing.T) {
 	for _, token := range []string{"eyJ2IjoxfQ==", "000123", ""} {
 		raw := &overview.ListMarketOverviewResponse{Markets: []*overview.MarketOverview{{SymbolId: 1}}, NextPageToken: token}
-		result := decode.MarketOverviewListFromProto(raw, nil)
+		result := mustDecoded(decode.MarketOverviewListFromProto(raw, nil))
 		if len(result.Markets) != 1 {
 			t.Fatal(result)
 		}

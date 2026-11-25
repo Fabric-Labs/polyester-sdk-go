@@ -75,9 +75,9 @@ func MarketOverviewBatchDecoder(cats *catalogs.Manager) func([]byte) (models.Mar
 		if err := unmarshalProto(payload, &batch); err != nil {
 			return models.MarketOverviewList{}, err
 		}
-		out := make([]models.MarketOverviewEntry, 0, len(batch.GetMarkets()))
-		for _, row := range batch.GetMarkets() {
-			out = append(out, MarketOverviewEntryFromProto(row, cats))
+		out, err := marketOverviewEntriesFromProto(batch.GetMarkets(), cats)
+		if err != nil {
+			return models.MarketOverviewList{}, err
 		}
 		return models.MarketOverviewList{Markets: out}, nil
 	}
@@ -103,11 +103,7 @@ func UserTradeBatchFromBytes(payload []byte) ([]models.UserTrade, error) {
 	if err := unmarshalProto(payload, &msg); err != nil {
 		return nil, err
 	}
-	out := make([]models.UserTrade, 0, len(msg.GetEvents()))
-	for _, trade := range msg.GetEvents() {
-		out = append(out, UserTradeFromProto(trade))
-	}
-	return out, nil
+	return userTradesFromProto(msg.GetEvents())
 }
 
 // LedgerTransferBatchFromBytes parses a ledger transfer publication: a batch
@@ -131,7 +127,7 @@ func TriggerFromBytes(payload []byte) (models.Trigger, error) {
 	if err := unmarshalProto(payload, &msg); err != nil {
 		return models.Trigger{}, err
 	}
-	return TriggerFromProto(&msg), nil
+	return TriggerFromProto(&msg)
 }
 
 // TriggerEventBatchFromBytes parses a trigger event publication: a batch of
@@ -249,11 +245,7 @@ func MarketTradeBatchFromBytes(quantityScale int) func([]byte) ([]models.MarketT
 		if err := unmarshalProto(payload, &msg); err != nil {
 			return nil, err
 		}
-		out := make([]models.MarketTrade, 0, len(msg.GetEvents()))
-		for _, trade := range msg.GetEvents() {
-			out = append(out, marketTradeFromProto(trade, quantityScale))
-		}
-		return out, nil
+		return marketTradesFromProto(msg.GetEvents(), quantityScale)
 	}
 }
 

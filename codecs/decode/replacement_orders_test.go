@@ -9,16 +9,16 @@ import (
 )
 
 func TestOrderFromProtoExposesInheritedCumQty(t *testing.T) {
-	order := OrderFromProto(&orderv1.Order{
+	order := mustDecoded(OrderFromProto(&orderv1.Order{
 		OrderId: 2, SymbolId: 1, CumQtyScaled: 7, InheritedCumQtyScaled: 5,
-	})
+	}))
 	if order.InheritedCumQty.Scaled() != 5 || order.CumQty.Scaled() != 7 {
 		t.Fatalf("inherited=%d cum=%d", order.InheritedCumQty.Scaled(), order.CumQty.Scaled())
 	}
 	if id := order.InheritedCumQty.SymbolID(); id == nil || *id != 1 {
 		t.Fatalf("inherited quantity must carry the order's symbol: %v", id)
 	}
-	if original := OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 1}); original.InheritedCumQty.Scaled() != 0 {
+	if original := mustDecoded(OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 1})); original.InheritedCumQty.Scaled() != 0 {
 		t.Fatalf("original order inherited=%d", original.InheritedCumQty.Scaled())
 	}
 }

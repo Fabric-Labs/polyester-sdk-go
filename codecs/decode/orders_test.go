@@ -34,7 +34,7 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 		CreatedTsNs:     1_700_000_000_000,
 		PostOnly:        true,
 	}
-	order := decode.OrderFromProto(msg)
+	order := mustDecoded(decode.OrderFromProto(msg))
 	if order.OrderID != codecs.FormatUint64ID(42) {
 		t.Fatalf("order_id=%q", order.OrderID)
 	}
@@ -51,7 +51,7 @@ func TestOrderFromProtoMapsEnumsAndIDs(t *testing.T) {
 		t.Fatalf("expected post_only=true, got %+v", order)
 	}
 	msg.Version = 7
-	order = decode.OrderFromProto(msg)
+	order = mustDecoded(decode.OrderFromProto(msg))
 	if order.Version != 7 {
 		t.Fatalf("version=%d", order.Version)
 	}
@@ -64,7 +64,7 @@ func TestOrderFromProtoMapsGTDExpireAt(t *testing.T) {
 		TimeInForce: orderv1.TimeInForce_GTD,
 		ExpireAt:    timestamppb.New(time.Unix(1_700_000_000, 0).UTC()),
 	}
-	order := decode.OrderFromProto(msg)
+	order := mustDecoded(decode.OrderFromProto(msg))
 	if order.TIF != "gtd" {
 		t.Fatalf("tif=%q", order.TIF)
 	}
@@ -74,8 +74,8 @@ func TestOrderFromProtoMapsGTDExpireAt(t *testing.T) {
 }
 
 func TestOrderOrigQtyIsCurrentAcceptedTotal(t *testing.T) {
-	before := decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 3, OrigQtyScaled: 100, LeavesQtyScaled: 100})
-	after := decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 3, OrigQtyScaled: 150, LeavesQtyScaled: 150})
+	before := mustDecoded(decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 3, OrigQtyScaled: 100, LeavesQtyScaled: 100}))
+	after := mustDecoded(decode.OrderFromProto(&orderv1.Order{OrderId: 1, SymbolId: 3, OrigQtyScaled: 150, LeavesQtyScaled: 150}))
 	if before.OrigQty.Scaled() != 100 || after.OrigQty.Scaled() != 150 {
 		t.Fatalf("orig_qty before=%+v after=%+v", before.OrigQty, after.OrigQty)
 	}
@@ -139,7 +139,7 @@ func TestOrderFromProtoMapsAttachedRisk(t *testing.T) {
 			Oco: true,
 		},
 	}
-	order := decode.OrderFromProto(msg)
+	order := mustDecoded(decode.OrderFromProto(msg))
 	if order.AttachedRisk == nil {
 		t.Fatal("expected attached_risk")
 	}
@@ -219,7 +219,7 @@ func TestOrderFromProtoMapsStateOnlyAttachedRiskLegs(t *testing.T) {
 	tpTriggerID, tpChildOrderID := uint64(301), uint64(401)
 	slTriggerID, slChildOrderID := uint64(302), uint64(402)
 	trailingTriggerID, trailingChildOrderID := uint64(303), uint64(403)
-	order := decode.OrderFromProto(&orderv1.Order{
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  2,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -252,7 +252,7 @@ func TestOrderFromProtoMapsStateOnlyAttachedRiskLegs(t *testing.T) {
 			},
 			Oco: true,
 		},
-	})
+	}))
 	if order.AttachedRisk == nil {
 		t.Fatal("state-only attached risk was omitted")
 	}
@@ -290,7 +290,7 @@ func TestOrderFromProtoMapsStateOnlyAttachedRiskLegs(t *testing.T) {
 }
 
 func TestOrderFromProtoOmitsEmptyPolicyWrappers(t *testing.T) {
-	order := decode.OrderFromProto(&orderv1.Order{
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  3,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -300,7 +300,7 @@ func TestOrderFromProtoOmitsEmptyPolicyWrappers(t *testing.T) {
 				Policy: &orderv1.TrailingStopPolicy{},
 			},
 		},
-	})
+	}))
 	if order.AttachedRisk != nil {
 		t.Fatalf("unusable policy wrappers must be omitted: %+v", order.AttachedRisk)
 	}
@@ -308,7 +308,7 @@ func TestOrderFromProtoOmitsEmptyPolicyWrappers(t *testing.T) {
 
 func TestOrderFromProtoOmitsEmptyStateWrappers(t *testing.T) {
 	emptyState := &orderv1.AttachedRiskLegState{}
-	order := decode.OrderFromProto(&orderv1.Order{
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  3,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -316,7 +316,7 @@ func TestOrderFromProtoOmitsEmptyStateWrappers(t *testing.T) {
 			StopLoss:     &orderv1.AttachedRiskStopLoss{State: emptyState},
 			TrailingStop: &orderv1.AttachedRiskTrailingStop{State: emptyState},
 		},
-	})
+	}))
 	if order.AttachedRisk != nil {
 		t.Fatalf("empty state wrappers must be omitted: %+v", order.AttachedRisk)
 	}
@@ -337,14 +337,14 @@ func TestOrderFromProtoOmitsTrailingPolicyWithoutDistance(t *testing.T) {
 			},
 		},
 	}
-	order := decode.OrderFromProto(msg)
+	order := mustDecoded(decode.OrderFromProto(msg))
 	if order.AttachedRisk != nil {
 		t.Fatalf("trailing policy without positive distance must be omitted: %+v", order.AttachedRisk)
 	}
 }
 
 func TestOrderFromProtoPreservesUsablePolicyOnlyLegs(t *testing.T) {
-	order := decode.OrderFromProto(&orderv1.Order{
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  4,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -360,7 +360,7 @@ func TestOrderFromProtoPreservesUsablePolicyOnlyLegs(t *testing.T) {
 				},
 			}},
 		},
-	})
+	}))
 	if order.AttachedRisk == nil ||
 		order.AttachedRisk.TakeProfit == nil ||
 		order.AttachedRisk.StopLoss == nil ||
@@ -893,7 +893,7 @@ func TestCancelAllAfterRequiresKnownStatus(t *testing.T) {
 func TestOrderFromProtoOmitsNotConfiguredAttachedRiskLegs(t *testing.T) {
 	notConfigured := &orderv1.AttachedRiskLegState{Status: orderv1.AttachedRiskLegState_NOT_CONFIGURED}
 	triggerID := uint64(5584097434927106)
-	order := decode.OrderFromProto(&orderv1.Order{
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId: 7,
 		AttachedRisk: &orderv1.AttachedRisk{
 			TakeProfit: &orderv1.AttachedRiskTakeProfit{
@@ -907,7 +907,7 @@ func TestOrderFromProtoOmitsNotConfiguredAttachedRiskLegs(t *testing.T) {
 			TrailingStop: &orderv1.AttachedRiskTrailingStop{State: notConfigured},
 			Oco:          true,
 		},
-	})
+	}))
 	risk := order.AttachedRisk
 	if risk == nil || risk.TakeProfit == nil {
 		t.Fatalf("configured take-profit missing: %+v", risk)
@@ -915,10 +915,10 @@ func TestOrderFromProtoOmitsNotConfiguredAttachedRiskLegs(t *testing.T) {
 	if risk.StopLoss != nil || risk.TrailingStop != nil {
 		t.Fatalf("NOT_CONFIGURED legs decoded as legs: stop_loss=%+v trailing_stop=%+v", risk.StopLoss, risk.TrailingStop)
 	}
-	onlyUnconfigured := decode.OrderFromProto(&orderv1.Order{
+	onlyUnconfigured := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:      8,
 		AttachedRisk: &orderv1.AttachedRisk{TrailingStop: &orderv1.AttachedRiskTrailingStop{State: notConfigured}},
-	})
+	}))
 	if onlyUnconfigured.AttachedRisk != nil {
 		t.Fatalf("all-unconfigured attached risk decoded: %+v", onlyUnconfigured.AttachedRisk)
 	}
@@ -1022,7 +1022,7 @@ func TestOrderFromProtoDecodesAttachedRiskTriggerPriceSource(t *testing.T) {
 	marketChild := &orderv1.RiskExecution{
 		Execution: &orderv1.RiskExecution_MarketIoc{MarketIoc: &orderv1.RiskMarketIoc{}},
 	}
-	order := decode.OrderFromProto(&orderv1.Order{
+	order := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  1,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -1041,7 +1041,7 @@ func TestOrderFromProtoDecodesAttachedRiskTriggerPriceSource(t *testing.T) {
 				TriggerPriceSource: orderv1.TriggerPriceSource_INDEX_PRICE,
 			}},
 		},
-	})
+	}))
 	risk := order.AttachedRisk
 	if risk == nil || risk.TakeProfit == nil || risk.StopLoss == nil || risk.TrailingStop == nil {
 		t.Fatalf("risk=%+v", risk)
@@ -1052,7 +1052,7 @@ func TestOrderFromProtoDecodesAttachedRiskTriggerPriceSource(t *testing.T) {
 			risk.TakeProfit.TriggerPriceSource, risk.StopLoss.TriggerPriceSource, risk.TrailingStop.TriggerPriceSource)
 	}
 
-	unnamed := decode.OrderFromProto(&orderv1.Order{
+	unnamed := mustDecoded(decode.OrderFromProto(&orderv1.Order{
 		OrderId:  2,
 		SymbolId: 1,
 		AttachedRisk: &orderv1.AttachedRisk{
@@ -1061,7 +1061,7 @@ func TestOrderFromProtoDecodesAttachedRiskTriggerPriceSource(t *testing.T) {
 				Child:             marketChild,
 			}},
 		},
-	})
+	}))
 	if unnamed.AttachedRisk == nil || unnamed.AttachedRisk.StopLoss == nil ||
 		unnamed.AttachedRisk.StopLoss.TriggerPriceSource != "" {
 		t.Fatalf("unnamed source=%+v", unnamed.AttachedRisk)

@@ -11,7 +11,7 @@ import (
 // A canceled trigger reads "canceled", the spelling of its
 // canceled event and of every other SDK. "cancelled" is not a filter value.
 func TestCanceledTriggerStatusUsesContractSpelling(t *testing.T) {
-	trigger := TriggerFromProto(&triggersv1.Trigger{TriggerId: 7, Status: triggersv1.TriggerStatus_STATUS_CANCELED})
+	trigger := mustDecoded(TriggerFromProto(&triggersv1.Trigger{TriggerId: 7, Status: triggersv1.TriggerStatus_STATUS_CANCELED}))
 	if trigger.Status != "canceled" {
 		t.Fatalf("Status = %q, want canceled", trigger.Status)
 	}

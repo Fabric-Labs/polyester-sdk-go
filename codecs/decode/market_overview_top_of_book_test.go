@@ -75,9 +75,9 @@ func assertTopOfBook(t *testing.T, row models.MarketOverviewEntry) {
 
 // List rows keep the 24h range, top of book and times.
 func TestMarketOverviewListKeepsRangeTopOfBookAndTimes(t *testing.T) {
-	list := MarketOverviewListFromProto(&overviewpb.ListMarketOverviewResponse{
+	list := mustDecoded(MarketOverviewListFromProto(&overviewpb.ListMarketOverviewResponse{
 		Markets: []*overviewpb.MarketOverview{topOfBookRow()},
-	}, topOfBookCatalogs(t))
+	}, topOfBookCatalogs(t)))
 	assertTopOfBook(t, list.Markets[0])
 }
 
@@ -106,7 +106,7 @@ func TestMarketOverviewEmptySideAndTimesAreUnset(t *testing.T) {
 			} else {
 				msg.BestAskTicks, msg.BestAskQtyScaled = 0, 0
 			}
-			row := MarketOverviewEntryFromProto(msg, topOfBookCatalogs(t))
+			row := mustDecoded(MarketOverviewEntryFromProto(msg, topOfBookCatalogs(t)))
 			if row.High24h != nil || row.Low24h != nil || row.LastTradeTsNs != "" || row.ListedTsNs != "" {
 				t.Fatalf("unset range or times decoded as set: %+v", row)
 			}

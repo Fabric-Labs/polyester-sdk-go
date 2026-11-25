@@ -18,7 +18,7 @@ func orderReadPaths(msg *orderv1.Order) map[string]models.Order {
 		"GetOrder":     *mustReply(decode.GetOrderFromProto(&orderv1.GetOrderResponse{Order: msg})).Order,
 		"open orders":  mustReply(decode.OrdersListFromOpen(&orderv1.GetOpenOrdersResponse{Orders: []*orderv1.Order{msg}})).Orders[0],
 		"history":      mustReply(decode.OrdersListFromHistory(&orderv1.GetOrderHistoryResponse{Orders: []*orderv1.Order{msg}})).Orders[0],
-		"order stream": decode.OrdersFromProto([]*orderv1.Order{msg})[0],
+		"order stream": mustDecoded(decode.OrdersFromProto([]*orderv1.Order{msg}))[0],
 	}
 }
 

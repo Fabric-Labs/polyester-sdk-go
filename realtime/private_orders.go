@@ -629,6 +629,15 @@ func (p *privateOrderStream) refresh(conn *privateConn, s *orderStreamSub) {
 // resubscribe drops the server subscription and subscribes again from the
 // last applied cursor: at once the first time, then with backoff until the
 // subscription delivers data.
+// refuseUnit reports a snapshot or unit that breaks the contract, such as
+// an order with a negative quantity, as a *errors.RealtimeError whose Err is
+// the *errors.ResponseContractError, and subscribes again from the last
+// cursor: nothing of it is delivered.
+func (p *privateOrderStream) refuseUnit(conn *privateConn, s *orderStreamSub, err error) {
+	p.report(s, &sdkerrors.RealtimeError{Msg: "private order stream: " + err.Error(), Err: err})
+	p.resubscribe(conn, s)
+}
+
 func (p *privateOrderStream) resubscribe(conn *privateConn, s *orderStreamSub) {
 	if s.sub != "" {
 		delete(p.bySub, s.sub)
@@ -788,9 +797,14 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 			p.resubscribe(conn, s)
 			return
 		}
+		orders, err := decode.OrdersFromProto(staged)
+		if err != nil {
+			s.cursor = ""
+			p.refuseUnit(conn, s, err)
+			return
+		}
 		s.cursor = frame.SnapshotEnd.GetCursor()
 		s.retries = 0
-		orders := decode.OrdersFromProto(staged)
 		decode.ScaleOrders(orders, p.cfg.quantityScales)
 		s.orders = make(map[uint64]models.Order, len(orders))
 		for i, order := range staged {
@@ -799,11 +813,19 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		p.deliver(s, OrderSnapshot{Orders: orders})
 	case *privatewsv1.ServerMessage_Unit:
 		unit := frame.Unit
+		orders, err := decode.OrdersFromProto(unit.GetOrders())
+		if err != nil {
+			p.refuseUnit(conn, s, err)
+			return
+		}
+		events, err := decode.OrderUnitEventsFromProto(unit.GetEvents(), unit.GetOrders())
+		if err != nil {
+			p.refuseUnit(conn, s, err)
+			return
+		}
 		s.cursor = unit.GetNextCursor()
 		s.retries = 0
-		orders := decode.OrdersFromProto(unit.GetOrders())
 		decode.ScaleOrders(orders, p.cfg.quantityScales)
-		events := decode.OrderUnitEventsFromProto(unit.GetEvents(), unit.GetOrders())
 		decode.ScaleOrderUnitEvents(events, p.cfg.quantityScales)
 		removed := make([]string, 0, len(unit.GetRemovedOrderIds()))
 		if s.orders != nil {

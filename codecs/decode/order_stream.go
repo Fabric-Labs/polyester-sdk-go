@@ -11,32 +11,42 @@ import (
 )
 
 // OrdersFromProto decodes orders with the same decoder as the order reads.
-func OrdersFromProto(msgs []*orderv1.Order) []models.Order {
+// An order with a negative quantity returns a *errors.ResponseContractError.
+func OrdersFromProto(msgs []*orderv1.Order) ([]models.Order, error) {
 	out := make([]models.Order, 0, len(msgs))
 	for _, msg := range msgs {
-		out = append(out, OrderFromProto(msg))
+		order, err := OrderFromProto(msg)
+		if err != nil {
+			return nil, err
+		}
+		out = append(out, order)
 	}
-	return out
+	return out, nil
 }
 
 // OrderUnitEventsFromProto decodes a private order stream unit's events, in
 // order. orders are the unit's changed orders; a fill takes its quantity's
 // symbol from its order there. Events of a kind this SDK does not know are
-// skipped.
-func OrderUnitEventsFromProto(events []*privatewsv1.UnitEvent, orders []*orderv1.Order) []models.OrderUnitEvent {
+// skipped. A fill with a negative quantity returns a
+// *errors.ResponseContractError.
+func OrderUnitEventsFromProto(events []*privatewsv1.UnitEvent, orders []*orderv1.Order) ([]models.OrderUnitEvent, error) {
 	out := make([]models.OrderUnitEvent, 0, len(events))
 	for _, event := range events {
 		switch kind := event.GetKind().(type) {
 		case *privatewsv1.UnitEvent_Order:
-			out = append(out, models.OrderUnitEvent{Order: orderEventFromProto(kind.Order, orders)})
+			order, err := orderEventFromProto(kind.Order, orders)
+			if err != nil {
+				return nil, err
+			}
+			out = append(out, models.OrderUnitEvent{Order: order})
 		case *privatewsv1.UnitEvent_Outcome:
 			out = append(out, models.OrderUnitEvent{Outcome: commandOutcomeFromProto(kind.Outcome)})
 		}
 	}
-	return out
+	return out, nil
 }
 
-func orderEventFromProto(msg *privatewsv1.OrderEvent, orders []*orderv1.Order) *models.OrderEvent {
+func orderEventFromProto(msg *privatewsv1.OrderEvent, orders []*orderv1.Order) (*models.OrderEvent, error) {
 	event := &models.OrderEvent{
 		OrderID: codecs.FormatUint64ID(msg.GetOrderId()),
 		Version: msg.GetVersion(),
@@ -56,15 +66,19 @@ func orderEventFromProto(msg *privatewsv1.OrderEvent, orders []*orderv1.Order) *
 				break
 			}
 		}
+		qty, err := codecs.DecodeQtyScaled(fill.GetQtyScaled(), -1, "", symbolID, "OrderEvent.fill.qty_scaled")
+		if err != nil {
+			return nil, err
+		}
 		event.Fill = &models.OrderFill{
 			MatchID: strconv.FormatUint(fill.GetMatchId(), 10),
 			Ordinal: fill.GetOrdinal(),
 			Role:    fillRole(fill.GetRole()),
-			Qty:     codecs.DecodeQtyScaled(fill.GetQtyScaled(), -1, "", symbolID),
+			Qty:     qty,
 			Price:   codecs.DecodePriceTicks(fill.GetPriceTicks(), ""),
 		}
 	}
-	return event
+	return event, nil
 }
 
 func commandOutcomeFromProto(msg *privatewsv1.CommandOutcome) *models.OrderCommandOutcome {
