@@ -2,7 +2,9 @@ package services
 
 import (
 	"context"
+	"fmt"
 	"iter"
+	"strings"
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -15,9 +17,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-// StatementsService exports account statements: an account's balance
-// movements for a period, with fees and the balance after each entry, as one
-// CSV file produced in the background.
+// StatementsService exports an account's balance movements for a period as
+// one CSV file produced in the background: an account statement, with fees
+// and the balance after each entry, a ledger, one row per transfer leg, or
+// the account's balances at both ends of the period.
 // An API key needs READ_STATEMENTS on its policy (READ_BALANCES and
 // READ_INTERNAL_TRANSFERS do not grant it).
 type StatementsService struct {
@@ -29,9 +32,19 @@ func NewStatementsService(factory *transport.Factory, defaultSubAccountID *strin
 	return &StatementsService{transport: factory, scoped: ScopedSubAccount{DefaultSubAccountID: defaultSubAccountID}}
 }
 
-// CreateStatementExportOptions asks for a whole-period statement file of one
-// account.
+// CreateStatementExportOptions asks for a whole-period account statement,
+// ledger or balances file of one account.
 type CreateStatementExportOptions struct {
+	// Type is the kind of file to produce, and is required:
+	// models.StatementExportTypeAccountStatement (the account statement),
+	// models.StatementExportTypeLedger or models.StatementExportTypeBalances.
+	// Every type has the same period, asset filter, limits and lifecycle; a
+	// balances period must also start inside the account history, or the
+	// create is refused with errors.CodeStatementHistoryUnavailable and
+	// errors.APIError.HistoryAvailableFrom says where it starts. An empty or
+	// unknown type is refused before sending; repeating an IdempotencyKey
+	// with another type is refused with ERROR_CODE_IDEMPOTENCY_KEY_REUSED.
+	Type string
 	// Account and SubAccountID select the account as for Transfers.List:
 	// pass one or neither. With neither, the client's DefaultSubAccountID is
 	// used, and without one the statement covers the account the credentials
@@ -69,10 +82,11 @@ func (s *StatementsService) exportsClient() ledgerrdv1connect.StatementExportSer
 	return ledgerrdv1connect.NewStatementExportServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(true)...)
 }
 
-// CreateExport asks for a whole-period statement produced in the background
-// as one CSV file, or returns the export already created under the same
-// idempotency key. Poll it with GetExport until its Status is "ready" or
-// "failed", then download the file over REST (see models.StatementExport).
+// CreateExport asks for a whole-period account statement, ledger or
+// balances file, as opts.Type says, produced in the background as one CSV file, or returns the
+// export already created under the same idempotency key. Poll it with
+// GetExport until its Status is "ready" or "failed", then download the file
+// over REST (see models.StatementExport).
 // A root account has at most 5 exports queued or processing; another create
 // is refused with ERROR_CODE_STATEMENT_EXPORT_LIMIT_REACHED, which is not
 // retryable until one of them finishes. An API key needs READ_STATEMENTS.
@@ -83,7 +97,12 @@ func (s *StatementsService) CreateExport(ctx context.Context, opts CreateStateme
 	if !opts.EndTime.After(opts.StartTime) || opts.EndTime.Sub(opts.StartTime) > codecs.StatementExportMaxPeriod {
 		return models.StatementExport{}, &errors.ValidationError{Msg: "statement export EndTime must be after StartTime and at most 366 days after it"}
 	}
+	exportType, err := statementExportType(opts.Type)
+	if err != nil {
+		return models.StatementExport{}, err
+	}
 	req := &ledgerrdv1.CreateStatementExportRequest{
+		Type:           exportType,
 		StartTime:      timestamppb.New(opts.StartTime),
 		EndTime:        timestamppb.New(opts.EndTime),
 		AssetId:        opts.AssetID,
@@ -96,6 +115,17 @@ func (s *StatementsService) CreateExport(ctx context.Context, opts CreateStateme
 		return models.StatementExport{}, err
 	}
 	return UnaryAuthDecoded(ctx, s.transport, s.exportsClient().CreateStatementExport, req, decode.StatementExportFromCreate)
+}
+
+// statementExportType maps a models.StatementExportType* label to the
+// contract's type. The server refuses the unspecified type, so an empty or
+// unknown label is refused here.
+func statementExportType(label string) (ledgerrdv1.StatementExportType, error) {
+	value, ok := ledgerrdv1.StatementExportType_value[strings.ToUpper(strings.TrimSpace(label))]
+	if !ok || value == 0 {
+		return 0, &errors.ValidationError{Msg: fmt.Sprintf("statement export requires Type %q, %q or %q; got %q", models.StatementExportTypeAccountStatement, models.StatementExportTypeLedger, models.StatementExportTypeBalances, label)}
+	}
+	return ledgerrdv1.StatementExportType(value), nil
 }
 
 // GetExport reads one statement export by its public ID.

@@ -61,6 +61,7 @@ func subAccount(msg *authv1.Subaccount) models.SubAccount {
 		SubaccountPolicyID:    optionalID(msg.GetSubaccountPolicyId()),
 		RequireMemberMFA:      msg.GetRequireMemberMfa(),
 		SmartAccountSaltNonce: saltNonce,
+		StrategyBot:           msg.GetStrategyBot(),
 	}
 }
 

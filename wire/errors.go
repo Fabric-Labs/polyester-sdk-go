@@ -417,7 +417,12 @@ func mapConnectError(err error) error {
 			if isAuthLikeErrorCode(code, connectErr.Code()) {
 				return &sdkerrors.AuthError{Msg: msg, Code: code}
 			}
-			return &sdkerrors.APIError{Msg: msg, Code: code}
+			apiErr := &sdkerrors.APIError{Msg: msg, Code: code}
+			if ledgerDetail.HistoryAvailableFrom != nil {
+				from := ledgerDetail.GetHistoryAvailableFrom().AsTime()
+				apiErr.HistoryAvailableFrom = &from
+			}
+			return apiErr
 		}
 		if transferDetail, ok := value.(*transferv1.ErrorDetail); ok {
 			code := transferDetail.GetCode().String()

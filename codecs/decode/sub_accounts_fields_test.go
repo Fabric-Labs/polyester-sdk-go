@@ -17,7 +17,7 @@ import (
 // inviter_account_id, created_at, responded_at and its display fields;
 // SubaccountMemberView carries mfa_enrolled and the member's display fields;
 // Subaccount carries subaccount_policy_id, require_member_mfa,
-// smart_account_salt_nonce and its display fields. Every read keeps them.
+// smart_account_salt_nonce, strategy_bot and its display fields. Every read keeps them.
 func TestSubaccountReadsKeepEveryContractField(t *testing.T) {
 	created := time.Date(2026, 11, 18, 1, 2, 3, 0, time.UTC)
 	responded := created.Add(time.Hour)
@@ -58,6 +58,7 @@ func TestSubaccountReadsKeepEveryContractField(t *testing.T) {
 		OwnerAvatarUrl:               "https://example.com/o.png",
 		OwnerRootSmartAccountAddress: "0x5555555555555555555555555555555555555555",
 		SubaccountPolicyId:           8, RequireMemberMfa: true, SmartAccountSaltNonce: proto.Uint32(3),
+		StrategyBot: true,
 	}
 
 	got := mustReply(GetSubaccountFromProto(&authv1.GetSubaccountResponse{
@@ -73,7 +74,7 @@ func TestSubaccountReadsKeepEveryContractField(t *testing.T) {
 	if s.SubaccountPolicyID != codecs.FormatID(8) || !s.RequireMemberMFA || s.SmartAccountSaltNonce == nil ||
 		*s.SmartAccountSaltNonce != 3 || s.Icon != "🚀" || s.Color != "teal" || s.OwnerUsername != "alice" ||
 		s.OwnerAvatarURL != "https://example.com/o.png" ||
-		s.OwnerRootSmartAccountAddress != "0x5555555555555555555555555555555555555555" {
+		s.OwnerRootSmartAccountAddress != "0x5555555555555555555555555555555555555555" || !s.StrategyBot {
 		t.Errorf("Get subaccount = %+v", *s)
 	}
 
