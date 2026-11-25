@@ -444,7 +444,7 @@ transfer.v1.DustConversion.conversion_id	required
 transfer.v1.DustConversion.quote_id	not_required	reference to the quote the conversion converted
 transfer.v1.DustConversion.target_asset_id	not_required	reference to an asset
 transfer.v1.DustSource.asset_id	not_required	reference to an asset
-transfer.v1.GetInternalTransferBatchResponse.request_id	required	
+transfer.v1.GetInternalTransferBatchResponse.request_id	not_required	empty for BATCH_ABANDONED, which only a read by idempotency key answers; a read by request ID must echo the ID it asked for, which the decoder checks
 transfer.v1.GetInternalTransferResponse.flow_id	not_required	an older server sends none, as for CreateInternalTransfer
 transfer.v1.GetInternalTransferResponse.request_id	required	
 transfer.v1.GetInternalTransferResponse.transfer_id	required	

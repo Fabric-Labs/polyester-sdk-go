@@ -206,6 +206,11 @@ func answerCode(err error) string {
 // batch answers ERROR_CODE_NOT_FOUND, as an unknown one does. A requestID that is
 // not a decimal batch ID (1 to 39 digits, no leading zero) is refused with an
 // *errors.ValidationError before sending.
+//
+// GetBatch reads by request ID only, so its reply must echo that ID: one that
+// names another batch, or none, is an *errors.ResponseContractError. An
+// abandoned key has no request ID and never answers this read; AbandonBatch
+// with the key reads it ("abandoned", with no request ID and no legs).
 func (s *InternalTransfersService) GetBatch(ctx context.Context, requestID string) (models.InternalTransferBatchResult, error) {
 	req := &transferv1.GetInternalTransferBatchRequest{RequestId: requestID}
 	if err := codecs.CheckContractString(req, "request_id", requestID, "request_id"); err != nil {
