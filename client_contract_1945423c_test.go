@@ -43,6 +43,8 @@ type contractAPI struct {
 
 	batch      func(*transferv1.BatchCreateInternalTransfersRequest) *transferv1.BatchCreateInternalTransfersResponse
 	batchRead  *transferv1.GetInternalTransferBatchResponse
+	batchErr   error
+	abandon    func(*transferv1.AbandonInternalTransferBatchRequest) (*transferv1.AbandonInternalTransferBatchResponse, error)
 	conversion *transferv1.DustConversion
 	export     *ledgerrdv1.StatementExport
 	flow       *lifecyclev1.FlowDetailView
@@ -69,6 +71,9 @@ func (a *contractAPI) sent(t *testing.T) []proto.Message {
 
 func (a *contractAPI) BatchCreateInternalTransfers(_ context.Context, req *connect.Request[transferv1.BatchCreateInternalTransfersRequest]) (*connect.Response[transferv1.BatchCreateInternalTransfersResponse], error) {
 	a.record(req.Header(), req.Msg)
+	if a.batchErr != nil {
+		return nil, a.batchErr
+	}
 	return connect.NewResponse(a.batch(req.Msg)), nil
 }
 

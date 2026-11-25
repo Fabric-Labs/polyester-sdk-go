@@ -1746,7 +1746,9 @@ SDK notes:
 - **Several Trading → trading transfers at once:**
   `client.InternalTransfers.CreateBatch(ctx, legs, idempotencyKey)` moves
   up to 500 legs together, all or none, under one idempotency key and one MFA
-  check (see
+  check, and `client.InternalTransfers.AbandonBatch(ctx, idempotencyKey)`
+  makes sure a batch whose answer was lost either is answered or never moves
+  (see
   [Batch internal transfers](#batch-internal-transfers)).
 
 API-key withdrawals always use the authenticated key's bound account or
@@ -2151,6 +2153,22 @@ HTTP 429 `RATE_LIMIT_EXCEEDED` without a Retry-After (an
 account's burst. Different legs under a used key are refused with
 `ERROR_CODE_IDEMPOTENCY_CONFLICT`.
 Each leg's `Destination` is the destination the server resolved for it.
+
+To give up a batch whose outcome you never learned, abandon its key:
+
+```go
+result, err := client.InternalTransfers.AbandonBatch(ctx, "rebalance-2026-11-13-1")
+```
+
+If a batch was submitted under the key, `AbandonBatch` answers it, as
+`GetBatch` reads it, and changes nothing. Otherwise it answers `Status`
+`abandoned`, with no `RequestID` and no legs: nothing moved under the key and
+nothing ever will. A later `CreateBatch` under that key, a retry included, is
+refused with an `*errors.APIError` for which
+`errors.IsIdempotencyKeyAbandoned(err)` is true
+(`ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED`); it is final and not retryable, so
+submit under a new key. Abandoning needs `INTERNAL_TRANSFER` on the API key's
+policy but no MFA, and calling it again with the same key is always safe.
 
 ## Public market data
 
