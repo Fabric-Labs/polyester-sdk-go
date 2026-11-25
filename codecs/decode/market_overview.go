@@ -138,15 +138,16 @@ func optionalPrice(ticks int64, symbol string) *models.PriceTicks {
 }
 
 // bookSide is the best price of one side of the book and the base quantity
-// at it; both nil when that side is empty.
+// at it; both nil when that side is empty. A negative quantity is refused
+// whether or not the side has a price.
 func bookSide(ticks, qtyScaled int64, scale int, symbol string, symbolID uint32, field string) (*models.PriceTicks, *models.QtyScaled, error) {
-	price := optionalPrice(ticks, symbol)
-	if price == nil {
-		return nil, nil, nil
-	}
 	qty, err := codecs.DecodeQtyScaled(qtyScaled, scale, symbol, &symbolID, field)
 	if err != nil {
 		return nil, nil, err
+	}
+	price := optionalPrice(ticks, symbol)
+	if price == nil {
+		return nil, nil, nil
 	}
 	return price, &qty, nil
 }

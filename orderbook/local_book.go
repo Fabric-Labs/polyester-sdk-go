@@ -21,6 +21,10 @@ func LevelsFromProtoLevels(levels []*orderbookv1.PriceLevel) (BookSide, error) {
 		if level == nil {
 			return nil, &sdkerrors.ValidationError{Msg: "orderbook level is missing"}
 		}
+		// A negative quantity is corrupt, not a missing one.
+		if _, err := codecs.DecodeQtyScaled(level.GetQtyScaled(), -1, "", nil, "PriceLevel.qty_scaled"); err != nil {
+			return nil, err
+		}
 		price := int(level.GetPriceTicks())
 		qty := int(level.GetQtyScaled())
 		if price <= 0 {
