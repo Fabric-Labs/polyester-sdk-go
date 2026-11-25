@@ -39,6 +39,10 @@ const (
 	SwapServiceCreateSwapProcedure = "/swap.v1.SwapService/CreateSwap"
 	// SwapServiceGetSwapProcedure is the fully-qualified name of the SwapService's GetSwap RPC.
 	SwapServiceGetSwapProcedure = "/swap.v1.SwapService/GetSwap"
+	// SwapServiceCancelSwapProcedure is the fully-qualified name of the SwapService's CancelSwap RPC.
+	SwapServiceCancelSwapProcedure = "/swap.v1.SwapService/CancelSwap"
+	// SwapServiceListSwapsProcedure is the fully-qualified name of the SwapService's ListSwaps RPC.
+	SwapServiceListSwapsProcedure = "/swap.v1.SwapService/ListSwaps"
 )
 
 // SwapServiceClient is a client for the swap.v1.SwapService service.
@@ -77,6 +81,8 @@ type SwapServiceClient interface {
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	CreateSwap(context.Context, *connect.Request[v1.CreateSwapRequest]) (*connect.Response[v1.CreateSwapResponse], error)
 	// GetSwap returns one of the caller's Swaps by swap_id or idempotency key.
+	// It needs the SWAP permission on the Swap's funding account; the Swaps of
+	// a sub-account that is not active can still be read.
 	//
 	// Errors:
 	// - INVALID_ARGUMENT: malformed selector.
@@ -85,6 +91,68 @@ type SwapServiceClient interface {
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
 	// - UNAUTHENTICATED: missing or invalid credentials.
 	GetSwap(context.Context, *connect.Request[v1.GetSwapRequest]) (*connect.Response[v1.GetSwapResponse], error)
+	// CancelSwap cancels one of the caller's Swaps that has not ended. From
+	// the cancel on, no new slice starts and no further first-leg order is
+	// placed. A first-leg order placed just before the cancel arrives may
+	// still be accepted, once; it is immediate-or-cancel and finishes. A
+	// slice whose first leg traded still sends its second leg for that slice's
+	// own intermediate asset; intermediate asset carried from earlier slices
+	// is not converted and stays on the account. Nothing that traded is
+	// undone. Until that work ends the Swap is CANCELING, or RECONCILING
+	// while an order's outcome is being confirmed (it can move between the
+	// two); it then becomes terminal: CANCELED with reason USER_CANCELED; or,
+	// when the cancel came too late to stop anything, the outcome it would
+	// have had (COMPLETED, PARTIALLY_COMPLETED or FAILED); or FAILED with
+	// MINIMUM_NOT_MET, which still applies to what traded. A cancel usually
+	// takes effect within seconds; confirming an order's outcome can take
+	// longer, and the Swap stays non-terminal until it is confirmed. A cancel
+	// after the Swap's deadline changes nothing: a Swap that has not ended is
+	// returned as it is, EXECUTING or RECONCILING, without
+	// cancel_requested_at, and one that has ended answers SWAP_ALREADY_FINAL.
+	// Keep polling GetSwap until is_terminal is true.
+	//
+	// The cancel is idempotent: repeating a cancel that was recorded in time,
+	// before or after the Swap ends, returns the Swap with its original
+	// cancel_requested_at, so an unknown outcome is resolved by repeating the
+	// request. Canceling needs the SWAP
+	// permission on the funding account, through the caller's role or the API
+	// key's policy; the sub-account's policy does not restrict it, and it
+	// works on a sub-account that is not active, since a cancel only stops
+	// trading.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: SWAP_NOT_FOUND.
+	//   - FAILED_PRECONDITION: SWAP_ALREADY_FINAL when the Swap ended with no
+	//     cancel recorded (also after its deadline); SWAP_NOT_CANCELABLE for an
+	//     auto-withdraw conversion.
+	//   - PERMISSION_DENIED: SWAP_NOT_PERMITTED.
+	//   - UNAVAILABLE, DEADLINE_EXCEEDED: SERVICE_UNAVAILABLE or an unknown
+	//     outcome; retry the same request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	CancelSwap(context.Context, *connect.Request[v1.CancelSwapRequest]) (*connect.Response[v1.CancelSwapResponse], error)
+	// ListSwaps lists the caller's Swaps funded by one account, the root
+	// account or a sub-account, newest first, each as GetSwap returns it. With
+	// open_only it lists only the Swaps that have not ended, so a client can
+	// find the Swaps it still follows. A sub-account that is not active is
+	// listed too, so its open Swaps can be found and canceled. Each page
+	// continues strictly after the last Swap of the page before it, in the
+	// listing order, and holds the Swaps as they are when it is read: a
+	// listing never repeats a Swap and never skips one that existed when the
+	// listing started and still matches the filter. A Swap created while a
+	// listing is under way is listed on a later page only if it sorts after
+	// the last Swap already listed; otherwise it appears only when listing
+	// starts again. With open_only, a Swap that ends between pages is left out
+	// of the later ones.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request or page_token, or
+	//     INVALID_SUBACCOUNT_ID.
+	//   - NOT_FOUND: SUBACCOUNT_NOT_FOUND.
+	//   - PERMISSION_DENIED: SWAP_NOT_PERMITTED.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListSwaps(context.Context, *connect.Request[v1.ListSwapsRequest]) (*connect.Response[v1.ListSwapsResponse], error)
 }
 
 // NewSwapServiceClient constructs a client for the swap.v1.SwapService service. By default, it uses
@@ -116,6 +184,18 @@ func NewSwapServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(swapServiceMethods.ByName("GetSwap")),
 			connect.WithClientOptions(opts...),
 		),
+		cancelSwap: connect.NewClient[v1.CancelSwapRequest, v1.CancelSwapResponse](
+			httpClient,
+			baseURL+SwapServiceCancelSwapProcedure,
+			connect.WithSchema(swapServiceMethods.ByName("CancelSwap")),
+			connect.WithClientOptions(opts...),
+		),
+		listSwaps: connect.NewClient[v1.ListSwapsRequest, v1.ListSwapsResponse](
+			httpClient,
+			baseURL+SwapServiceListSwapsProcedure,
+			connect.WithSchema(swapServiceMethods.ByName("ListSwaps")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -124,6 +204,8 @@ type swapServiceClient struct {
 	quoteSwap  *connect.Client[v1.QuoteSwapRequest, v1.QuoteSwapResponse]
 	createSwap *connect.Client[v1.CreateSwapRequest, v1.CreateSwapResponse]
 	getSwap    *connect.Client[v1.GetSwapRequest, v1.GetSwapResponse]
+	cancelSwap *connect.Client[v1.CancelSwapRequest, v1.CancelSwapResponse]
+	listSwaps  *connect.Client[v1.ListSwapsRequest, v1.ListSwapsResponse]
 }
 
 // QuoteSwap calls swap.v1.SwapService.QuoteSwap.
@@ -139,6 +221,16 @@ func (c *swapServiceClient) CreateSwap(ctx context.Context, req *connect.Request
 // GetSwap calls swap.v1.SwapService.GetSwap.
 func (c *swapServiceClient) GetSwap(ctx context.Context, req *connect.Request[v1.GetSwapRequest]) (*connect.Response[v1.GetSwapResponse], error) {
 	return c.getSwap.CallUnary(ctx, req)
+}
+
+// CancelSwap calls swap.v1.SwapService.CancelSwap.
+func (c *swapServiceClient) CancelSwap(ctx context.Context, req *connect.Request[v1.CancelSwapRequest]) (*connect.Response[v1.CancelSwapResponse], error) {
+	return c.cancelSwap.CallUnary(ctx, req)
+}
+
+// ListSwaps calls swap.v1.SwapService.ListSwaps.
+func (c *swapServiceClient) ListSwaps(ctx context.Context, req *connect.Request[v1.ListSwapsRequest]) (*connect.Response[v1.ListSwapsResponse], error) {
+	return c.listSwaps.CallUnary(ctx, req)
 }
 
 // SwapServiceHandler is an implementation of the swap.v1.SwapService service.
@@ -177,6 +269,8 @@ type SwapServiceHandler interface {
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	CreateSwap(context.Context, *connect.Request[v1.CreateSwapRequest]) (*connect.Response[v1.CreateSwapResponse], error)
 	// GetSwap returns one of the caller's Swaps by swap_id or idempotency key.
+	// It needs the SWAP permission on the Swap's funding account; the Swaps of
+	// a sub-account that is not active can still be read.
 	//
 	// Errors:
 	// - INVALID_ARGUMENT: malformed selector.
@@ -185,6 +279,68 @@ type SwapServiceHandler interface {
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
 	// - UNAUTHENTICATED: missing or invalid credentials.
 	GetSwap(context.Context, *connect.Request[v1.GetSwapRequest]) (*connect.Response[v1.GetSwapResponse], error)
+	// CancelSwap cancels one of the caller's Swaps that has not ended. From
+	// the cancel on, no new slice starts and no further first-leg order is
+	// placed. A first-leg order placed just before the cancel arrives may
+	// still be accepted, once; it is immediate-or-cancel and finishes. A
+	// slice whose first leg traded still sends its second leg for that slice's
+	// own intermediate asset; intermediate asset carried from earlier slices
+	// is not converted and stays on the account. Nothing that traded is
+	// undone. Until that work ends the Swap is CANCELING, or RECONCILING
+	// while an order's outcome is being confirmed (it can move between the
+	// two); it then becomes terminal: CANCELED with reason USER_CANCELED; or,
+	// when the cancel came too late to stop anything, the outcome it would
+	// have had (COMPLETED, PARTIALLY_COMPLETED or FAILED); or FAILED with
+	// MINIMUM_NOT_MET, which still applies to what traded. A cancel usually
+	// takes effect within seconds; confirming an order's outcome can take
+	// longer, and the Swap stays non-terminal until it is confirmed. A cancel
+	// after the Swap's deadline changes nothing: a Swap that has not ended is
+	// returned as it is, EXECUTING or RECONCILING, without
+	// cancel_requested_at, and one that has ended answers SWAP_ALREADY_FINAL.
+	// Keep polling GetSwap until is_terminal is true.
+	//
+	// The cancel is idempotent: repeating a cancel that was recorded in time,
+	// before or after the Swap ends, returns the Swap with its original
+	// cancel_requested_at, so an unknown outcome is resolved by repeating the
+	// request. Canceling needs the SWAP
+	// permission on the funding account, through the caller's role or the API
+	// key's policy; the sub-account's policy does not restrict it, and it
+	// works on a sub-account that is not active, since a cancel only stops
+	// trading.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: SWAP_NOT_FOUND.
+	//   - FAILED_PRECONDITION: SWAP_ALREADY_FINAL when the Swap ended with no
+	//     cancel recorded (also after its deadline); SWAP_NOT_CANCELABLE for an
+	//     auto-withdraw conversion.
+	//   - PERMISSION_DENIED: SWAP_NOT_PERMITTED.
+	//   - UNAVAILABLE, DEADLINE_EXCEEDED: SERVICE_UNAVAILABLE or an unknown
+	//     outcome; retry the same request.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	CancelSwap(context.Context, *connect.Request[v1.CancelSwapRequest]) (*connect.Response[v1.CancelSwapResponse], error)
+	// ListSwaps lists the caller's Swaps funded by one account, the root
+	// account or a sub-account, newest first, each as GetSwap returns it. With
+	// open_only it lists only the Swaps that have not ended, so a client can
+	// find the Swaps it still follows. A sub-account that is not active is
+	// listed too, so its open Swaps can be found and canceled. Each page
+	// continues strictly after the last Swap of the page before it, in the
+	// listing order, and holds the Swaps as they are when it is read: a
+	// listing never repeats a Swap and never skips one that existed when the
+	// listing started and still matches the filter. A Swap created while a
+	// listing is under way is listed on a later page only if it sorts after
+	// the last Swap already listed; otherwise it appears only when listing
+	// starts again. With open_only, a Swap that ends between pages is left out
+	// of the later ones.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request or page_token, or
+	//     INVALID_SUBACCOUNT_ID.
+	//   - NOT_FOUND: SUBACCOUNT_NOT_FOUND.
+	//   - PERMISSION_DENIED: SWAP_NOT_PERMITTED.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry later.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ListSwaps(context.Context, *connect.Request[v1.ListSwapsRequest]) (*connect.Response[v1.ListSwapsResponse], error)
 }
 
 // NewSwapServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -212,6 +368,18 @@ func NewSwapServiceHandler(svc SwapServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(swapServiceMethods.ByName("GetSwap")),
 		connect.WithHandlerOptions(opts...),
 	)
+	swapServiceCancelSwapHandler := connect.NewUnaryHandler(
+		SwapServiceCancelSwapProcedure,
+		svc.CancelSwap,
+		connect.WithSchema(swapServiceMethods.ByName("CancelSwap")),
+		connect.WithHandlerOptions(opts...),
+	)
+	swapServiceListSwapsHandler := connect.NewUnaryHandler(
+		SwapServiceListSwapsProcedure,
+		svc.ListSwaps,
+		connect.WithSchema(swapServiceMethods.ByName("ListSwaps")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/swap.v1.SwapService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case SwapServiceQuoteSwapProcedure:
@@ -220,6 +388,10 @@ func NewSwapServiceHandler(svc SwapServiceHandler, opts ...connect.HandlerOption
 			swapServiceCreateSwapHandler.ServeHTTP(w, r)
 		case SwapServiceGetSwapProcedure:
 			swapServiceGetSwapHandler.ServeHTTP(w, r)
+		case SwapServiceCancelSwapProcedure:
+			swapServiceCancelSwapHandler.ServeHTTP(w, r)
+		case SwapServiceListSwapsProcedure:
+			swapServiceListSwapsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -239,4 +411,12 @@ func (UnimplementedSwapServiceHandler) CreateSwap(context.Context, *connect.Requ
 
 func (UnimplementedSwapServiceHandler) GetSwap(context.Context, *connect.Request[v1.GetSwapRequest]) (*connect.Response[v1.GetSwapResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.v1.SwapService.GetSwap is not implemented"))
+}
+
+func (UnimplementedSwapServiceHandler) CancelSwap(context.Context, *connect.Request[v1.CancelSwapRequest]) (*connect.Response[v1.CancelSwapResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.v1.SwapService.CancelSwap is not implemented"))
+}
+
+func (UnimplementedSwapServiceHandler) ListSwaps(context.Context, *connect.Request[v1.ListSwapsRequest]) (*connect.Response[v1.ListSwapsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("swap.v1.SwapService.ListSwaps is not implemented"))
 }

@@ -2,7 +2,8 @@
 # and 5c2119f added or changed, and of the messages nested in their new
 # replies, of the lifecycle flow views, and of the balance read, profit and
 # loss, trigger cancel-all, activity actor, item and details, and index
-# price candle messages. A guard test walks these messages and fails when a field is missing
+# price candle messages, and of the internal transfer batch abandon request
+# and reply. A guard test walks these messages and fails when a field is missing
 # here or listed but gone, so no field of them is dropped by accident.
 #
 # covered: the SDK parameter (request) or model field (reply) that carries it.
@@ -241,6 +242,10 @@ transfer.v1.GetInternalTransferBatchRequest.idempotency_key	omitted	reading a ba
 transfer.v1.GetInternalTransferBatchResponse.request_id	covered	models.InternalTransferBatchResult.RequestID
 transfer.v1.GetInternalTransferBatchResponse.status	covered	models.InternalTransferBatchResult.Status
 transfer.v1.GetInternalTransferBatchResponse.legs	covered	models.InternalTransferBatchResult.Legs
+transfer.v1.AbandonInternalTransferBatchRequest.idempotency_key	covered	InternalTransfers.AbandonBatch idempotencyKey
+transfer.v1.AbandonInternalTransferBatchResponse.request_id	covered	models.InternalTransferBatchResult.RequestID
+transfer.v1.AbandonInternalTransferBatchResponse.status	covered	models.InternalTransferBatchResult.Status
+transfer.v1.AbandonInternalTransferBatchResponse.legs	covered	models.InternalTransferBatchResult.Legs
 orders.v1.ErrorDetail.price_band_limit_ticks	covered	models.OrderErrorDetail.PriceBandLimit
 auth.v1.AuthErrorDetail.timestamp_window	covered	errors.TimestampSkewError.Window
 auth.v1.ListAccountActivityRequest.limit	covered	models.ListAccountActivityOptions.Limit

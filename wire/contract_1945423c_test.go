@@ -185,3 +185,17 @@ func TestInsufficientFundsIsAnAccountStateRefusal(t *testing.T) {
 		}
 	}
 }
+
+func TestTransferIdempotencyKeyAbandonedIsFinalAndNotRetryable(t *testing.T) {
+	mapped := MapConnectError(connectErrWith(connect.CodeFailedPrecondition, &transferv1.ErrorDetail{Code: transferv1.ErrorCode_ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED}))
+	var apiErr *sdkerrors.APIError
+	if !errors.As(mapped, &apiErr) || apiErr.Code != sdkerrors.CodeIdempotencyKeyAbandoned || !sdkerrors.IsIdempotencyKeyAbandoned(mapped) {
+		t.Fatalf("got %T %+v", mapped, mapped)
+	}
+	if sdkerrors.IsRetryable(mapped) || sdkerrors.MutationOutcomeUnknown(mapped) {
+		t.Fatal("an abandoned idempotency key is final")
+	}
+	if !IsRecognisedRESTCode("IDEMPOTENCY_KEY_ABANDONED") || ErrorCodeFromREST("IDEMPOTENCY_KEY_ABANDONED") != sdkerrors.CodeIdempotencyKeyAbandoned {
+		t.Fatal("REST IDEMPOTENCY_KEY_ABANDONED is not recognised as the transfer code")
+	}
+}

@@ -56,8 +56,8 @@ func optionalLedgerAmount(v *typev1.U128) *models.AssetAmountScaled {
 	return &out
 }
 
-// internalTransferBatchReply is what BatchCreateInternalTransfers and
-// GetInternalTransferBatch both answer.
+// internalTransferBatchReply is what BatchCreateInternalTransfers,
+// GetInternalTransferBatch and AbandonInternalTransferBatch answer.
 type internalTransferBatchReply interface {
 	GetRequestId() string
 	GetStatus() transferv1.InternalTransferBatchStatus
@@ -89,6 +89,24 @@ func InternalTransferBatchFromGet(msg *transferv1.GetInternalTransferBatchRespon
 		return models.InternalTransferBatchResult{}, &sdkerrors.ResponseContractError{Operation: "GetInternalTransferBatch", Msg: fmt.Sprintf("reply names batch %q, not %q", out.RequestID, requestID)}
 	}
 	return out, nil
+}
+
+// InternalTransferBatchFromAbandon decodes an AbandonInternalTransferBatch
+// reply. BATCH_ABANDONED is Status "abandoned" with no RequestID and no legs:
+// no funds moved under the key and none ever will. Any other reply is the
+// batch submitted under the key, decoded with the checks of
+// InternalTransferBatchFromProto. A *errors.ResponseContractError reports a
+// reply that breaks the contract, such as an abandoned batch with a request ID
+// or legs; abandoning the key again with the same key is safe.
+func InternalTransferBatchFromAbandon(msg *transferv1.AbandonInternalTransferBatchResponse) (models.InternalTransferBatchResult, error) {
+	const op = "AbandonInternalTransferBatch"
+	if msg.GetStatus() != transferv1.InternalTransferBatchStatus_BATCH_ABANDONED {
+		return internalTransferBatch(op, msg, -1)
+	}
+	if msg.GetRequestId() != "" || len(msg.GetLegs()) != 0 {
+		return models.InternalTransferBatchResult{}, &sdkerrors.ResponseContractError{Operation: op, Msg: fmt.Sprintf("abandoned batch has request_id %q and %d leg results", msg.GetRequestId(), len(msg.GetLegs()))}
+	}
+	return models.InternalTransferBatchResult{Status: "abandoned", Legs: []models.InternalTransferBatchLegResult{}}, nil
 }
 
 func internalTransferBatch(op string, msg internalTransferBatchReply, legs int) (models.InternalTransferBatchResult, error) {

@@ -642,6 +642,23 @@ func IsRouteSuspended(err error) bool {
 	return errors.As(err, &apiErr) && apiErr.Code == CodeRouteSuspended
 }
 
+// CodeIdempotencyKeyAbandoned refuses an internal transfer batch whose
+// idempotency key was abandoned with InternalTransfers.AbandonBatch before any
+// batch was submitted under it (transfer.v1
+// ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED, Connect failed_precondition, REST 400
+// IDEMPOTENCY_KEY_ABANDONED). Nothing moved under the key and nothing ever
+// will. It is final for that key and not retryable: submit the batch under a
+// new idempotency key.
+const CodeIdempotencyKeyAbandoned = "ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED"
+
+// IsIdempotencyKeyAbandoned reports whether err refuses an internal transfer
+// batch because its idempotency key was abandoned; see
+// CodeIdempotencyKeyAbandoned.
+func IsIdempotencyKeyAbandoned(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.Code == CodeIdempotencyKeyAbandoned
+}
+
 // CodeDestinationSwapDepositAddress refuses a withdrawal, or an auto-withdraw
 // destination, whose destination address is a deposit address issued for a
 // Quick Swap (chain.withdraw.v1 ERROR_CODE_DESTINATION_SWAP_DEPOSIT_ADDRESS,

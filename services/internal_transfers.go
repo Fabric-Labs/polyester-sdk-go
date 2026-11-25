@@ -113,7 +113,13 @@ func (s *InternalTransfersService) Create(ctx context.Context, assetID uint32, q
 // The safe next step is the same key and the same legs. Read the batch with
 // GetBatch when you already know its request ID (from an earlier answer);
 // otherwise send it again with the original key and legs, after its
-// Retry-After when present. Under one key the batch runs at most once.
+// Retry-After when present. Under one key the batch runs at most once. To
+// give the batch up instead, AbandonBatch with the key answers the batch if
+// one was submitted, or makes sure none ever will be. A key that was abandoned
+// is refused with an *errors.APIError for which
+// errors.IsIdempotencyKeyAbandoned is true (ERROR_CODE_IDEMPOTENCY_KEY_ABANDONED):
+// nothing moved under it, and it is not retryable; submit the batch under a
+// new key.
 func (s *InternalTransfersService) CreateBatch(ctx context.Context, legs []models.InternalTransferBatchLeg, idempotencyKey string) (models.InternalTransferBatchResult, error) {
 	if len(legs) < codecs.BatchInternalTransferLegsMin || len(legs) > codecs.BatchInternalTransferLegsMax {
 		return models.InternalTransferBatchResult{}, &errors.ValidationError{Msg: fmt.Sprintf("a batch takes at least %d leg, not %d", codecs.BatchInternalTransferLegsMin, len(legs))}
@@ -200,6 +206,11 @@ func answerCode(err error) string {
 // batch answers ERROR_CODE_NOT_FOUND, as an unknown one does. A requestID that is
 // not a decimal batch ID (1 to 39 digits, no leading zero) is refused with an
 // *errors.ValidationError before sending.
+//
+// GetBatch reads by request ID only, so its reply must echo that ID: one that
+// names another batch, or none, is an *errors.ResponseContractError. An
+// abandoned key has no request ID and never answers this read; AbandonBatch
+// with the key reads it ("abandoned", with no request ID and no legs).
 func (s *InternalTransfersService) GetBatch(ctx context.Context, requestID string) (models.InternalTransferBatchResult, error) {
 	req := &transferv1.GetInternalTransferBatchRequest{RequestId: requestID}
 	if err := codecs.CheckContractString(req, "request_id", requestID, "request_id"); err != nil {
@@ -208,6 +219,35 @@ func (s *InternalTransfersService) GetBatch(ctx context.Context, requestID strin
 	return UnaryAuthDecoded(ctx, s.transport, s.client().GetInternalTransferBatch, req, func(msg *transferv1.GetInternalTransferBatchResponse) (models.InternalTransferBatchResult, error) {
 		return decode.InternalTransferBatchFromGet(msg, requestID)
 	})
+}
+
+// AbandonBatch makes the absence of a batch under an idempotency key final,
+// for example after a CreateBatch call whose answer was lost and that may never
+// have reached the server. If a batch was submitted under the key, it answers
+// that batch's outcome ("accepted", "processing" or "refused", as GetBatch
+// reads it) and changes nothing. Otherwise it records the key as abandoned
+// and answers Status "abandoned", with no RequestID and no legs: no funds
+// moved under the key and none ever will. Every later CreateBatch under the
+// key, a retry included, is then refused with an *errors.APIError for which
+// errors.IsIdempotencyKeyAbandoned is true, and every later AbandonBatch
+// under it answers "abandoned" again. A CreateBatch and an AbandonBatch that
+// race on one key end in exactly one of the two outcomes.
+//
+// The key is scoped to the caller as CreateBatch scopes it: the API key. The
+// key's policy must grant INTERNAL_TRANSFER, and to answer an existing batch
+// also the read permission on every source account of the batch, refused as
+// GetBatch refuses it. It needs no MFA, as it never moves funds, and counts
+// as one CreateBatch against the rate limit. Calling it again with the same
+// key is always safe: an error whose outcome is unknown
+// (errors.MutationOutcomeUnknown, such as an unavailable answer or a timeout)
+// is resolved by calling it again with the same key. An idempotencyKey outside the contract's limits (an empty one
+// included) is refused with an *errors.ValidationError before sending.
+func (s *InternalTransfersService) AbandonBatch(ctx context.Context, idempotencyKey string) (models.InternalTransferBatchResult, error) {
+	req := &transferv1.AbandonInternalTransferBatchRequest{IdempotencyKey: idempotencyKey}
+	if err := codecs.CheckContractString(req, "idempotency_key", idempotencyKey, "idempotency_key"); err != nil {
+		return models.InternalTransferBatchResult{}, err
+	}
+	return UnaryAuthDecoded(ctx, s.transport, s.client().AbandonInternalTransferBatch, req, decode.InternalTransferBatchFromAbandon)
 }
 
 func (s *InternalTransfersService) batchLeg(leg models.InternalTransferBatchLeg) (*transferv1.InternalTransferBatchLeg, error) {

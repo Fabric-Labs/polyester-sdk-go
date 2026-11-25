@@ -25,8 +25,9 @@ type InternalTransferBatchLeg struct {
 	DestinationSmartAccountAddress *string
 }
 
-// InternalTransferBatchResult is the answer to InternalTransfers.CreateBatch
-// and InternalTransfers.GetBatch. A batch moves all of its legs or none.
+// InternalTransferBatchResult is the answer to InternalTransfers.CreateBatch,
+// InternalTransfers.GetBatch and InternalTransfers.AbandonBatch. A batch moves
+// all of its legs or none.
 //
 // Status "accepted" means every leg is "credited". Status "processing" means
 // the outcome is not known yet: the batch completes on its own and ends
@@ -35,13 +36,16 @@ type InternalTransferBatchLeg struct {
 // reads the outcome. Status "refused" means nothing moved and nothing will
 // under this idempotency key: every leg is "not_moved", and the legs that
 // caused the refusal carry their ErrorCode. Submit a new batch under a new
-// key to try again.
+// key to try again. Status "abandoned", which only AbandonBatch answers, means
+// no batch was ever submitted under the idempotency key and none ever will
+// be: nothing moved, RequestID is empty and Legs is empty.
 type InternalTransferBatchResult struct {
 	// RequestID is the batch's stable server-owned identifier, a decimal
 	// string; set on an accepted or processing batch, and empty when the
-	// batch was refused before it was accepted for processing.
+	// batch was refused before it was accepted for processing or its key was
+	// abandoned.
 	RequestID string `json:"request_id,omitempty"`
-	// Status is "accepted", "processing" or "refused".
+	// Status is "accepted", "processing", "refused" or "abandoned".
 	Status string `json:"status"`
 	// Legs holds one result per leg, in request order.
 	Legs []InternalTransferBatchLegResult `json:"legs"`
