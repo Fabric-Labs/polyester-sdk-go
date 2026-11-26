@@ -1727,8 +1727,13 @@ type Subaccount struct {
 	// kind of caller that can create one; real-time updates omit it. Empty when
 	// none was given.
 	IdempotencyKey string `protobuf:"bytes,17,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// True once a strategy bot has held this sub-account; never cleared, also
+	// after the bot's access ends or the sub-account's policy is cleared. Use it
+	// to keep bot sub-accounts out of funding-source choices. Real-time updates
+	// carry it too.
+	StrategyBot   bool `protobuf:"varint,18,opt,name=strategy_bot,json=strategyBot,proto3" json:"strategy_bot,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *Subaccount) Reset() {
@@ -1878,6 +1883,13 @@ func (x *Subaccount) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *Subaccount) GetStrategyBot() bool {
+	if x != nil {
+		return x.StrategyBot
+	}
+	return false
 }
 
 // Request to list sub-accounts owned by or shared with the caller.
@@ -6134,7 +6146,7 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"\x14subaccount_policy_id\x18\x03 \x01(\x06R\x12subaccountPolicyId\"p\n" +
 	"\x12SubaccountRoleView\x12#\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06R\fsubaccountId\x125\n" +
-	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\x90\x06\n" +
+	"\x04role\x18\x02 \x01(\x0e2\x17.auth.v1.SubaccountRoleB\b\xbaH\x05\x82\x01\x02\x10\x01R\x04role\"\xb3\x06\n" +
 	"\n" +
 	"Subaccount\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x06R\x02id\x125\n" +
@@ -6155,7 +6167,8 @@ const file_auth_v1_subaccounts_proto_rawDesc = "" +
 	"updated_at\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x12\x1a\n" +
 	"\brevision\x18\x0f \x01(\x04R\brevision\x12\x18\n" +
 	"\aremoved\x18\x10 \x01(\bR\aremoved\x12'\n" +
-	"\x0fidempotency_key\x18\x11 \x01(\tR\x0eidempotencyKeyB\x1b\n" +
+	"\x0fidempotency_key\x18\x11 \x01(\tR\x0eidempotencyKey\x12!\n" +
+	"\fstrategy_bot\x18\x12 \x01(\bR\vstrategyBotB\x1b\n" +
 	"\x19_smart_account_salt_nonce\"\x18\n" +
 	"\x16ListSubaccountsRequest\"u\n" +
 	"\x17ListSubaccountsResponse\x125\n" +

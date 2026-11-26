@@ -14,6 +14,7 @@ import (
 	_ "github.com/google/gnostic/openapiv3"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -248,6 +249,10 @@ const (
 	ErrorCode_ERROR_CODE_STATEMENT_EXPORT_NOT_CANCELABLE ErrorCode = 17
 	// The statement export was canceled and has no file.
 	ErrorCode_ERROR_CODE_STATEMENT_EXPORT_CANCELED ErrorCode = 18
+	// A balances statement's period starts before the earliest instant whose
+	// balances the account history holds; ErrorDetail.history_available_from
+	// is that instant.
+	ErrorCode_ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE ErrorCode = 19
 )
 
 // Enum value maps for ErrorCode.
@@ -272,6 +277,7 @@ var (
 		16: "ERROR_CODE_STATEMENT_EXPORT_FAILED",
 		17: "ERROR_CODE_STATEMENT_EXPORT_NOT_CANCELABLE",
 		18: "ERROR_CODE_STATEMENT_EXPORT_CANCELED",
+		19: "ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_CODE_UNSPECIFIED":                     0,
@@ -293,6 +299,7 @@ var (
 		"ERROR_CODE_STATEMENT_EXPORT_FAILED":         16,
 		"ERROR_CODE_STATEMENT_EXPORT_NOT_CANCELABLE": 17,
 		"ERROR_CODE_STATEMENT_EXPORT_CANCELED":       18,
+		"ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE":   19,
 	}
 )
 
@@ -2301,9 +2308,13 @@ func (x *ListTransfersResponse) GetNextPageToken() string {
 type ErrorDetail struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable error code matching the REST problem+json "code" field.
-	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=ledger.read.v1.ErrorCode" json:"code,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Code ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=ledger.read.v1.ErrorCode" json:"code,omitempty"`
+	// Earliest instant whose balances the account history holds. Set only
+	// with ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE; REST sends it as the
+	// problem's `historyAvailableFrom` member.
+	HistoryAvailableFrom *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=history_available_from,json=historyAvailableFrom,proto3" json:"history_available_from,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
@@ -2343,11 +2354,18 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 	return ErrorCode_ERROR_CODE_UNSPECIFIED
 }
 
+func (x *ErrorDetail) GetHistoryAvailableFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.HistoryAvailableFrom
+	}
+	return nil
+}
+
 var File_ledger_read_v1_ledger_read_proto protoreflect.FileDescriptor
 
 const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\n" +
-	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
+	" ledger/read/v1/ledger_read.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x17ledger/v1/catalog.proto\x1a\x1bpolyester/api/options.proto\x1a\x1cpolyester/type/v1/u128.proto\"P\n" +
 	"\x12GetBalancesRequest\x12(\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01B\x10\n" +
 	"\x0e_subaccount_id\"\xa6\x02\n" +
@@ -2503,9 +2521,10 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x06events\x18\x01 \x03(\v2\x1b.ledger.read.v1.TransferRowR\x06events\"\x84\x01\n" +
 	"\x15ListTransfersResponse\x129\n" +
 	"\ttransfers\x18\x01 \x03(\v2\x1b.ledger.read.v1.TransferRowR\ttransfers\x120\n" +
-	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"<\n" +
+	"\x0fnext_page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\"\x8e\x01\n" +
 	"\vErrorDetail\x12-\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x19.ledger.read.v1.ErrorCodeR\x04code*m\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x19.ledger.read.v1.ErrorCodeR\x04code\x12P\n" +
+	"\x16history_available_from\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x14historyAvailableFrom*m\n" +
 	"\fBalanceRange\x12\x15\n" +
 	"\x11RANGE_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05DAY_1\x10\x01\x12\t\n" +
@@ -2527,7 +2546,7 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"\x10EXTERNAL_ADDRESS\x10\x03\x12\x18\n" +
 	"\x14PRIVATE_COUNTERPARTY\x10\x04\x12\x0f\n" +
 	"\vFEE_ACCOUNT\x10\x05\x12\x12\n" +
-	"\x0eSYSTEM_ACCOUNT\x10\x06*\xc4\x05\n" +
+	"\x0eSYSTEM_ACCOUNT\x10\x06*\xf2\x05\n" +
 	"\tErrorCode\x12\x1a\n" +
 	"\x16ERROR_CODE_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16ERROR_CODE_BAD_REQUEST\x10\x01\x12\x1e\n" +
@@ -2548,7 +2567,8 @@ const file_ledger_read_v1_ledger_read_proto_rawDesc = "" +
 	"#ERROR_CODE_STATEMENT_EXPORT_EXPIRED\x10\x0f\x12&\n" +
 	"\"ERROR_CODE_STATEMENT_EXPORT_FAILED\x10\x10\x12.\n" +
 	"*ERROR_CODE_STATEMENT_EXPORT_NOT_CANCELABLE\x10\x11\x12(\n" +
-	"$ERROR_CODE_STATEMENT_EXPORT_CANCELED\x10\x122\x84\x06\n" +
+	"$ERROR_CODE_STATEMENT_EXPORT_CANCELED\x10\x12\x12,\n" +
+	"(ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE\x10\x132\x84\x06\n" +
 	"\x11LedgerReadService\x12p\n" +
 	"\x11GetBalanceHistory\x12(.ledger.read.v1.GetBalanceHistoryRequest\x1a).ledger.read.v1.GetBalanceHistoryResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x7f\n" +
 	"\x16GetEquityHistorySeries\x12-.ledger.read.v1.GetEquityHistorySeriesRequest\x1a..ledger.read.v1.GetEquityHistorySeriesResponse\"\x06\xa2\xb5\x18\x02\x01\x02\x12\x9a\x01\n" +
@@ -2605,6 +2625,7 @@ var file_ledger_read_v1_ledger_read_proto_goTypes = []any{
 	(*v1.U128)(nil),                                 // 29: polyester.type.v1.U128
 	(v11.AccountCode)(0),                            // 30: ledger.v1.AccountCode
 	(v11.TransferCode)(0),                           // 31: ledger.v1.TransferCode
+	(*timestamppb.Timestamp)(nil),                   // 32: google.protobuf.Timestamp
 }
 var file_ledger_read_v1_ledger_read_proto_depIdxs = []int32{
 	29, // 0: ledger.read.v1.AssetBalance.trading:type_name -> polyester.type.v1.U128
@@ -2646,23 +2667,24 @@ var file_ledger_read_v1_ledger_read_proto_depIdxs = []int32{
 	25, // 36: ledger.read.v1.TransferRowBatch.events:type_name -> ledger.read.v1.TransferRow
 	25, // 37: ledger.read.v1.ListTransfersResponse.transfers:type_name -> ledger.read.v1.TransferRow
 	3,  // 38: ledger.read.v1.ErrorDetail.code:type_name -> ledger.read.v1.ErrorCode
-	8,  // 39: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
-	14, // 40: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
-	17, // 41: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:input_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesRequest
-	21, // 42: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:input_type -> ledger.read.v1.GetPortfolioEquitySnapshotRequest
-	23, // 43: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
-	4,  // 44: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
-	10, // 45: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
-	16, // 46: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
-	18, // 47: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:output_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesResponse
-	22, // 48: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:output_type -> ledger.read.v1.GetPortfolioEquitySnapshotResponse
-	27, // 49: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
-	6,  // 50: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
-	45, // [45:51] is the sub-list for method output_type
-	39, // [39:45] is the sub-list for method input_type
-	39, // [39:39] is the sub-list for extension type_name
-	39, // [39:39] is the sub-list for extension extendee
-	0,  // [0:39] is the sub-list for field type_name
+	32, // 39: ledger.read.v1.ErrorDetail.history_available_from:type_name -> google.protobuf.Timestamp
+	8,  // 40: ledger.read.v1.LedgerReadService.GetBalanceHistory:input_type -> ledger.read.v1.GetBalanceHistoryRequest
+	14, // 41: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:input_type -> ledger.read.v1.GetEquityHistorySeriesRequest
+	17, // 42: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:input_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesRequest
+	21, // 43: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:input_type -> ledger.read.v1.GetPortfolioEquitySnapshotRequest
+	23, // 44: ledger.read.v1.LedgerReadService.ListTransfers:input_type -> ledger.read.v1.ListTransfersRequest
+	4,  // 45: ledger.read.v1.LedgerReadService.GetBalances:input_type -> ledger.read.v1.GetBalancesRequest
+	10, // 46: ledger.read.v1.LedgerReadService.GetBalanceHistory:output_type -> ledger.read.v1.GetBalanceHistoryResponse
+	16, // 47: ledger.read.v1.LedgerReadService.GetEquityHistorySeries:output_type -> ledger.read.v1.GetEquityHistorySeriesResponse
+	18, // 48: ledger.read.v1.LedgerReadService.GetPortfolioEquityHistorySeries:output_type -> ledger.read.v1.GetPortfolioEquityHistorySeriesResponse
+	22, // 49: ledger.read.v1.LedgerReadService.GetPortfolioEquitySnapshot:output_type -> ledger.read.v1.GetPortfolioEquitySnapshotResponse
+	27, // 50: ledger.read.v1.LedgerReadService.ListTransfers:output_type -> ledger.read.v1.ListTransfersResponse
+	6,  // 51: ledger.read.v1.LedgerReadService.GetBalances:output_type -> ledger.read.v1.GetBalancesResponse
+	46, // [46:52] is the sub-list for method output_type
+	40, // [40:46] is the sub-list for method input_type
+	40, // [40:40] is the sub-list for extension type_name
+	40, // [40:40] is the sub-list for extension extendee
+	0,  // [0:40] is the sub-list for field type_name
 }
 
 func init() { file_ledger_read_v1_ledger_read_proto_init() }

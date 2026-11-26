@@ -82,6 +82,9 @@ type PolicyServiceClient interface {
 	// policy attached to that sub-account.
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
+	//
+	// A sub-account a strategy bot holds or held keeps the bot's trading-only
+	// policy: FailedPrecondition with AUTH_STRATEGY_BOT_MANAGED.
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
 	// Change selected fields on an existing sub-account policy. Editing a
 	// template changes only the template: sub-accounts it was applied to keep
@@ -91,6 +94,9 @@ type PolicyServiceClient interface {
 	// of the main account's own sub-accounts without a session. The result can
 	// never allow a money-out action, and it can never lock, unlock or change a
 	// locked policy: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
+	//
+	// A sub-account a strategy bot holds or held keeps the bot's trading-only
+	// policy: FailedPrecondition with AUTH_STRATEGY_BOT_MANAGED.
 	UpdateSubaccountPolicy(context.Context, *connect.Request[v1.UpdateSubaccountPolicyRequest]) (*connect.Response[v1.UpdateSubaccountPolicyResponse], error)
 	// Delete a sub-account policy template.
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
@@ -102,6 +108,11 @@ type PolicyServiceClient interface {
 	// session. It can never attach or apply a policy that allows a money-out
 	// action, replace a locked policy, or reach a sub-account shared with the
 	// main account: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
+	//
+	// A sub-account a strategy bot holds or held keeps the bot's trading-only
+	// policy: attaching or applying another is FailedPrecondition with
+	// AUTH_STRATEGY_BOT_MANAGED. Once the bot's access has ended, its policy
+	// can be cleared.
 	SetSubaccountPolicy(context.Context, *connect.Request[v1.SetSubaccountPolicyRequest]) (*connect.Response[v1.SetSubaccountPolicyResponse], error)
 	// List API key policy templates available to the caller. An API key needs
 	// READ_API_POLICIES; a key scoped to a sub-account sees only the policies
@@ -313,6 +324,9 @@ type PolicyServiceHandler interface {
 	// policy attached to that sub-account.
 	GetSubaccountPolicy(context.Context, *connect.Request[v1.GetSubaccountPolicyRequest]) (*connect.Response[v1.GetSubaccountPolicyResponse], error)
 	// Create a new sub-account policy template (optionally attach to a sub-account).
+	//
+	// A sub-account a strategy bot holds or held keeps the bot's trading-only
+	// policy: FailedPrecondition with AUTH_STRATEGY_BOT_MANAGED.
 	CreateSubaccountPolicy(context.Context, *connect.Request[v1.CreateSubaccountPolicyRequest]) (*connect.Response[v1.CreateSubaccountPolicyResponse], error)
 	// Change selected fields on an existing sub-account policy. Editing a
 	// template changes only the template: sub-accounts it was applied to keep
@@ -322,6 +336,9 @@ type PolicyServiceHandler interface {
 	// of the main account's own sub-accounts without a session. The result can
 	// never allow a money-out action, and it can never lock, unlock or change a
 	// locked policy: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
+	//
+	// A sub-account a strategy bot holds or held keeps the bot's trading-only
+	// policy: FailedPrecondition with AUTH_STRATEGY_BOT_MANAGED.
 	UpdateSubaccountPolicy(context.Context, *connect.Request[v1.UpdateSubaccountPolicyRequest]) (*connect.Response[v1.UpdateSubaccountPolicyResponse], error)
 	// Delete a sub-account policy template.
 	DeleteSubaccountPolicy(context.Context, *connect.Request[v1.DeleteSubaccountPolicyRequest]) (*connect.Response[v1.DeleteSubaccountPolicyResponse], error)
@@ -333,6 +350,11 @@ type PolicyServiceHandler interface {
 	// session. It can never attach or apply a policy that allows a money-out
 	// action, replace a locked policy, or reach a sub-account shared with the
 	// main account: PermissionDenied with AUTH_ADMIN_KEY_FORBIDDEN_TARGET.
+	//
+	// A sub-account a strategy bot holds or held keeps the bot's trading-only
+	// policy: attaching or applying another is FailedPrecondition with
+	// AUTH_STRATEGY_BOT_MANAGED. Once the bot's access has ended, its policy
+	// can be cleared.
 	SetSubaccountPolicy(context.Context, *connect.Request[v1.SetSubaccountPolicyRequest]) (*connect.Response[v1.SetSubaccountPolicyResponse], error)
 	// List API key policy templates available to the caller. An API key needs
 	// READ_API_POLICIES; a key scoped to a sub-account sees only the policies

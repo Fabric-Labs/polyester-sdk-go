@@ -26,6 +26,68 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// StatementExportType is the kind of file a statement export produces.
+type StatementExportType int32
+
+const (
+	// Never returned; refused in a request.
+	StatementExportType_STATEMENT_EXPORT_TYPE_UNSPECIFIED StatementExportType = 0
+	// Account statement: one row per entry, account bucket and asset, with the
+	// entry's net amount, the fees paid and the balance after it.
+	StatementExportType_ACCOUNT_STATEMENT StatementExportType = 1
+	// Ledger: one row per ledger movement, each transfer leg on its own, with
+	// its transfer reason, side, counterparty and the balance after it.
+	StatementExportType_LEDGER StatementExportType = 2
+	// Balances: one row per account bucket and asset, with its balance at the
+	// start and at the end of the period and the period's credits and debits.
+	// Its period must start inside the account history; see
+	// StatementExport.history_available_from.
+	StatementExportType_BALANCES StatementExportType = 3
+)
+
+// Enum value maps for StatementExportType.
+var (
+	StatementExportType_name = map[int32]string{
+		0: "STATEMENT_EXPORT_TYPE_UNSPECIFIED",
+		1: "ACCOUNT_STATEMENT",
+		2: "LEDGER",
+		3: "BALANCES",
+	}
+	StatementExportType_value = map[string]int32{
+		"STATEMENT_EXPORT_TYPE_UNSPECIFIED": 0,
+		"ACCOUNT_STATEMENT":                 1,
+		"LEDGER":                            2,
+		"BALANCES":                          3,
+	}
+)
+
+func (x StatementExportType) Enum() *StatementExportType {
+	p := new(StatementExportType)
+	*p = x
+	return p
+}
+
+func (x StatementExportType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (StatementExportType) Descriptor() protoreflect.EnumDescriptor {
+	return file_ledger_read_v1_statement_export_proto_enumTypes[0].Descriptor()
+}
+
+func (StatementExportType) Type() protoreflect.EnumType {
+	return &file_ledger_read_v1_statement_export_proto_enumTypes[0]
+}
+
+func (x StatementExportType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use StatementExportType.Descriptor instead.
+func (StatementExportType) EnumDescriptor() ([]byte, []int) {
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{0}
+}
+
 // StatementExportStatus is where a statement export is.
 type StatementExportStatus int32
 
@@ -81,11 +143,11 @@ func (x StatementExportStatus) String() string {
 }
 
 func (StatementExportStatus) Descriptor() protoreflect.EnumDescriptor {
-	return file_ledger_read_v1_statement_export_proto_enumTypes[0].Descriptor()
+	return file_ledger_read_v1_statement_export_proto_enumTypes[1].Descriptor()
 }
 
 func (StatementExportStatus) Type() protoreflect.EnumType {
-	return &file_ledger_read_v1_statement_export_proto_enumTypes[0]
+	return &file_ledger_read_v1_statement_export_proto_enumTypes[1]
 }
 
 func (x StatementExportStatus) Number() protoreflect.EnumNumber {
@@ -94,7 +156,7 @@ func (x StatementExportStatus) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StatementExportStatus.Descriptor instead.
 func (StatementExportStatus) EnumDescriptor() ([]byte, []int) {
-	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{0}
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{1}
 }
 
 // StatementExportFailureReason is why a statement export failed.
@@ -111,6 +173,11 @@ const (
 	StatementExportFailureReason_STATEMENT_EXPORT_FAILURE_REASON_TOO_LARGE StatementExportFailureReason = 1
 	// The file could not be produced in time. Create a new export.
 	StatementExportFailureReason_STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE StatementExportFailureReason = 2
+	// A BALANCES export's period starts before the earliest instant whose
+	// balances the account history holds, which moved later after the export
+	// was created. history_available_from is that instant: create a new
+	// export that starts at or after it.
+	StatementExportFailureReason_STATEMENT_EXPORT_FAILURE_REASON_HISTORY_UNAVAILABLE StatementExportFailureReason = 3
 )
 
 // Enum value maps for StatementExportFailureReason.
@@ -119,11 +186,13 @@ var (
 		0: "STATEMENT_EXPORT_FAILURE_REASON_UNSPECIFIED",
 		1: "STATEMENT_EXPORT_FAILURE_REASON_TOO_LARGE",
 		2: "STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE",
+		3: "STATEMENT_EXPORT_FAILURE_REASON_HISTORY_UNAVAILABLE",
 	}
 	StatementExportFailureReason_value = map[string]int32{
-		"STATEMENT_EXPORT_FAILURE_REASON_UNSPECIFIED": 0,
-		"STATEMENT_EXPORT_FAILURE_REASON_TOO_LARGE":   1,
-		"STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE": 2,
+		"STATEMENT_EXPORT_FAILURE_REASON_UNSPECIFIED":         0,
+		"STATEMENT_EXPORT_FAILURE_REASON_TOO_LARGE":           1,
+		"STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE":         2,
+		"STATEMENT_EXPORT_FAILURE_REASON_HISTORY_UNAVAILABLE": 3,
 	}
 )
 
@@ -138,11 +207,11 @@ func (x StatementExportFailureReason) String() string {
 }
 
 func (StatementExportFailureReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_ledger_read_v1_statement_export_proto_enumTypes[1].Descriptor()
+	return file_ledger_read_v1_statement_export_proto_enumTypes[2].Descriptor()
 }
 
 func (StatementExportFailureReason) Type() protoreflect.EnumType {
-	return &file_ledger_read_v1_statement_export_proto_enumTypes[1]
+	return &file_ledger_read_v1_statement_export_proto_enumTypes[2]
 }
 
 func (x StatementExportFailureReason) Number() protoreflect.EnumNumber {
@@ -151,20 +220,23 @@ func (x StatementExportFailureReason) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StatementExportFailureReason.Descriptor instead.
 func (StatementExportFailureReason) EnumDescriptor() ([]byte, []int) {
-	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{1}
+	return file_ledger_read_v1_statement_export_proto_rawDescGZIP(), []int{2}
 }
 
-// StatementExport is a whole-period account statement produced in the
-// background as one CSV file.
+// StatementExport is a whole-period account statement, ledger or balances
+// file produced in the background as one CSV file.
 //
 // The file is RFC 4180 CSV in UTF-8 with CRLF line endings: the header row,
-// then every row of the period up to complete_through, oldest first. A period
-// without movements yields the header row alone. Each row is the effect of
-// one entry on one account bucket in one asset. An entry is one ledger
-// operation, such as a trade with its fees, a deposit, a withdrawal step or an
-// internal transfer.
+// then the rows of the period up to complete_through. ACCOUNT_STATEMENT and
+// LEDGER rows come oldest first, and a period without movements yields the
+// header row alone. Every type reads the same ledger movements of the
+// account; type sets the file's rows and columns.
 //
-// Columns, in order:
+// An ACCOUNT_STATEMENT row is the effect of one entry on one account bucket
+// in one asset. An entry is one ledger operation, such as a trade with its
+// fees, a deposit, a withdrawal step or an internal transfer.
+//
+// ACCOUNT_STATEMENT columns, in order:
 //   - `time`: entry time, RFC 3339 in UTC with microseconds, for example
 //     `2026-11-12T19:52:07.734123Z`.
 //   - `entry_id`: entry identifier, an unsigned 128-bit integer as a decimal
@@ -191,7 +263,64 @@ func (StatementExportFailureReason) EnumDescriptor() ([]byte, []int) {
 //     match ID for trades; empty when unavailable.
 //   - `flow_id`: public lifecycle flow ID when the entry belongs to a chain
 //     lifecycle flow, such as a deposit, a withdrawal or an internal transfer,
-//     as LedgerReadService.ListTransfers returns it; empty otherwise.
+//     linked before the export was created; empty otherwise. A flow linked
+//     later, which LedgerReadService.ListTransfers then shows, is not in the
+//     file: a new export shows it.
+//
+// A LEDGER row is one ledger movement: one transfer leg on the account,
+// as LedgerReadService.ListTransfers returns it. A trade's settlement is
+// several rows, such as its base and quote legs and each fee.
+//
+// LEDGER columns, in order:
+//   - `time`: transfer time, RFC 3339 in UTC with microseconds.
+//   - `transfer_id`: transfer identifier, an unsigned 128-bit integer as a
+//     decimal string, as LedgerReadService.ListTransfers returns it. With
+//     `account` and `side` it identifies the row.
+//   - `account`: account bucket, `funding` or `trading`.
+//   - `asset`: asset symbol.
+//   - `type`: transfer reason, such as `trade_base`, `trade_quote`,
+//     `maker_fee`, `taker_fee`, `rebate`, `deposit`, `withdraw`,
+//     `internal_transfer` or `funding_to_trading`.
+//   - `side`: `debit` when the movement takes from the account bucket,
+//     `credit` when it adds to it.
+//   - `amount`: signed balance change in whole units of the asset: negative
+//     for a debit, positive for a credit.
+//   - `counterparty`: kind of the transfer's other side: `funding_account`,
+//     `trading_account`, `external_address`, `private_counterparty`,
+//     `fee_account` or `system_account`; empty when unknown.
+//   - `balance`: account bucket balance in the asset after the movement, in
+//     whole units of the asset. For consecutive rows of the same bucket and
+//     asset, each balance equals the previous balance plus `amount`.
+//   - `link_id`: correlation ID shared by related transfer legs, the trade's
+//     match ID for trades; empty when unavailable.
+//   - `flow_id`: public lifecycle flow ID when the transfer belongs to a chain
+//     lifecycle flow linked before the export was created; empty otherwise,
+//     as for `flow_id` of an account statement.
+//
+// A BALANCES row is one account bucket in one asset over the period: its
+// balance at start_time, the period's ledger movements on it, and its
+// balance at complete_through. Rows come sorted by `account`, then `asset`.
+// A bucket and asset with a zero balance at both ends and no movement has no
+// row, so an account without any yields the header row alone. The period
+// must start at or after the earliest instant whose balances the account
+// history holds: an earlier start is refused when the export is created
+// (CreateStatementExport) and fails the export if that instant moves later
+// before the file is produced.
+//
+// BALANCES columns, in order:
+//   - `account`: account bucket, `funding` or `trading`.
+//   - `asset`: asset symbol.
+//   - `opening_balance`: balance of the bucket in the asset at start_time.
+//   - `credits`: total the period's movements added to the bucket, the sum of
+//     the LEDGER file's credit rows of that bucket and asset; `0` when none.
+//   - `debits`: total the period's movements took from the bucket, the sum of
+//     the LEDGER file's debit rows of that bucket and asset, as a positive
+//     amount; `0` when none.
+//   - `closing_balance`: balance of the bucket in the asset at
+//     complete_through. Every row reconciles: `closing_balance` equals
+//     `opening_balance` plus `credits` minus `debits`.
+//   - `movements`: number of the period's ledger movements on the bucket in
+//     the asset.
 //
 // Amounts are exact decimal strings with up to 18 fractional digits and no
 // trailing zeros.
@@ -203,7 +332,8 @@ func (StatementExportFailureReason) EnumDescriptor() ([]byte, []int) {
 //   - An authenticated `GET /v1/statements/exports/{exportId}/file` returns the
 //     file as `text/csv` and supports HTTP `Range` requests.
 //
-// Both save the file as `statement-<exportId>.csv`. Before the file is READY
+// Both save the file as `account-statement-<exportId>.csv`,
+// `ledger-<exportId>.csv` or `balances-<exportId>.csv`, by type. Before the file is READY
 // both answer FAILED_PRECONDITION with STATEMENT_EXPORT_NOT_READY, REST
 // `409 Conflict`; a FAILED export answers STATEMENT_EXPORT_FAILED, REST `409`;
 // an EXPIRED export, or a file already deleted, answers
@@ -257,8 +387,14 @@ type StatementExport struct {
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Why the export FAILED; unspecified otherwise.
 	FailureReason StatementExportFailureReason `protobuf:"varint,14,opt,name=failure_reason,json=failureReason,proto3,enum=ledger.read.v1.StatementExportFailureReason" json:"failure_reason,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Kind of file the export produces, as requested.
+	Type StatementExportType `protobuf:"varint,15,opt,name=type,proto3,enum=ledger.read.v1.StatementExportType" json:"type,omitempty"`
+	// Earliest instant whose balances the account history holds, which a
+	// BALANCES export's period must start at or after. Set only when
+	// failure_reason is STATEMENT_EXPORT_FAILURE_REASON_HISTORY_UNAVAILABLE.
+	HistoryAvailableFrom *timestamppb.Timestamp `protobuf:"bytes,16,opt,name=history_available_from,json=historyAvailableFrom,proto3" json:"history_available_from,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *StatementExport) Reset() {
@@ -389,9 +525,23 @@ func (x *StatementExport) GetFailureReason() StatementExportFailureReason {
 	return StatementExportFailureReason_STATEMENT_EXPORT_FAILURE_REASON_UNSPECIFIED
 }
 
-// CreateStatementExportRequest asks for a whole-period statement file of one
-// account. The period is at most 366 days long; a longer or empty period is
-// INVALID_ARGUMENT.
+func (x *StatementExport) GetType() StatementExportType {
+	if x != nil {
+		return x.Type
+	}
+	return StatementExportType_STATEMENT_EXPORT_TYPE_UNSPECIFIED
+}
+
+func (x *StatementExport) GetHistoryAvailableFrom() *timestamppb.Timestamp {
+	if x != nil {
+		return x.HistoryAvailableFrom
+	}
+	return nil
+}
+
+// CreateStatementExportRequest asks for a whole-period account statement,
+// ledger or balances file of one account. The period is at most 366 days long; a longer or empty
+// period is INVALID_ARGUMENT.
 type CreateStatementExportRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional public subaccount ID. When omitted, subaccount-scoped API keys
@@ -413,8 +563,12 @@ type CreateStatementExportRequest struct {
 	// key returns the same export; the same key with different request fields
 	// is refused.
 	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// Kind of file to produce; required. Every type has the same period,
+	// asset filter, limits and lifecycle; a BALANCES period must also start
+	// inside the account history.
+	Type          StatementExportType `protobuf:"varint,6,opt,name=type,proto3,enum=ledger.read.v1.StatementExportType" json:"type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateStatementExportRequest) Reset() {
@@ -480,6 +634,13 @@ func (x *CreateStatementExportRequest) GetIdempotencyKey() string {
 		return x.IdempotencyKey
 	}
 	return ""
+}
+
+func (x *CreateStatementExportRequest) GetType() StatementExportType {
+	if x != nil {
+		return x.Type
+	}
+	return StatementExportType_STATEMENT_EXPORT_TYPE_UNSPECIFIED
 }
 
 // CreateStatementExportResponse is the created or existing export.
@@ -680,7 +841,9 @@ type GetStatementExportDownloadUrlResponse struct {
 	// after it was signed for this request, or when the file expires if that
 	// is sooner. Request a new URL after it.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	// Name the download saves the file as, `statement-<exportId>.csv`.
+	// Name the download saves the file as, `account-statement-<exportId>.csv`,
+	// `ledger-<exportId>.csv` or `balances-<exportId>.csv`, by the export's
+	// type.
 	Filename      string `protobuf:"bytes,3,opt,name=filename,proto3" json:"filename,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -976,7 +1139,7 @@ var File_ledger_read_v1_statement_export_proto protoreflect.FileDescriptor
 
 const file_ledger_read_v1_statement_export_proto_rawDesc = "" +
 	"\n" +
-	"%ledger/read/v1/statement_export.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xdc\x05\n" +
+	"%ledger/read/v1/statement_export.proto\x12\x0eledger.read.v1\x1a\x1bbuf/validate/validate.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/api/annotations.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bpolyester/api/options.proto\"\xe7\x06\n" +
 	"\x0fStatementExport\x12\x1b\n" +
 	"\texport_id\x18\x01 \x01(\x06R\bexportId\x12(\n" +
 	"\rsubaccount_id\x18\x02 \x01(\x06H\x00R\fsubaccountId\x88\x01\x01\x129\n" +
@@ -995,15 +1158,18 @@ const file_ledger_read_v1_statement_export_proto_rawDesc = "" +
 	"\bready_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\areadyAt\x129\n" +
 	"\n" +
 	"expires_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12S\n" +
-	"\x0efailure_reason\x18\x0e \x01(\x0e2,.ledger.read.v1.StatementExportFailureReasonR\rfailureReasonB\x10\n" +
-	"\x0e_subaccount_id\"\x9c\x04\n" +
+	"\x0efailure_reason\x18\x0e \x01(\x0e2,.ledger.read.v1.StatementExportFailureReasonR\rfailureReason\x127\n" +
+	"\x04type\x18\x0f \x01(\x0e2#.ledger.read.v1.StatementExportTypeR\x04type\x12P\n" +
+	"\x16history_available_from\x18\x10 \x01(\v2\x1a.google.protobuf.TimestampR\x14historyAvailableFromB\x10\n" +
+	"\x0e_subaccount_id\"\xe2\x04\n" +
 	"\x1cCreateStatementExportRequest\x128\n" +
 	"\rsubaccount_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00H\x00R\fsubaccountId\x88\x01\x01\x12A\n" +
 	"\n" +
 	"start_time\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\tstartTime\x12=\n" +
 	"\bend_time\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\aendTime\x12\x19\n" +
 	"\basset_id\x18\x04 \x01(\rR\aassetId\x12I\n" +
-	"\x0fidempotency_key\x18\x05 \x01(\tB \xbaH\x1d\xc8\x01\x01r\x18\x10\x01\x18@2\x12^[A-Za-z0-9._:-]+$R\x0eidempotencyKey:\xc7\x01\xbaH\xc3\x01\x1a\xc0\x01\n" +
+	"\x0fidempotency_key\x18\x05 \x01(\tB \xbaH\x1d\xc8\x01\x01r\x18\x10\x01\x18@2\x12^[A-Za-z0-9._:-]+$R\x0eidempotencyKey\x12D\n" +
+	"\x04type\x18\x06 \x01(\x0e2#.ledger.read.v1.StatementExportTypeB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x04type:\xc7\x01\xbaH\xc3\x01\x1a\xc0\x01\n" +
 	"$create_statement_export.period_valid\x12?end_time must be after start_time and at most 366 days after it\x1aWthis.end_time > this.start_time && this.end_time - this.start_time <= duration('8784h')B\x10\n" +
 	"\x0e_subaccount_id\"X\n" +
 	"\x1dCreateStatementExportResponse\x127\n" +
@@ -1033,7 +1199,13 @@ const file_ledger_read_v1_statement_export_proto_rawDesc = "" +
 	"\aexports\x18\x01 \x03(\v2\x1f.ledger.read.v1.StatementExportR\aexports\x120\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04R\rnextPageToken\x12.\n" +
 	"\x13in_progress_exports\x18\x03 \x01(\rR\x11inProgressExports\x125\n" +
-	"\x17max_in_progress_exports\x18\x04 \x01(\rR\x14maxInProgressExports*\x9e\x02\n" +
+	"\x17max_in_progress_exports\x18\x04 \x01(\rR\x14maxInProgressExports*m\n" +
+	"\x13StatementExportType\x12%\n" +
+	"!STATEMENT_EXPORT_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11ACCOUNT_STATEMENT\x10\x01\x12\n" +
+	"\n" +
+	"\x06LEDGER\x10\x02\x12\f\n" +
+	"\bBALANCES\x10\x03*\x9e\x02\n" +
 	"\x15StatementExportStatus\x12'\n" +
 	"#STATEMENT_EXPORT_STATUS_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eSTATEMENT_EXPORT_STATUS_QUEUED\x10\x01\x12&\n" +
@@ -1041,14 +1213,15 @@ const file_ledger_read_v1_statement_export_proto_rawDesc = "" +
 	"\x1dSTATEMENT_EXPORT_STATUS_READY\x10\x03\x12\"\n" +
 	"\x1eSTATEMENT_EXPORT_STATUS_FAILED\x10\x04\x12#\n" +
 	"\x1fSTATEMENT_EXPORT_STATUS_EXPIRED\x10\x05\x12$\n" +
-	" STATEMENT_EXPORT_STATUS_CANCELED\x10\x06*\xaf\x01\n" +
+	" STATEMENT_EXPORT_STATUS_CANCELED\x10\x06*\xe8\x01\n" +
 	"\x1cStatementExportFailureReason\x12/\n" +
 	"+STATEMENT_EXPORT_FAILURE_REASON_UNSPECIFIED\x10\x00\x12-\n" +
 	")STATEMENT_EXPORT_FAILURE_REASON_TOO_LARGE\x10\x01\x12/\n" +
-	"+STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE\x10\x022\xa8\f\n" +
-	"\x16StatementExportService\x12\xb9\x02\n" +
-	"\x15CreateStatementExport\x12,.ledger.read.v1.CreateStatementExportRequest\x1a-.ledger.read.v1.CreateStatementExportResponse\"\xc2\x01\xbaG\x97\x01\n" +
-	"\x11Statement Exports\x12\x17Create Statement Export\x1aiCreate a whole-period account statement file, produced in the background. Idempotent per idempotency key.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/statements/exports\x12\x84\x02\n" +
+	"+STATEMENT_EXPORT_FAILURE_REASON_UNAVAILABLE\x10\x02\x127\n" +
+	"3STATEMENT_EXPORT_FAILURE_REASON_HISTORY_UNAVAILABLE\x10\x032\xbc\f\n" +
+	"\x16StatementExportService\x12\xcd\x02\n" +
+	"\x15CreateStatementExport\x12,.ledger.read.v1.CreateStatementExportRequest\x1a-.ledger.read.v1.CreateStatementExportResponse\"\xd6\x01\xbaG\xab\x01\n" +
+	"\x11Statement Exports\x12\x17Create Statement Export\x1a}Create a whole-period account statement, ledger or balances file, produced in the background. Idempotent per idempotency key.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1b:\x01*\"\x16/v1/statements/exports\x12\x84\x02\n" +
 	"\x12GetStatementExport\x12).ledger.read.v1.GetStatementExportRequest\x1a*.ledger.read.v1.GetStatementExportResponse\"\x96\x01\xbaG`\n" +
 	"\x11Statement Exports\x12\x14Get Statement Export\x1a5Get a statement export's status, progress and expiry.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02$\x12\"/v1/statements/exports/{export_id}\x90\x02\x01\x12\xf3\x02\n" +
 	"\x1dGetStatementExportDownloadUrl\x124.ledger.read.v1.GetStatementExportDownloadUrlRequest\x1a5.ledger.read.v1.GetStatementExportDownloadUrlResponse\"\xe4\x01\xbaG\xa0\x01\n" +
@@ -1056,8 +1229,8 @@ const file_ledger_read_v1_statement_export_proto_rawDesc = "" +
 	"\x15CancelStatementExport\x12,.ledger.read.v1.CancelStatementExportRequest\x1a-.ledger.read.v1.CancelStatementExportResponse\"\xd0\x01\xbaG\x8f\x01\n" +
 	"\x11Statement Exports\x12\x17Cancel Statement Export\x1aaCancel a queued or processing statement export, freeing its place under the root account's limit.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02.:\x01*\")/v1/statements/exports/{export_id}/cancel\x90\x02\x02\x12\xfd\x01\n" +
 	"\x14ListStatementExports\x12+.ledger.read.v1.ListStatementExportsRequest\x1a,.ledger.read.v1.ListStatementExportsResponse\"\x89\x01\xbaG_\n" +
-	"\x11Statement Exports\x12\x16List Statement Exports\x1a2List an account's statement exports, newest first.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/statements/exports\x90\x02\x01\x1a\v\x8a\xb5\x18\aaccountB\xac\x01\xbaGb:`\n" +
-	"\x11Statement Exports\x12KWhole-period account statements produced in the background as one CSV file.ZEgithub.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1;ledgerrdv1b\x06proto3"
+	"\x11Statement Exports\x12\x16List Statement Exports\x1a2List an account's statement exports, newest first.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x18\x12\x16/v1/statements/exports\x90\x02\x01\x1a\v\x8a\xb5\x18\aaccountB\xc6\x01\xbaG|:z\n" +
+	"\x11Statement Exports\x12eWhole-period account statement, ledger and balances files produced in the background as one CSV file.ZEgithub.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1;ledgerrdv1b\x06proto3"
 
 var (
 	file_ledger_read_v1_statement_export_proto_rawDescOnce sync.Once
@@ -1071,55 +1244,59 @@ func file_ledger_read_v1_statement_export_proto_rawDescGZIP() []byte {
 	return file_ledger_read_v1_statement_export_proto_rawDescData
 }
 
-var file_ledger_read_v1_statement_export_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
+var file_ledger_read_v1_statement_export_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_ledger_read_v1_statement_export_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_ledger_read_v1_statement_export_proto_goTypes = []any{
-	(StatementExportStatus)(0),                    // 0: ledger.read.v1.StatementExportStatus
-	(StatementExportFailureReason)(0),             // 1: ledger.read.v1.StatementExportFailureReason
-	(*StatementExport)(nil),                       // 2: ledger.read.v1.StatementExport
-	(*CreateStatementExportRequest)(nil),          // 3: ledger.read.v1.CreateStatementExportRequest
-	(*CreateStatementExportResponse)(nil),         // 4: ledger.read.v1.CreateStatementExportResponse
-	(*GetStatementExportRequest)(nil),             // 5: ledger.read.v1.GetStatementExportRequest
-	(*GetStatementExportResponse)(nil),            // 6: ledger.read.v1.GetStatementExportResponse
-	(*GetStatementExportDownloadUrlRequest)(nil),  // 7: ledger.read.v1.GetStatementExportDownloadUrlRequest
-	(*GetStatementExportDownloadUrlResponse)(nil), // 8: ledger.read.v1.GetStatementExportDownloadUrlResponse
-	(*CancelStatementExportRequest)(nil),          // 9: ledger.read.v1.CancelStatementExportRequest
-	(*CancelStatementExportResponse)(nil),         // 10: ledger.read.v1.CancelStatementExportResponse
-	(*ListStatementExportsRequest)(nil),           // 11: ledger.read.v1.ListStatementExportsRequest
-	(*ListStatementExportsResponse)(nil),          // 12: ledger.read.v1.ListStatementExportsResponse
-	(*timestamppb.Timestamp)(nil),                 // 13: google.protobuf.Timestamp
+	(StatementExportType)(0),                      // 0: ledger.read.v1.StatementExportType
+	(StatementExportStatus)(0),                    // 1: ledger.read.v1.StatementExportStatus
+	(StatementExportFailureReason)(0),             // 2: ledger.read.v1.StatementExportFailureReason
+	(*StatementExport)(nil),                       // 3: ledger.read.v1.StatementExport
+	(*CreateStatementExportRequest)(nil),          // 4: ledger.read.v1.CreateStatementExportRequest
+	(*CreateStatementExportResponse)(nil),         // 5: ledger.read.v1.CreateStatementExportResponse
+	(*GetStatementExportRequest)(nil),             // 6: ledger.read.v1.GetStatementExportRequest
+	(*GetStatementExportResponse)(nil),            // 7: ledger.read.v1.GetStatementExportResponse
+	(*GetStatementExportDownloadUrlRequest)(nil),  // 8: ledger.read.v1.GetStatementExportDownloadUrlRequest
+	(*GetStatementExportDownloadUrlResponse)(nil), // 9: ledger.read.v1.GetStatementExportDownloadUrlResponse
+	(*CancelStatementExportRequest)(nil),          // 10: ledger.read.v1.CancelStatementExportRequest
+	(*CancelStatementExportResponse)(nil),         // 11: ledger.read.v1.CancelStatementExportResponse
+	(*ListStatementExportsRequest)(nil),           // 12: ledger.read.v1.ListStatementExportsRequest
+	(*ListStatementExportsResponse)(nil),          // 13: ledger.read.v1.ListStatementExportsResponse
+	(*timestamppb.Timestamp)(nil),                 // 14: google.protobuf.Timestamp
 }
 var file_ledger_read_v1_statement_export_proto_depIdxs = []int32{
-	13, // 0: ledger.read.v1.StatementExport.start_time:type_name -> google.protobuf.Timestamp
-	13, // 1: ledger.read.v1.StatementExport.end_time:type_name -> google.protobuf.Timestamp
-	0,  // 2: ledger.read.v1.StatementExport.status:type_name -> ledger.read.v1.StatementExportStatus
-	13, // 3: ledger.read.v1.StatementExport.complete_through:type_name -> google.protobuf.Timestamp
-	13, // 4: ledger.read.v1.StatementExport.created_at:type_name -> google.protobuf.Timestamp
-	13, // 5: ledger.read.v1.StatementExport.ready_at:type_name -> google.protobuf.Timestamp
-	13, // 6: ledger.read.v1.StatementExport.expires_at:type_name -> google.protobuf.Timestamp
-	1,  // 7: ledger.read.v1.StatementExport.failure_reason:type_name -> ledger.read.v1.StatementExportFailureReason
-	13, // 8: ledger.read.v1.CreateStatementExportRequest.start_time:type_name -> google.protobuf.Timestamp
-	13, // 9: ledger.read.v1.CreateStatementExportRequest.end_time:type_name -> google.protobuf.Timestamp
-	2,  // 10: ledger.read.v1.CreateStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
-	2,  // 11: ledger.read.v1.GetStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
-	13, // 12: ledger.read.v1.GetStatementExportDownloadUrlResponse.expires_at:type_name -> google.protobuf.Timestamp
-	2,  // 13: ledger.read.v1.CancelStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
-	2,  // 14: ledger.read.v1.ListStatementExportsResponse.exports:type_name -> ledger.read.v1.StatementExport
-	3,  // 15: ledger.read.v1.StatementExportService.CreateStatementExport:input_type -> ledger.read.v1.CreateStatementExportRequest
-	5,  // 16: ledger.read.v1.StatementExportService.GetStatementExport:input_type -> ledger.read.v1.GetStatementExportRequest
-	7,  // 17: ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl:input_type -> ledger.read.v1.GetStatementExportDownloadUrlRequest
-	9,  // 18: ledger.read.v1.StatementExportService.CancelStatementExport:input_type -> ledger.read.v1.CancelStatementExportRequest
-	11, // 19: ledger.read.v1.StatementExportService.ListStatementExports:input_type -> ledger.read.v1.ListStatementExportsRequest
-	4,  // 20: ledger.read.v1.StatementExportService.CreateStatementExport:output_type -> ledger.read.v1.CreateStatementExportResponse
-	6,  // 21: ledger.read.v1.StatementExportService.GetStatementExport:output_type -> ledger.read.v1.GetStatementExportResponse
-	8,  // 22: ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl:output_type -> ledger.read.v1.GetStatementExportDownloadUrlResponse
-	10, // 23: ledger.read.v1.StatementExportService.CancelStatementExport:output_type -> ledger.read.v1.CancelStatementExportResponse
-	12, // 24: ledger.read.v1.StatementExportService.ListStatementExports:output_type -> ledger.read.v1.ListStatementExportsResponse
-	20, // [20:25] is the sub-list for method output_type
-	15, // [15:20] is the sub-list for method input_type
-	15, // [15:15] is the sub-list for extension type_name
-	15, // [15:15] is the sub-list for extension extendee
-	0,  // [0:15] is the sub-list for field type_name
+	14, // 0: ledger.read.v1.StatementExport.start_time:type_name -> google.protobuf.Timestamp
+	14, // 1: ledger.read.v1.StatementExport.end_time:type_name -> google.protobuf.Timestamp
+	1,  // 2: ledger.read.v1.StatementExport.status:type_name -> ledger.read.v1.StatementExportStatus
+	14, // 3: ledger.read.v1.StatementExport.complete_through:type_name -> google.protobuf.Timestamp
+	14, // 4: ledger.read.v1.StatementExport.created_at:type_name -> google.protobuf.Timestamp
+	14, // 5: ledger.read.v1.StatementExport.ready_at:type_name -> google.protobuf.Timestamp
+	14, // 6: ledger.read.v1.StatementExport.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 7: ledger.read.v1.StatementExport.failure_reason:type_name -> ledger.read.v1.StatementExportFailureReason
+	0,  // 8: ledger.read.v1.StatementExport.type:type_name -> ledger.read.v1.StatementExportType
+	14, // 9: ledger.read.v1.StatementExport.history_available_from:type_name -> google.protobuf.Timestamp
+	14, // 10: ledger.read.v1.CreateStatementExportRequest.start_time:type_name -> google.protobuf.Timestamp
+	14, // 11: ledger.read.v1.CreateStatementExportRequest.end_time:type_name -> google.protobuf.Timestamp
+	0,  // 12: ledger.read.v1.CreateStatementExportRequest.type:type_name -> ledger.read.v1.StatementExportType
+	3,  // 13: ledger.read.v1.CreateStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
+	3,  // 14: ledger.read.v1.GetStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
+	14, // 15: ledger.read.v1.GetStatementExportDownloadUrlResponse.expires_at:type_name -> google.protobuf.Timestamp
+	3,  // 16: ledger.read.v1.CancelStatementExportResponse.export:type_name -> ledger.read.v1.StatementExport
+	3,  // 17: ledger.read.v1.ListStatementExportsResponse.exports:type_name -> ledger.read.v1.StatementExport
+	4,  // 18: ledger.read.v1.StatementExportService.CreateStatementExport:input_type -> ledger.read.v1.CreateStatementExportRequest
+	6,  // 19: ledger.read.v1.StatementExportService.GetStatementExport:input_type -> ledger.read.v1.GetStatementExportRequest
+	8,  // 20: ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl:input_type -> ledger.read.v1.GetStatementExportDownloadUrlRequest
+	10, // 21: ledger.read.v1.StatementExportService.CancelStatementExport:input_type -> ledger.read.v1.CancelStatementExportRequest
+	12, // 22: ledger.read.v1.StatementExportService.ListStatementExports:input_type -> ledger.read.v1.ListStatementExportsRequest
+	5,  // 23: ledger.read.v1.StatementExportService.CreateStatementExport:output_type -> ledger.read.v1.CreateStatementExportResponse
+	7,  // 24: ledger.read.v1.StatementExportService.GetStatementExport:output_type -> ledger.read.v1.GetStatementExportResponse
+	9,  // 25: ledger.read.v1.StatementExportService.GetStatementExportDownloadUrl:output_type -> ledger.read.v1.GetStatementExportDownloadUrlResponse
+	11, // 26: ledger.read.v1.StatementExportService.CancelStatementExport:output_type -> ledger.read.v1.CancelStatementExportResponse
+	13, // 27: ledger.read.v1.StatementExportService.ListStatementExports:output_type -> ledger.read.v1.ListStatementExportsResponse
+	23, // [23:28] is the sub-list for method output_type
+	18, // [18:23] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_ledger_read_v1_statement_export_proto_init() }
@@ -1135,7 +1312,7 @@ func file_ledger_read_v1_statement_export_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_ledger_read_v1_statement_export_proto_rawDesc), len(file_ledger_read_v1_statement_export_proto_rawDesc)),
-			NumEnums:      2,
+			NumEnums:      3,
 			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   1,

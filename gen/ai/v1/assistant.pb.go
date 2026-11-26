@@ -47,7 +47,8 @@ const (
 	// No memory of the caller has this ID.
 	ErrorCode_MEMORY_NOT_FOUND ErrorCode = 4
 	// The conversation already has an active run. Wait for it to end, or cancel
-	// it, before sending another message.
+	// it, before sending another message. When the run is waiting for the
+	// user's decision, ErrorDetail.pending_approval_id names the approval.
 	ErrorCode_RUN_ACTIVE ErrorCode = 5
 	// The idempotency key was already used with a different request. The
 	// original run stands.
@@ -97,8 +98,11 @@ const (
 	// No image of the caller's messages has this ID.
 	ErrorCode_IMAGE_NOT_FOUND ErrorCode = 20
 	// The message names a subject other than its conversation's: a
-	// conversation's subject is fixed when it starts. Nothing is recorded.
+	// conversation's subject never changes once set. Nothing is recorded.
 	ErrorCode_CONVERSATION_SUBJECT_MISMATCH ErrorCode = 21
+	// The approval's run ended before it was decided, for example stopped by
+	// the user; nothing was executed.
+	ErrorCode_APPROVAL_RUN_ENDED ErrorCode = 22
 )
 
 // Enum value maps for ErrorCode.
@@ -126,6 +130,7 @@ var (
 		19: "TOO_MANY_IMAGES",
 		20: "IMAGE_NOT_FOUND",
 		21: "CONVERSATION_SUBJECT_MISMATCH",
+		22: "APPROVAL_RUN_ENDED",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_UNSPECIFIED":             0,
@@ -150,6 +155,7 @@ var (
 		"TOO_MANY_IMAGES":               19,
 		"IMAGE_NOT_FOUND":               20,
 		"CONVERSATION_SUBJECT_MISMATCH": 21,
+		"APPROVAL_RUN_ENDED":            22,
 	}
 )
 
@@ -395,6 +401,9 @@ const (
 	ApprovalStatus_REJECTED ApprovalStatus = 3
 	// Expired before a decision; the action did not run.
 	ApprovalStatus_EXPIRED ApprovalStatus = 4
+	// The run ended before a decision, for example stopped by the user; the
+	// action did not run.
+	ApprovalStatus_APPROVAL_CANCELLED ApprovalStatus = 5
 )
 
 // Enum value maps for ApprovalStatus.
@@ -405,6 +414,7 @@ var (
 		2: "APPROVED",
 		3: "REJECTED",
 		4: "EXPIRED",
+		5: "APPROVAL_CANCELLED",
 	}
 	ApprovalStatus_value = map[string]int32{
 		"APPROVAL_UNSPECIFIED": 0,
@@ -412,6 +422,7 @@ var (
 		"APPROVED":             2,
 		"REJECTED":             3,
 		"EXPIRED":              4,
+		"APPROVAL_CANCELLED":   5,
 	}
 )
 
@@ -1296,9 +1307,16 @@ func (TriggerChangeAction) EnumDescriptor() ([]byte, []int) {
 type ErrorDetail struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable error code.
-	Code          ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=ai.v1.ErrorCode" json:"code,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Code ErrorCode `protobuf:"varint,1,opt,name=code,proto3,enum=ai.v1.ErrorCode" json:"code,omitempty"`
+	// With RUN_ACTIVE only: the approval the conversation's active run is
+	// waiting for, set only while that approval is still PENDING and not past
+	// its expiry when the message is refused. Unset when the run is not waiting
+	// for a decision (for example, the approval was already decided, even if
+	// the run has not reported it yet). Show that approval's Approve and Reject
+	// choices instead of a generic "busy" message.
+	PendingApprovalId uint64 `protobuf:"fixed64,2,opt,name=pending_approval_id,json=pendingApprovalId,proto3" json:"pending_approval_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *ErrorDetail) Reset() {
@@ -1338,6 +1356,13 @@ func (x *ErrorDetail) GetCode() ErrorCode {
 	return ErrorCode_ERROR_UNSPECIFIED
 }
 
+func (x *ErrorDetail) GetPendingApprovalId() uint64 {
+	if x != nil {
+		return x.PendingApprovalId
+	}
+	return 0
+}
+
 // Conversation is one conversation of the caller with the assistant.
 type Conversation struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1350,8 +1375,9 @@ type Conversation struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// When the latest message of the conversation was recorded.
 	UpdatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	// What the conversation is about, fixed when it started. Omitted for a
-	// general conversation.
+	// What the conversation is about: set when it started, or when the
+	// assistant created a strategy in it (see Subject), and never changed once
+	// set. Omitted for a general conversation.
 	Subject *Subject `protobuf:"bytes,5,opt,name=subject,proto3" json:"subject,omitempty"`
 	// The account the conversation's latest message selected, from any client,
 	// as of this list: a message sent since may have selected another.
@@ -6952,7 +6978,7 @@ type ApprovalResolved struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Public approval ID, as in its ApprovalRequested event.
 	ApprovalId uint64 `protobuf:"fixed64,1,opt,name=approval_id,json=approvalId,proto3" json:"approval_id,omitempty"`
-	// APPROVED, REJECTED or EXPIRED.
+	// APPROVED, REJECTED, EXPIRED or APPROVAL_CANCELLED.
 	Status        ApprovalStatus `protobuf:"varint,2,opt,name=status,proto3,enum=ai.v1.ApprovalStatus" json:"status,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7379,7 +7405,7 @@ type RunEvent_ApprovalRequested struct {
 }
 
 type RunEvent_ApprovalResolved struct {
-	// An approval was decided or expired.
+	// An approval was decided, expired or cancelled.
 	ApprovalResolved *ApprovalResolved `protobuf:"bytes,11,opt,name=approval_resolved,json=approvalResolved,proto3,oneof"`
 }
 
@@ -7880,6 +7906,16 @@ func (x *CurrentPage) GetTitle() string {
 // and tells the assistant what the user is working on. It grants nothing:
 // every read and change the assistant makes is still checked against the
 // caller's own access.
+//
+// A conversation without a subject gets one at most once: when the assistant
+// creates a strategy in it, the conversation becomes about that strategy,
+// unless another conversation of the caller is already about it. Only when it
+// does is it the conversation that strategy's subject selects, with its
+// history, and later messages may still omit the subject. When another
+// conversation of the caller is already about the strategy, that conversation
+// keeps it and is the one its subject selects, and this one stays without a
+// subject. A second strategy created in a conversation leaves the subject on
+// the first; another strategy is created in a new conversation.
 type Subject struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// What the conversation is about.
@@ -8062,10 +8098,11 @@ type SendMessageRequest struct {
 	// What the conversation is about. Without conversation_id, the message
 	// continues the caller's conversation about this subject, or starts it:
 	// there is at most one per subject. With conversation_id, omit it or send
-	// the conversation's own subject. A conversation's subject is fixed when it
-	// starts: any other subject, or a subject for a conversation that has none,
-	// is FAILED_PRECONDITION with CONVERSATION_SUBJECT_MISMATCH, and nothing is
-	// recorded. It is part of the request the idempotency key covers.
+	// the conversation's own subject. A conversation's subject never changes
+	// once set (see Subject): any other subject, or a subject for a
+	// conversation that has none, is FAILED_PRECONDITION with
+	// CONVERSATION_SUBJECT_MISMATCH, and nothing is recorded. It is part of the
+	// request the idempotency key covers.
 	Subject       *Subject `protobuf:"bytes,11,opt,name=subject,proto3" json:"subject,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -8720,8 +8757,8 @@ type ListMessagesResponse struct {
 	// when the conversation was listed earlier. Set on every page. A client that
 	// opens the conversation selects it before the next message.
 	LastAccount *ConversationAccount `protobuf:"bytes,3,opt,name=last_account,json=lastAccount,proto3" json:"last_account,omitempty"`
-	// What the conversation is about: the same as Conversation.subject, fixed
-	// when the conversation started. Set on every page; omitted for a general
+	// What the conversation is about: the same as Conversation.subject, never
+	// changed once set (see Subject). Set on every page; omitted for a general
 	// conversation. A client that opens a conversation by its ID learns from it
 	// whether the conversation is about one of the caller's strategies.
 	Subject       *Subject `protobuf:"bytes,4,opt,name=subject,proto3" json:"subject,omitempty"`
@@ -10093,9 +10130,10 @@ var File_ai_v1_assistant_proto protoreflect.FileDescriptor
 
 const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\n" +
-	"\x15ai/v1/assistant.proto\x12\x05ai.v1\x1a\x1calerts/v1/price_alerts.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echain/deposit/v1/deposit.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1emarketdata/v1/marketdata.proto\x1a\x16orders/v1/orders.proto\x1a\x1borders/v1/orders_read.proto\x1a\x1bpolyester/api/options.proto\x1a\x1atriggers/v1/triggers.proto\"3\n" +
+	"\x15ai/v1/assistant.proto\x12\x05ai.v1\x1a\x1calerts/v1/price_alerts.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1echain/deposit/v1/deposit.proto\x1a$gnostic/openapi/v3/annotations.proto\x1a\x1cgoogle/protobuf/struct.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a ledger/read/v1/ledger_read.proto\x1a\x1emarketdata/v1/marketdata.proto\x1a\x16orders/v1/orders.proto\x1a\x1borders/v1/orders_read.proto\x1a\x1bpolyester/api/options.proto\x1a\x1atriggers/v1/triggers.proto\"c\n" +
 	"\vErrorDetail\x12$\n" +
-	"\x04code\x18\x01 \x01(\x0e2\x10.ai.v1.ErrorCodeR\x04code\"\xac\x02\n" +
+	"\x04code\x18\x01 \x01(\x0e2\x10.ai.v1.ErrorCodeR\x04code\x12.\n" +
+	"\x13pending_approval_id\x18\x02 \x01(\x06R\x11pendingApprovalId\"\xac\x02\n" +
 	"\fConversation\x12'\n" +
 	"\x0fconversation_id\x18\x01 \x01(\x06R\x0econversationId\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x129\n" +
@@ -10762,7 +10800,7 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x11free_credits_left\x18\x05 \x01(\x04R\x0ffreeCreditsLeft\x127\n" +
 	"\tresets_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\bresetsAt\x12/\n" +
 	"\tnext_tier\x18\a \x01(\v2\x12.ai.v1.TierCreditsR\bnextTierB\v\n" +
-	"\t_vip_tier*\xb0\x04\n" +
+	"\t_vip_tier*\xc8\x04\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16CONVERSATION_NOT_FOUND\x10\x01\x12\x11\n" +
@@ -10787,7 +10825,8 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x16IMAGE_TYPE_UNSUPPORTED\x10\x12\x12\x13\n" +
 	"\x0fTOO_MANY_IMAGES\x10\x13\x12\x13\n" +
 	"\x0fIMAGE_NOT_FOUND\x10\x14\x12!\n" +
-	"\x1dCONVERSATION_SUBJECT_MISMATCH\x10\x15*<\n" +
+	"\x1dCONVERSATION_SUBJECT_MISMATCH\x10\x15\x12\x16\n" +
+	"\x12APPROVAL_RUN_ENDED\x10\x16*<\n" +
 	"\vMessageRole\x12\x14\n" +
 	"\x10ROLE_UNSPECIFIED\x10\x00\x12\b\n" +
 	"\x04USER\x10\x01\x12\r\n" +
@@ -10806,13 +10845,14 @@ const file_ai_v1_assistant_proto_rawDesc = "" +
 	"\x14DECISION_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aAPPROVE\x10\x01\x12\n" +
 	"\n" +
-	"\x06REJECT\x10\x02*`\n" +
+	"\x06REJECT\x10\x02*x\n" +
 	"\x0eApprovalStatus\x12\x18\n" +
 	"\x14APPROVAL_UNSPECIFIED\x10\x00\x12\v\n" +
 	"\aPENDING\x10\x01\x12\f\n" +
 	"\bAPPROVED\x10\x02\x12\f\n" +
 	"\bREJECTED\x10\x03\x12\v\n" +
-	"\aEXPIRED\x10\x04*N\n" +
+	"\aEXPIRED\x10\x04\x12\x16\n" +
+	"\x12APPROVAL_CANCELLED\x10\x05*N\n" +
 	"\n" +
 	"MemoryKind\x12\x14\n" +
 	"\x10KIND_UNSPECIFIED\x10\x00\x12\b\n" +

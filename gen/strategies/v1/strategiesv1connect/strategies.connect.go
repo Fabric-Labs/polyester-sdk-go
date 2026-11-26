@@ -114,6 +114,12 @@ const (
 	// StrategiesServiceListBotLogsProcedure is the fully-qualified name of the StrategiesService's
 	// ListBotLogs RPC.
 	StrategiesServiceListBotLogsProcedure = "/strategies.v1.StrategiesService/ListBotLogs"
+	// StrategiesServiceReturnBotFundsProcedure is the fully-qualified name of the StrategiesService's
+	// ReturnBotFunds RPC.
+	StrategiesServiceReturnBotFundsProcedure = "/strategies.v1.StrategiesService/ReturnBotFunds"
+	// StrategiesServiceGetBotFundsReturnProcedure is the fully-qualified name of the
+	// StrategiesService's GetBotFundsReturn RPC.
+	StrategiesServiceGetBotFundsReturnProcedure = "/strategies.v1.StrategiesService/GetBotFundsReturn"
 	// StrategiesServiceStopBotProcedure is the fully-qualified name of the StrategiesService's StopBot
 	// RPC.
 	StrategiesServiceStopBotProcedure = "/strategies.v1.StrategiesService/StopBot"
@@ -126,6 +132,12 @@ const (
 	// StrategiesServiceListCommunityStrategiesProcedure is the fully-qualified name of the
 	// StrategiesService's ListCommunityStrategies RPC.
 	StrategiesServiceListCommunityStrategiesProcedure = "/strategies.v1.StrategiesService/ListCommunityStrategies"
+	// StrategiesServiceReportCommunityStrategyProcedure is the fully-qualified name of the
+	// StrategiesService's ReportCommunityStrategy RPC.
+	StrategiesServiceReportCommunityStrategyProcedure = "/strategies.v1.StrategiesService/ReportCommunityStrategy"
+	// StrategiesServiceForkStrategyProcedure is the fully-qualified name of the StrategiesService's
+	// ForkStrategy RPC.
+	StrategiesServiceForkStrategyProcedure = "/strategies.v1.StrategiesService/ForkStrategy"
 	// StrategiesServiceGetCommunityStrategyProcedure is the fully-qualified name of the
 	// StrategiesService's GetCommunityStrategy RPC.
 	StrategiesServiceGetCommunityStrategyProcedure = "/strategies.v1.StrategiesService/GetCommunityStrategy"
@@ -243,7 +255,7 @@ type StrategiesServiceClient interface {
 	// hasn't stopped, whether deployed from one of its proposals or running
 	// one of its revisions' versions, while a deploy proposal of it has
 	// neither expired, failed nor been deployed, and while its community
-	// listing is public. Deleting never stops a bot. Proposals of the strategy
+	// listing is public or held by moderation. Deleting never stops a bot. Proposals of the strategy
 	// stay, and show no strategy once it is deleted. Its unpublished listing
 	// stays unpublished, with the versions it published. A version only the
 	// strategy's revisions kept then expires like any other.
@@ -252,7 +264,8 @@ type StrategiesServiceClient interface {
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
 	//     an unknown or already deleted one.
-	//   - FAILED_PRECONDITION: STRATEGY_IN_USE.
+	//   - FAILED_PRECONDITION: STRATEGY_IN_USE; LISTING_HELD while moderation
+	//     holds the strategy's listing.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
 	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
 	//     does not grant DRAFT_STRATEGIES or the key is scoped to a subaccount.
@@ -319,8 +332,13 @@ type StrategiesServiceClient interface {
 	// records the results. Each market's trading rules (tick, step, minimum
 	// quantity and minimum notional) are the exchange's when the version first
 	// runs, unless an example's `observe.markets` says otherwise, and the
-	// record keeps them: a version always gets the same result, and a new
+	// record keeps them: a version's recorded results stay the same, and a new
 	// version runs on the rules current then.
+	//
+	// One exception: when a call takes longer than allowed or the runtime fails
+	// on a run, its results are returned but not recorded, and the affected
+	// example's error says to run the examples again. The next call runs them
+	// again and counts toward the per-minute limit.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
@@ -412,8 +430,8 @@ type StrategiesServiceClient interface {
 	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
 	//     an unknown one; REVISION_NOT_FOUND; or FUNDING_SUBACCOUNT_NOT_FOUND.
 	//   - FAILED_PRECONDITION: VERSION_INVALID, SCENARIOS_FAILING,
-	//     BACKTEST_MISSING, MARKET_NOT_ALLOWED, INSUFFICIENT_FUNDS or
-	//     BOT_CAP_REACHED.
+	//     BACKTEST_MISSING, MARKET_NOT_ALLOWED, INSUFFICIENT_FUNDS,
+	//     FUNDING_SOURCE_IS_BOT or BOT_CAP_REACHED.
 	//   - RESOURCE_EXHAUSTED: INDICATOR_SETTINGS_LIMIT_REACHED.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original proposal stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
@@ -546,6 +564,48 @@ type StrategiesServiceClient interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ListBotLogs(context.Context, *connect.Request[v1.ListBotLogsRequest]) (*connect.Response[v1.ListBotLogsResponse], error)
+	// ReturnBotFunds returns every spendable balance of a stopped bot's
+	// subaccount to the caller's main account, its owner's: the only
+	// destination, so it needs no MFA. Only the bot's owner calls it, on its own
+	// session or a root-scoped API key whose policy grants
+	// RETURN_STRATEGY_BOT_FUNDS; an invited member of any role is refused as if
+	// the bot didn't exist. It never takes what an open order's hold reserves:
+	// while the orders a KEEP_ORDERS stop kept stay open, the return stays
+	// RETURN_PROCESSING, naming what they hold (held), and returns it as they
+	// fill or end. The return completes on its own; GetBotFundsReturn reads it.
+	// An open return blocks nothing: the bot's subaccount can't be given to
+	// another bot while anything stays on it, whatever the return.
+	//
+	// Errors:
+	//   - FAILED_PRECONDITION: BOT_NOT_STOPPED while the bot may still trade
+	//     (deploying, running, paused, stopping). If the bot reads STOPPED but an
+	//     API-key call gets BOT_NOT_STOPPED because the bot's access is still
+	//     live, its owner must first call ReturnBotFunds from their own
+	//     interactive session to end that access; retrying with the API key alone
+	//     cannot. Afterwards a root-scoped API key with RETURN_STRATEGY_BOT_FUNDS
+	//     can return the funds; retry a recorded return with the same idempotency
+	//     key. NOTHING_TO_RETURN when the
+	//     subaccount has no available balance, or the return under the key ended
+	//     with nothing moved.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT when the key names another bot's
+	//     return.
+	//   - NOT_FOUND: BOT_NOT_FOUND when the caller has no such bot.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant RETURN_STRATEGY_BOT_FUNDS or the key is scoped to a
+	//     subaccount; AUTH_SESSION_KIND_NOT_ALLOWED for a connected app's session.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE when the return can't be decided yet;
+	//     retry with the same key.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ReturnBotFunds(context.Context, *connect.Request[v1.ReturnBotFundsRequest]) (*connect.Response[v1.ReturnBotFundsResponse], error)
+	// GetBotFundsReturn reads one of the caller's returns of a stopped bot's
+	// funds, by the return ID ReturnBotFunds answered.
+	//
+	// Errors:
+	//   - NOT_FOUND: the caller has no such return.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	GetBotFundsReturn(context.Context, *connect.Request[v1.GetBotFundsReturnRequest]) (*connect.Response[v1.GetBotFundsReturnResponse], error)
 	// StopBot stops a bot: it makes no new decisions. KEEP_ORDERS hands its
 	// open orders, protective stop-losses included, to its subaccount: they
 	// stay in the book as the subaccount's own orders, which the bot no longer
@@ -602,7 +662,8 @@ type StrategiesServiceClient interface {
 	//   - FAILED_PRECONDITION: VERSION_INVALID; SCENARIOS_FAILING;
 	//     WINDOW_HAS_NO_DATA when the default window holds no market data;
 	//     USERNAME_REQUIRED; LISTING_CAP_REACHED, listing_cap gives the cap;
-	//     PUBLISH_LIMIT_REACHED, retry_after says when the day resets.
+	//     PUBLISH_LIMIT_REACHED, retry_after says when the day resets;
+	//     LISTING_HELD while moderation holds the listing.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original publish stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
 	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
@@ -612,12 +673,14 @@ type StrategiesServiceClient interface {
 	// UnpublishStrategy unpublishes one of the caller's community listings: it
 	// leaves the list, and GetCommunityStrategy answers LISTING_NOT_FOUND. The
 	// author's next publish makes it public again. Copies other users already
-	// made stay theirs. Unpublishing an unpublished listing changes nothing.
+	// made stay theirs. Unpublishing an unpublished listing changes nothing; a
+	// listing moderation holds can't be unpublished until it is released.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: LISTING_NOT_FOUND, for another account's listing as for an
 	//     unknown one.
+	//   - FAILED_PRECONDITION: LISTING_HELD while moderation holds the listing.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
 	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
 	//     session a connected app holds on the user's behalf.
@@ -631,6 +694,48 @@ type StrategiesServiceClient interface {
 	// - INVALID_ARGUMENT: malformed request or page token.
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
 	ListCommunityStrategies(context.Context, *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error)
+	// ReportCommunityStrategy reports a public community listing to
+	// moderation: what is wrong with the version the reader saw, from a fixed
+	// list of reasons, with a note. One report per reader, listing and
+	// version, even after the version is published again: reporting it again
+	// answers the first report and doesn't count toward the day's reports. A
+	// reader makes at most 20 reports per UTC day. A report changes nothing of the listing by
+	// itself; moderation reviews it.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, or a reason of OTHER without a
+	//     note.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for an unpublished listing as for an
+	//     unknown one; VERSION_NOT_FOUND when the listing never published the
+	//     version.
+	//   - FAILED_PRECONDITION: CANNOT_REPORT_OWN_LISTING; REPORT_LIMIT_REACHED,
+	//     retry_after says when the day resets.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
+	//     session a connected app holds on the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ReportCommunityStrategy(context.Context, *connect.Request[v1.ReportCommunityStrategyRequest]) (*connect.Response[v1.ReportCommunityStrategyResponse], error)
+	// ForkStrategy copies a public community listing's published version into
+	// a new strategy of the caller, as its revision 1, and records the
+	// listing as its origin. The copy is the caller's own: its behaviour
+	// examples and backtests are the caller's to run, and nothing the
+	// listing's author does later changes it. Forking one's own listing makes
+	// a copy as a duplicate does, and isn't counted as a fork. An account has
+	// at most 100 strategies.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for an unpublished listing as for an
+	//     unknown one.
+	//   - FAILED_PRECONDITION: STRATEGY_CAP_REACHED; strategy_cap gives the cap.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original strategy stands.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant FORK_STRATEGIES or the key is scoped to a subaccount;
+	//     AUTH_SESSION_KIND_NOT_ALLOWED for a session a connected app holds on
+	//     the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ForkStrategy(context.Context, *connect.Request[v1.ForkStrategyRequest]) (*connect.Response[v1.ForkStrategyResponse], error)
 	// GetCommunityStrategy reads one public community listing: its title,
 	// description, types, markets and author, and its published version's
 	// code, manifest, settings form, money rules, flow and platform backtest.
@@ -843,6 +948,20 @@ func NewStrategiesServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
+		returnBotFunds: connect.NewClient[v1.ReturnBotFundsRequest, v1.ReturnBotFundsResponse](
+			httpClient,
+			baseURL+StrategiesServiceReturnBotFundsProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("ReturnBotFunds")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		getBotFundsReturn: connect.NewClient[v1.GetBotFundsReturnRequest, v1.GetBotFundsReturnResponse](
+			httpClient,
+			baseURL+StrategiesServiceGetBotFundsReturnProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("GetBotFundsReturn")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		stopBot: connect.NewClient[v1.StopBotRequest, v1.StopBotResponse](
 			httpClient,
 			baseURL+StrategiesServiceStopBotProcedure,
@@ -869,6 +988,20 @@ func NewStrategiesServiceClient(httpClient connect.HTTPClient, baseURL string, o
 			baseURL+StrategiesServiceListCommunityStrategiesProcedure,
 			connect.WithSchema(strategiesServiceMethods.ByName("ListCommunityStrategies")),
 			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
+		reportCommunityStrategy: connect.NewClient[v1.ReportCommunityStrategyRequest, v1.ReportCommunityStrategyResponse](
+			httpClient,
+			baseURL+StrategiesServiceReportCommunityStrategyProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("ReportCommunityStrategy")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+		forkStrategy: connect.NewClient[v1.ForkStrategyRequest, v1.ForkStrategyResponse](
+			httpClient,
+			baseURL+StrategiesServiceForkStrategyProcedure,
+			connect.WithSchema(strategiesServiceMethods.ByName("ForkStrategy")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
 		getCommunityStrategy: connect.NewClient[v1.GetCommunityStrategyRequest, v1.GetCommunityStrategyResponse](
@@ -910,10 +1043,14 @@ type strategiesServiceClient struct {
 	listBotVersions            *connect.Client[v1.ListBotVersionsRequest, v1.ListBotVersionsResponse]
 	getStrategyVersion         *connect.Client[v1.GetStrategyVersionRequest, v1.GetStrategyVersionResponse]
 	listBotLogs                *connect.Client[v1.ListBotLogsRequest, v1.ListBotLogsResponse]
+	returnBotFunds             *connect.Client[v1.ReturnBotFundsRequest, v1.ReturnBotFundsResponse]
+	getBotFundsReturn          *connect.Client[v1.GetBotFundsReturnRequest, v1.GetBotFundsReturnResponse]
 	stopBot                    *connect.Client[v1.StopBotRequest, v1.StopBotResponse]
 	publishStrategyVersion     *connect.Client[v1.PublishStrategyVersionRequest, v1.PublishStrategyVersionResponse]
 	unpublishStrategy          *connect.Client[v1.UnpublishStrategyRequest, v1.UnpublishStrategyResponse]
 	listCommunityStrategies    *connect.Client[v1.ListCommunityStrategiesRequest, v1.ListCommunityStrategiesResponse]
+	reportCommunityStrategy    *connect.Client[v1.ReportCommunityStrategyRequest, v1.ReportCommunityStrategyResponse]
+	forkStrategy               *connect.Client[v1.ForkStrategyRequest, v1.ForkStrategyResponse]
 	getCommunityStrategy       *connect.Client[v1.GetCommunityStrategyRequest, v1.GetCommunityStrategyResponse]
 }
 
@@ -1052,6 +1189,16 @@ func (c *strategiesServiceClient) ListBotLogs(ctx context.Context, req *connect.
 	return c.listBotLogs.CallUnary(ctx, req)
 }
 
+// ReturnBotFunds calls strategies.v1.StrategiesService.ReturnBotFunds.
+func (c *strategiesServiceClient) ReturnBotFunds(ctx context.Context, req *connect.Request[v1.ReturnBotFundsRequest]) (*connect.Response[v1.ReturnBotFundsResponse], error) {
+	return c.returnBotFunds.CallUnary(ctx, req)
+}
+
+// GetBotFundsReturn calls strategies.v1.StrategiesService.GetBotFundsReturn.
+func (c *strategiesServiceClient) GetBotFundsReturn(ctx context.Context, req *connect.Request[v1.GetBotFundsReturnRequest]) (*connect.Response[v1.GetBotFundsReturnResponse], error) {
+	return c.getBotFundsReturn.CallUnary(ctx, req)
+}
+
 // StopBot calls strategies.v1.StrategiesService.StopBot.
 func (c *strategiesServiceClient) StopBot(ctx context.Context, req *connect.Request[v1.StopBotRequest]) (*connect.Response[v1.StopBotResponse], error) {
 	return c.stopBot.CallUnary(ctx, req)
@@ -1070,6 +1217,16 @@ func (c *strategiesServiceClient) UnpublishStrategy(ctx context.Context, req *co
 // ListCommunityStrategies calls strategies.v1.StrategiesService.ListCommunityStrategies.
 func (c *strategiesServiceClient) ListCommunityStrategies(ctx context.Context, req *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error) {
 	return c.listCommunityStrategies.CallUnary(ctx, req)
+}
+
+// ReportCommunityStrategy calls strategies.v1.StrategiesService.ReportCommunityStrategy.
+func (c *strategiesServiceClient) ReportCommunityStrategy(ctx context.Context, req *connect.Request[v1.ReportCommunityStrategyRequest]) (*connect.Response[v1.ReportCommunityStrategyResponse], error) {
+	return c.reportCommunityStrategy.CallUnary(ctx, req)
+}
+
+// ForkStrategy calls strategies.v1.StrategiesService.ForkStrategy.
+func (c *strategiesServiceClient) ForkStrategy(ctx context.Context, req *connect.Request[v1.ForkStrategyRequest]) (*connect.Response[v1.ForkStrategyResponse], error) {
+	return c.forkStrategy.CallUnary(ctx, req)
 }
 
 // GetCommunityStrategy calls strategies.v1.StrategiesService.GetCommunityStrategy.
@@ -1189,7 +1346,7 @@ type StrategiesServiceHandler interface {
 	// hasn't stopped, whether deployed from one of its proposals or running
 	// one of its revisions' versions, while a deploy proposal of it has
 	// neither expired, failed nor been deployed, and while its community
-	// listing is public. Deleting never stops a bot. Proposals of the strategy
+	// listing is public or held by moderation. Deleting never stops a bot. Proposals of the strategy
 	// stay, and show no strategy once it is deleted. Its unpublished listing
 	// stays unpublished, with the versions it published. A version only the
 	// strategy's revisions kept then expires like any other.
@@ -1198,7 +1355,8 @@ type StrategiesServiceHandler interface {
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
 	//     an unknown or already deleted one.
-	//   - FAILED_PRECONDITION: STRATEGY_IN_USE.
+	//   - FAILED_PRECONDITION: STRATEGY_IN_USE; LISTING_HELD while moderation
+	//     holds the strategy's listing.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
 	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
 	//     does not grant DRAFT_STRATEGIES or the key is scoped to a subaccount.
@@ -1265,8 +1423,13 @@ type StrategiesServiceHandler interface {
 	// records the results. Each market's trading rules (tick, step, minimum
 	// quantity and minimum notional) are the exchange's when the version first
 	// runs, unless an example's `observe.markets` says otherwise, and the
-	// record keeps them: a version always gets the same result, and a new
+	// record keeps them: a version's recorded results stay the same, and a new
 	// version runs on the rules current then.
+	//
+	// One exception: when a call takes longer than allowed or the runtime fails
+	// on a run, its results are returned but not recorded, and the affected
+	// example's error says to run the examples again. The next call runs them
+	// again and counts toward the per-minute limit.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
@@ -1358,8 +1521,8 @@ type StrategiesServiceHandler interface {
 	//   - NOT_FOUND: STRATEGY_NOT_FOUND, for another account's strategy as for
 	//     an unknown one; REVISION_NOT_FOUND; or FUNDING_SUBACCOUNT_NOT_FOUND.
 	//   - FAILED_PRECONDITION: VERSION_INVALID, SCENARIOS_FAILING,
-	//     BACKTEST_MISSING, MARKET_NOT_ALLOWED, INSUFFICIENT_FUNDS or
-	//     BOT_CAP_REACHED.
+	//     BACKTEST_MISSING, MARKET_NOT_ALLOWED, INSUFFICIENT_FUNDS,
+	//     FUNDING_SOURCE_IS_BOT or BOT_CAP_REACHED.
 	//   - RESOURCE_EXHAUSTED: INDICATOR_SETTINGS_LIMIT_REACHED.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original proposal stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
@@ -1492,6 +1655,48 @@ type StrategiesServiceHandler interface {
 	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
 	ListBotLogs(context.Context, *connect.Request[v1.ListBotLogsRequest]) (*connect.Response[v1.ListBotLogsResponse], error)
+	// ReturnBotFunds returns every spendable balance of a stopped bot's
+	// subaccount to the caller's main account, its owner's: the only
+	// destination, so it needs no MFA. Only the bot's owner calls it, on its own
+	// session or a root-scoped API key whose policy grants
+	// RETURN_STRATEGY_BOT_FUNDS; an invited member of any role is refused as if
+	// the bot didn't exist. It never takes what an open order's hold reserves:
+	// while the orders a KEEP_ORDERS stop kept stay open, the return stays
+	// RETURN_PROCESSING, naming what they hold (held), and returns it as they
+	// fill or end. The return completes on its own; GetBotFundsReturn reads it.
+	// An open return blocks nothing: the bot's subaccount can't be given to
+	// another bot while anything stays on it, whatever the return.
+	//
+	// Errors:
+	//   - FAILED_PRECONDITION: BOT_NOT_STOPPED while the bot may still trade
+	//     (deploying, running, paused, stopping). If the bot reads STOPPED but an
+	//     API-key call gets BOT_NOT_STOPPED because the bot's access is still
+	//     live, its owner must first call ReturnBotFunds from their own
+	//     interactive session to end that access; retrying with the API key alone
+	//     cannot. Afterwards a root-scoped API key with RETURN_STRATEGY_BOT_FUNDS
+	//     can return the funds; retry a recorded return with the same idempotency
+	//     key. NOTHING_TO_RETURN when the
+	//     subaccount has no available balance, or the return under the key ended
+	//     with nothing moved.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT when the key names another bot's
+	//     return.
+	//   - NOT_FOUND: BOT_NOT_FOUND when the caller has no such bot.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant RETURN_STRATEGY_BOT_FUNDS or the key is scoped to a
+	//     subaccount; AUTH_SESSION_KIND_NOT_ALLOWED for a connected app's session.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE when the return can't be decided yet;
+	//     retry with the same key.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ReturnBotFunds(context.Context, *connect.Request[v1.ReturnBotFundsRequest]) (*connect.Response[v1.ReturnBotFundsResponse], error)
+	// GetBotFundsReturn reads one of the caller's returns of a stopped bot's
+	// funds, by the return ID ReturnBotFunds answered.
+	//
+	// Errors:
+	//   - NOT_FOUND: the caller has no such return.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant READ_STRATEGIES or the key is scoped to a subaccount.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	GetBotFundsReturn(context.Context, *connect.Request[v1.GetBotFundsReturnRequest]) (*connect.Response[v1.GetBotFundsReturnResponse], error)
 	// StopBot stops a bot: it makes no new decisions. KEEP_ORDERS hands its
 	// open orders, protective stop-losses included, to its subaccount: they
 	// stay in the book as the subaccount's own orders, which the bot no longer
@@ -1548,7 +1753,8 @@ type StrategiesServiceHandler interface {
 	//   - FAILED_PRECONDITION: VERSION_INVALID; SCENARIOS_FAILING;
 	//     WINDOW_HAS_NO_DATA when the default window holds no market data;
 	//     USERNAME_REQUIRED; LISTING_CAP_REACHED, listing_cap gives the cap;
-	//     PUBLISH_LIMIT_REACHED, retry_after says when the day resets.
+	//     PUBLISH_LIMIT_REACHED, retry_after says when the day resets;
+	//     LISTING_HELD while moderation holds the listing.
 	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original publish stands.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
 	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
@@ -1558,12 +1764,14 @@ type StrategiesServiceHandler interface {
 	// UnpublishStrategy unpublishes one of the caller's community listings: it
 	// leaves the list, and GetCommunityStrategy answers LISTING_NOT_FOUND. The
 	// author's next publish makes it public again. Copies other users already
-	// made stay theirs. Unpublishing an unpublished listing changes nothing.
+	// made stay theirs. Unpublishing an unpublished listing changes nothing; a
+	// listing moderation holds can't be unpublished until it is released.
 	//
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: LISTING_NOT_FOUND, for another account's listing as for an
 	//     unknown one.
+	//   - FAILED_PRECONDITION: LISTING_HELD while moderation holds the listing.
 	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
 	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
 	//     session a connected app holds on the user's behalf.
@@ -1577,6 +1785,48 @@ type StrategiesServiceHandler interface {
 	// - INVALID_ARGUMENT: malformed request or page token.
 	// - UNAVAILABLE: SERVICE_UNAVAILABLE; retry.
 	ListCommunityStrategies(context.Context, *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error)
+	// ReportCommunityStrategy reports a public community listing to
+	// moderation: what is wrong with the version the reader saw, from a fixed
+	// list of reasons, with a note. One report per reader, listing and
+	// version, even after the version is published again: reporting it again
+	// answers the first report and doesn't count toward the day's reports. A
+	// reader makes at most 20 reports per UTC day. A report changes nothing of the listing by
+	// itself; moderation reviews it.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request, or a reason of OTHER without a
+	//     note.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for an unpublished listing as for an
+	//     unknown one; VERSION_NOT_FOUND when the listing never published the
+	//     version.
+	//   - FAILED_PRECONDITION: CANNOT_REPORT_OWN_LISTING; REPORT_LIMIT_REACHED,
+	//     retry_after says when the day resets.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_SESSION_KIND_NOT_ALLOWED for an API key or a
+	//     session a connected app holds on the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ReportCommunityStrategy(context.Context, *connect.Request[v1.ReportCommunityStrategyRequest]) (*connect.Response[v1.ReportCommunityStrategyResponse], error)
+	// ForkStrategy copies a public community listing's published version into
+	// a new strategy of the caller, as its revision 1, and records the
+	// listing as its origin. The copy is the caller's own: its behaviour
+	// examples and backtests are the caller's to run, and nothing the
+	// listing's author does later changes it. Forking one's own listing makes
+	// a copy as a duplicate does, and isn't counted as a fork. An account has
+	// at most 100 strategies.
+	//
+	// Errors:
+	//   - INVALID_ARGUMENT: malformed request.
+	//   - NOT_FOUND: LISTING_NOT_FOUND, for an unpublished listing as for an
+	//     unknown one.
+	//   - FAILED_PRECONDITION: STRATEGY_CAP_REACHED; strategy_cap gives the cap.
+	//   - ALREADY_EXISTS: IDEMPOTENCY_CONFLICT; the original strategy stands.
+	//   - UNAVAILABLE: SERVICE_UNAVAILABLE; retry the same request.
+	//   - PERMISSION_DENIED: AUTH_API_KEY_ACCESS_DENIED when the API key's policy
+	//     does not grant FORK_STRATEGIES or the key is scoped to a subaccount;
+	//     AUTH_SESSION_KIND_NOT_ALLOWED for a session a connected app holds on
+	//     the user's behalf.
+	//   - UNAUTHENTICATED: missing or invalid credentials.
+	ForkStrategy(context.Context, *connect.Request[v1.ForkStrategyRequest]) (*connect.Response[v1.ForkStrategyResponse], error)
 	// GetCommunityStrategy reads one public community listing: its title,
 	// description, types, markets and author, and its published version's
 	// code, manifest, settings form, money rules, flow and platform backtest.
@@ -1785,6 +2035,20 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
+	strategiesServiceReturnBotFundsHandler := connect.NewUnaryHandler(
+		StrategiesServiceReturnBotFundsProcedure,
+		svc.ReturnBotFunds,
+		connect.WithSchema(strategiesServiceMethods.ByName("ReturnBotFunds")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceGetBotFundsReturnHandler := connect.NewUnaryHandler(
+		StrategiesServiceGetBotFundsReturnProcedure,
+		svc.GetBotFundsReturn,
+		connect.WithSchema(strategiesServiceMethods.ByName("GetBotFundsReturn")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	strategiesServiceStopBotHandler := connect.NewUnaryHandler(
 		StrategiesServiceStopBotProcedure,
 		svc.StopBot,
@@ -1811,6 +2075,20 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 		svc.ListCommunityStrategies,
 		connect.WithSchema(strategiesServiceMethods.ByName("ListCommunityStrategies")),
 		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceReportCommunityStrategyHandler := connect.NewUnaryHandler(
+		StrategiesServiceReportCommunityStrategyProcedure,
+		svc.ReportCommunityStrategy,
+		connect.WithSchema(strategiesServiceMethods.ByName("ReportCommunityStrategy")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	strategiesServiceForkStrategyHandler := connect.NewUnaryHandler(
+		StrategiesServiceForkStrategyProcedure,
+		svc.ForkStrategy,
+		connect.WithSchema(strategiesServiceMethods.ByName("ForkStrategy")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
 	strategiesServiceGetCommunityStrategyHandler := connect.NewUnaryHandler(
@@ -1876,6 +2154,10 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 			strategiesServiceGetStrategyVersionHandler.ServeHTTP(w, r)
 		case StrategiesServiceListBotLogsProcedure:
 			strategiesServiceListBotLogsHandler.ServeHTTP(w, r)
+		case StrategiesServiceReturnBotFundsProcedure:
+			strategiesServiceReturnBotFundsHandler.ServeHTTP(w, r)
+		case StrategiesServiceGetBotFundsReturnProcedure:
+			strategiesServiceGetBotFundsReturnHandler.ServeHTTP(w, r)
 		case StrategiesServiceStopBotProcedure:
 			strategiesServiceStopBotHandler.ServeHTTP(w, r)
 		case StrategiesServicePublishStrategyVersionProcedure:
@@ -1884,6 +2166,10 @@ func NewStrategiesServiceHandler(svc StrategiesServiceHandler, opts ...connect.H
 			strategiesServiceUnpublishStrategyHandler.ServeHTTP(w, r)
 		case StrategiesServiceListCommunityStrategiesProcedure:
 			strategiesServiceListCommunityStrategiesHandler.ServeHTTP(w, r)
+		case StrategiesServiceReportCommunityStrategyProcedure:
+			strategiesServiceReportCommunityStrategyHandler.ServeHTTP(w, r)
+		case StrategiesServiceForkStrategyProcedure:
+			strategiesServiceForkStrategyHandler.ServeHTTP(w, r)
 		case StrategiesServiceGetCommunityStrategyProcedure:
 			strategiesServiceGetCommunityStrategyHandler.ServeHTTP(w, r)
 		default:
@@ -2003,6 +2289,14 @@ func (UnimplementedStrategiesServiceHandler) ListBotLogs(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ListBotLogs is not implemented"))
 }
 
+func (UnimplementedStrategiesServiceHandler) ReturnBotFunds(context.Context, *connect.Request[v1.ReturnBotFundsRequest]) (*connect.Response[v1.ReturnBotFundsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ReturnBotFunds is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) GetBotFundsReturn(context.Context, *connect.Request[v1.GetBotFundsReturnRequest]) (*connect.Response[v1.GetBotFundsReturnResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.GetBotFundsReturn is not implemented"))
+}
+
 func (UnimplementedStrategiesServiceHandler) StopBot(context.Context, *connect.Request[v1.StopBotRequest]) (*connect.Response[v1.StopBotResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.StopBot is not implemented"))
 }
@@ -2017,6 +2311,14 @@ func (UnimplementedStrategiesServiceHandler) UnpublishStrategy(context.Context, 
 
 func (UnimplementedStrategiesServiceHandler) ListCommunityStrategies(context.Context, *connect.Request[v1.ListCommunityStrategiesRequest]) (*connect.Response[v1.ListCommunityStrategiesResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ListCommunityStrategies is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) ReportCommunityStrategy(context.Context, *connect.Request[v1.ReportCommunityStrategyRequest]) (*connect.Response[v1.ReportCommunityStrategyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ReportCommunityStrategy is not implemented"))
+}
+
+func (UnimplementedStrategiesServiceHandler) ForkStrategy(context.Context, *connect.Request[v1.ForkStrategyRequest]) (*connect.Response[v1.ForkStrategyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("strategies.v1.StrategiesService.ForkStrategy is not implemented"))
 }
 
 func (UnimplementedStrategiesServiceHandler) GetCommunityStrategy(context.Context, *connect.Request[v1.GetCommunityStrategyRequest]) (*connect.Response[v1.GetCommunityStrategyResponse], error) {

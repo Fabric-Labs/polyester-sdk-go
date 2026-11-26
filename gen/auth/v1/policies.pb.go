@@ -217,6 +217,16 @@ const (
 	// orders. Stopping only reduces what a bot does: it never deploys a bot,
 	// changes its money rules or moves funds. Main-account permission.
 	PolicyAction_STOP_STRATEGIES PolicyAction = 50
+	// Allow forking public community strategies: copying a listing's
+	// published version into a new strategy of the main account. It never
+	// deploys, publishes or runs a bot, and moves no funds. Main-account
+	// permission.
+	PolicyAction_FORK_STRATEGIES PolicyAction = 51
+	// Allow returning a stopped bot's available balances to the main account
+	// (strategies.v1 ReturnBotFunds). The main account is the only
+	// destination: it never moves funds anywhere else, and never takes what
+	// an open order's hold reserves. Main-account permission.
+	PolicyAction_RETURN_STRATEGY_BOT_FUNDS PolicyAction = 52
 )
 
 // Enum value maps for PolicyAction.
@@ -269,6 +279,8 @@ var (
 		48: "PROPOSE_STRATEGY_DEPLOY",
 		49: "READ_PNL",
 		50: "STOP_STRATEGIES",
+		51: "FORK_STRATEGIES",
+		52: "RETURN_STRATEGY_BOT_FUNDS",
 	}
 	PolicyAction_value = map[string]int32{
 		"UNSPECIFIED":                 0,
@@ -318,6 +330,8 @@ var (
 		"PROPOSE_STRATEGY_DEPLOY":     48,
 		"READ_PNL":                    49,
 		"STOP_STRATEGIES":             50,
+		"FORK_STRATEGIES":             51,
+		"RETURN_STRATEGY_BOT_FUNDS":   52,
 	}
 )
 
@@ -2540,7 +2554,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x06key_id\x18\x01 \x01(\tB\x1d\xe0A\x02\xbaH\x17r\x15\x10\x012\x11^ak_[a-f0-9]{32}$R\x05keyId\x12\x1b\n" +
 	"\tpolicy_id\x18\x02 \x01(\x06R\bpolicyId\"6\n" +
 	"\x17SetApiKeyPolicyResponse\x12\x1b\n" +
-	"\tpolicy_id\x18\x01 \x01(\x06R\bpolicyId*\xea\b\n" +
+	"\tpolicy_id\x18\x01 \x01(\x06R\bpolicyId*\x9e\t\n" +
 	"\fPolicyAction\x12\x0f\n" +
 	"\vUNSPECIFIED\x10\x00\x12\x0e\n" +
 	"\n" +
@@ -2590,7 +2604,9 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x10DRAFT_STRATEGIES\x10/\x12\x1b\n" +
 	"\x17PROPOSE_STRATEGY_DEPLOY\x100\x12\f\n" +
 	"\bREAD_PNL\x101\x12\x13\n" +
-	"\x0fSTOP_STRATEGIES\x1022\x9b\x1e\n" +
+	"\x0fSTOP_STRATEGIES\x102\x12\x13\n" +
+	"\x0fFORK_STRATEGIES\x103\x12\x1d\n" +
+	"\x19RETURN_STRATEGY_BOT_FUNDS\x1042\x9b\x1e\n" +
 	"\rPolicyService\x12\xfc\x02\n" +
 	"\x16ListSubaccountPolicies\x12&.auth.v1.ListSubaccountPoliciesRequest\x1a'.auth.v1.ListSubaccountPoliciesResponse\"\x90\x02\xbaG\xe1\x01\n" +
 	"\fAuth Service\x12\x18List Subaccount Policies\x1a\xb6\x01List sub-account policy templates available to the caller. An API key needs READ_SUBACCOUNT_POLICIES; a key scoped to a sub-account sees only the policy attached to that sub-account.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f\x12\x1d/v1/auth/policies/subaccounts\x12\xfe\x02\n" +
