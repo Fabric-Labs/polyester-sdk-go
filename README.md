@@ -995,7 +995,9 @@ parent `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT` (`buy_required`), below
 and batch replace send a positive one as given; the server applies the side
 rule and answers `ERROR_CODE_BAD_PRICE` with no violation. They refuse a zero or
 negative one before sending, with `ERROR_CODE_TRIGGER_BUY_REQUIRES_LIMIT`
-(`buy_required`) on `new_attached_risk.trailing_stop.limit_price_ticks`: leave
+(`buy_required`) on `new_attached_risk.trailing_stop.limit_price_ticks`, which
+a batch replace names under the item's index
+(`items[i].new_attached_risk.trailing_stop.limit_price_ticks`): leave
 `LimitPrice` nil when the parent order buys.
 
 Market orders are IOC and enforce a slippage-derived execution boundary. See

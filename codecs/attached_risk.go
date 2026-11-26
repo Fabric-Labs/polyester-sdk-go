@@ -21,7 +21,9 @@ func RiskPolicyToProto(in *models.AttachedRiskInput, fieldName, symbol string) (
 	hasStop := in.StopLoss != nil || in.TrailingStop != nil
 	if in.TakeProfit == nil && !hasStop {
 		msg := fieldName + " requires take_profit and/or a stop leg"
-		if fieldName == "new_attached_risk" {
+		// A modify's or a batch item's new_attached_risk, whose path a whole
+		// batch request names under the item's index.
+		if fieldName == "new_attached_risk" || strings.HasSuffix(fieldName, ".new_attached_risk") {
 			msg += "; to remove the order's attached risk, set ClearAttachedRisk instead"
 		}
 		return nil, &errors.ValidationError{Msg: msg}
@@ -211,11 +213,18 @@ func trailingLimitError(fieldName string, code orderv1.ErrorCode, ruleID, msg st
 // newRisk is refused. Without clear, newRisk is encoded as RiskPolicyToProto
 // does: nil leaves the legs unchanged, and an empty one is refused.
 func ReplacementRiskPolicyToProto(newRisk *models.AttachedRiskInput, clear bool, symbol string) (*orderv1.RiskPolicy, error) {
+	return replacementRiskPolicyToProto(newRisk, clear, symbol, "new_attached_risk")
+}
+
+// replacementRiskPolicyToProto is ReplacementRiskPolicyToProto with the
+// field path refusals name: "new_attached_risk" for a modify or a single
+// item, "items[i].new_attached_risk" for an item of a whole batch request.
+func replacementRiskPolicyToProto(newRisk *models.AttachedRiskInput, clear bool, symbol, riskField string) (*orderv1.RiskPolicy, error) {
 	if !clear {
-		return RiskPolicyToProto(newRisk, "new_attached_risk", symbol)
+		return RiskPolicyToProto(newRisk, riskField, symbol)
 	}
 	if newRisk != nil {
-		return nil, &errors.ValidationError{Msg: "set new_attached_risk or clear_attached_risk, not both"}
+		return nil, &errors.ValidationError{Msg: "set " + riskField + " or clear_attached_risk, not both"}
 	}
 	return &orderv1.RiskPolicy{}, nil
 }
