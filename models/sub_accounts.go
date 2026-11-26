@@ -74,13 +74,6 @@ type GetSubaccountResult struct {
 	Balances *BalancesList `json:"balances,omitempty"`
 }
 
-// CreateSubaccountResult is create subaccount outcome.
-type CreateSubaccountResult struct {
-	SubaccountID        string `json:"subaccount_id,omitempty"`
-	SmartAccountAddress string `json:"smart_account_address,omitempty"`
-	Revision            uint64 `json:"revision,omitempty"`
-}
-
 // SubAccountMember is a subaccount member.
 type SubAccountMember struct {
 	GranteeAccountID string `json:"grantee_account_id,omitempty"`
