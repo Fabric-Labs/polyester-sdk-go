@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -112,6 +113,9 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		} `json:"details"`
 		RateLimit       json.RawMessage `json:"rateLimit"`
 		TimestampWindow json.RawMessage `json:"timestampWindow"`
+		// HistoryAvailableFrom is the STATEMENT_HISTORY_UNAVAILABLE
+		// problem's earliest instant the account history holds, RFC 3339.
+		HistoryAvailableFrom string `json:"historyAvailableFrom"`
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
@@ -317,7 +321,16 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
+		apiErr := &sdkerrors.APIError{Msg: msg, Code: code}
+		if code == sdkerrors.CodeStatementHistoryUnavailable {
+			// The problem names where the account history starts, as the
+			// ConnectRPC detail's history_available_from does.
+			if from, err := time.Parse(time.RFC3339Nano, detail.HistoryAvailableFrom); err == nil {
+				from = from.UTC()
+				apiErr.HistoryAvailableFrom = &from
+			}
+		}
+		mapped = apiErr
 	default:
 		if hasServiceDetail || leftToConnect(resp.StatusCode, isJSON, len(decoded), detail.Message) {
 			return passToConnect(resp, isJSON, decoded)

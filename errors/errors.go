@@ -611,8 +611,10 @@ type APIError struct {
 	PayableFrom *time.Time
 	// HistoryAvailableFrom is the earliest instant whose balances the
 	// account history holds, on a CodeStatementHistoryUnavailable refusal of
-	// a balances statement export: create it again with a StartTime at or
-	// after it. Nil otherwise.
+	// a balances statement export, to the nanosecond: create it again with a
+	// StartTime at or after it. It is read from the ConnectRPC detail's
+	// history_available_from or the REST problem's historyAvailableFrom; nil
+	// otherwise, or when the answer names none.
 	HistoryAvailableFrom *time.Time
 	// RetryAt is the auth detail's retry_after: the time from which the same
 	// request may succeed, on an AUTH_SOCIAL_ACCOUNT_COOLDOWN or
