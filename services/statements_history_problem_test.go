@@ -83,3 +83,28 @@ func TestStatementHistoryProblemWithoutAnInstant(t *testing.T) {
 		t.Fatalf("other code: err = %T %#v", err, err)
 	}
 }
+
+// historyAvailableFrom is an optional extension of the problem: a member of
+// any other JSON type never breaks reading the problem, so the typed code
+// and the other fields are kept, and only a valid RFC 3339 string sets
+// HistoryAvailableFrom. The same holds for a problem of another code that
+// carries the member.
+func TestStatementHistoryProblemToleratesNonStringInstants(t *testing.T) {
+	for _, member := range []string{`1795618502`, `{"seconds": 1795618502}`, `null`, `["2026-11-25T14:55:02Z"]`, `true`} {
+		for _, code := range []string{"STATEMENT_HISTORY_UNAVAILABLE", "IDEMPOTENCY_KEY_REUSED"} {
+			body := `{"type": "https://polyester.dev/problems/x", "title": "Conflict", "status": 409,
+ "detail": "refused", "code": "` + code + `", "historyAvailableFrom": ` + member + `}`
+			err := createBalancesExport(statementsAnswering(t, http.StatusConflict, body))
+			var apiErr *sdkerrors.APIError
+			if !errors.As(err, &apiErr) {
+				t.Fatalf("%s with %s: err = %T %v, want *errors.APIError", code, member, err, err)
+			}
+			if apiErr.Code != "ERROR_CODE_"+code || apiErr.Msg != "refused" || apiErr.HistoryAvailableFrom != nil {
+				t.Fatalf("%s with %s: err = %#v", code, member, apiErr)
+			}
+			if apiErr.Problem == nil || apiErr.Problem.Code != code || apiErr.Problem.Status != http.StatusConflict {
+				t.Fatalf("%s with %s: problem = %#v", code, member, apiErr.Problem)
+			}
+		}
+	}
+}
