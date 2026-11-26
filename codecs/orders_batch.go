@@ -160,12 +160,20 @@ type OrderIdentity struct {
 	SymbolID *uint32
 }
 
-// BatchReplaceItemToProto encodes one batch replace item.
+// BatchReplaceItemToProto encodes one batch replace item. Its refusals name
+// the item's fields alone (new_attached_risk...); BatchReplaceOrdersToProto
+// names them under the item's index (items[i].new_attached_risk...).
 func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int, destination ...OrderIdentity) (*orderv1.BatchReplaceOrderItem, error) {
 	identity := OrderIdentity{}
 	if len(destination) > 0 {
 		identity = destination[0]
 	}
+	return batchReplaceItemToProto(item, quantityScale, identity, "new_attached_risk")
+}
+
+// batchReplaceItemToProto encodes one batch replace item; riskField is the
+// field path refusals of its new_attached_risk name.
+func batchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int, identity OrderIdentity, riskField string) (*orderv1.BatchReplaceOrderItem, error) {
 	if !item.Key.IsSet() {
 		return nil, &errors.ValidationError{Msg: "each batch item requires an OrderKey (OrderKeyByID or OrderKeyByClientID)"}
 	}
@@ -201,7 +209,7 @@ func BatchReplaceItemToProto(item models.BatchReplaceItem, quantityScale int, de
 		}
 		proto.NewQtyScaled = &qty
 	}
-	risk, err := ReplacementRiskPolicyToProto(item.NewAttachedRisk, item.ClearAttachedRisk, identity.Symbol)
+	risk, err := replacementRiskPolicyToProto(item.NewAttachedRisk, item.ClearAttachedRisk, identity.Symbol, riskField)
 	if err != nil {
 		return nil, err
 	}
@@ -239,12 +247,14 @@ func BatchReplaceOrdersToProto(items []models.BatchReplaceItem, symbolID uint32,
 		}
 		proto.SubaccountId = &sub
 	}
-	for _, item := range items {
+	for i, item := range items {
 		identity := OrderIdentity{SymbolID: &symbolID}
 		if len(symbol) > 0 {
 			identity.Symbol = symbol[0]
 		}
-		encoded, err := BatchReplaceItemToProto(item, quantityScale, identity)
+		// A refusal of the whole request names the item's field under its
+		// index, as the contract's FieldViolation.field_path does.
+		encoded, err := batchReplaceItemToProto(item, quantityScale, identity, fmt.Sprintf("items[%d].new_attached_risk", i))
 		if err != nil {
 			return nil, err
 		}
