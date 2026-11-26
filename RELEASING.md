@@ -42,12 +42,15 @@ has no entries (right after a stable release) it stops there.
 - **Publish.** After CI passes, the workflow pushes the tag, waits until the Go
   module proxy serves it, and checks that `@latest` on the proxy is still a
   stable release.
-- **GitHub release.** One pre-release per target version is kept, on the
-  newest devnet tag of that version, with the `## Unreleased` entries as its
-  notes. Each new tag gets the pre-release and the previous one loses it; the
-  tags themselves are never deleted or moved. It is never marked latest. When a
-  target is abandoned (a breaking entry moves `0.34.1` to `0.35.0`) its
-  pre-release is removed; pre-releases of versions that shipped stay.
+- **GitHub release.** One pre-release per target version is kept, on the newest
+  devnet tag of that version, with the `## Unreleased` entries as its notes.
+  When they would make the notes longer than 120,000 characters (GitHub refuses
+  a release body over 125,000), the notes link `CHANGELOG.md` at the snapshot's
+  commit instead; the entries are never cut. Each new tag gets the pre-release
+  and the previous one loses it; the tags themselves are never deleted or moved.
+  It is never marked latest. When a target is abandoned (a breaking entry moves
+  `0.34.1` to `0.35.0`) its pre-release is removed; pre-releases of versions
+  that shipped stay.
 - **One at a time.** Runs on `main` queue behind each other (`queue: max`),
   so every push is published in its turn. A re-run of a
   commit whose tag is already pushed skips the push, and a GitHub pre-release
