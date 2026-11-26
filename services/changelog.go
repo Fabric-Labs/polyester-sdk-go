@@ -52,7 +52,9 @@ func (s *ChangelogService) ListPosts(ctx context.Context, opts models.ListChange
 // *errors.APIError whose Code is "not_found".
 func (s *ChangelogService) GetPost(ctx context.Context, slug string) (models.ChangelogPost, error) {
 	req := &changelogv1.GetPostRequest{Slug: slug}
-	return UnaryPublicDecoded(ctx, s.transport, s.client().GetPost, req, decode.ChangelogPostFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetPost, req, echoed("GetPost", "slug", slug, func(msg *changelogv1.GetPostResponse) (string, bool) {
+		return msg.GetPost().GetSummary().GetSlug(), msg.GetPost().GetSummary() != nil
+	}, decode.ChangelogPostFromProto))
 }
 
 // ListChanges returns one page of changes across posts.
@@ -86,7 +88,9 @@ func (s *ChangelogService) ListDeploymentGroups(ctx context.Context, opts models
 // Code is "not_found".
 func (s *ChangelogService) GetDeploymentGroup(ctx context.Context, slug string) (models.ChangelogDeploymentGroup, error) {
 	req := &changelogv1.GetDeploymentGroupRequest{Slug: slug}
-	return UnaryPublicDecoded(ctx, s.transport, s.client().GetDeploymentGroup, req, decode.ChangelogDeploymentGroupFromProto)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetDeploymentGroup, req, echoed("GetDeploymentGroup", "slug", slug, func(msg *changelogv1.GetDeploymentGroupResponse) (string, bool) {
+		return msg.GetGroup().GetSummary().GetSlug(), msg.GetGroup().GetSummary() != nil
+	}, decode.ChangelogDeploymentGroupFromProto))
 }
 
 // DeploymentGroups iterates over deployment group summaries from

@@ -97,7 +97,7 @@ func TestL2OrderReadsScaleFromTheSpotConfigWithoutTheFundingConfig(t *testing.T)
 			// Started right after the client: each read waits for the spot config only.
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
-			got, err := client.Orders.Get(ctx, nil, models.OrderKeyByID("7"), nil, false, false)
+			got, err := client.Orders.Get(ctx, nil, models.OrderKeyByID(codecs.FormatID(7)), nil, false, false)
 			if err != nil {
 				t.Fatalf("Get: %v", err)
 			}

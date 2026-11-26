@@ -105,7 +105,9 @@ func (s *StatementsService) GetExport(ctx context.Context, exportID string) (mod
 		return models.StatementExport{}, err
 	}
 	req := &ledgerrdv1.GetStatementExportRequest{ExportId: id}
-	return UnaryAuthDecoded(ctx, s.transport, s.exportsClient().GetStatementExport, req, decode.StatementExportFromGet)
+	return UnaryAuthDecoded(ctx, s.transport, s.exportsClient().GetStatementExport, req, echoed("GetStatementExport", "export_id", codecs.FormatID(id), func(msg *ledgerrdv1.GetStatementExportResponse) (string, bool) {
+		return codecs.FormatID(msg.GetExport().GetExportId()), msg.GetExport() != nil
+	}, decode.StatementExportFromGet))
 }
 
 // CancelExport stops a "queued" or "processing" export: it becomes

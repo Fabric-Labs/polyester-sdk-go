@@ -273,7 +273,9 @@ func (s *LifecycleService) GetAccountFlow(ctx context.Context, flowID string, ac
 	if err := s.scoped.ApplyOptionalSubaccountIDPtr(&req.SubaccountId, account, subAccountID); err != nil {
 		return models.LifecycleFlowSummary{}, err
 	}
-	return UnaryAuthDecoded(ctx, s.transport, s.signedClient().GetAccountFlow, req, decode.AccountFlowFromGetResponse)
+	return UnaryAuthDecoded(ctx, s.transport, s.signedClient().GetAccountFlow, req, echoed("GetAccountFlow", "flow_id", flowID, func(msg *lifecyclev1.GetAccountFlowResponse) (string, bool) {
+		return msg.GetFlow().GetSummary().GetFlowId(), msg.GetFlow().GetSummary() != nil
+	}, decode.AccountFlowFromGetResponse))
 }
 
 func flowSort(reversed bool) lifecyclev1.Sort {
@@ -335,7 +337,9 @@ func (s *LifecycleService) GetFlow(ctx context.Context, intentID, flowID *string
 		return models.LifecycleFlowSummary{}, err
 	}
 	req := &lifecyclev1.GetFlowByIdRequest{FlowId: *resolved}
-	return UnaryPublicDecoded(ctx, s.transport, s.client().GetFlowById, req, decode.FlowFromGetResponse)
+	return UnaryPublicDecoded(ctx, s.transport, s.client().GetFlowById, req, echoed("GetFlowById", "flow_id", *resolved, func(msg *lifecyclev1.GetFlowResponse) (string, bool) {
+		return msg.GetFlow().GetSummary().GetFlowId(), msg.GetFlow().GetSummary() != nil
+	}, decode.FlowFromGetResponse))
 }
 
 // GetFlowByTx returns all matches in the first response page for a transaction.

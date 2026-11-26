@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
+	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/transport"
@@ -31,7 +32,7 @@ var triggerReads = []struct {
 		return err
 	}, &triggersv1.ListTriggersResponse{}},
 	{"Get", "/triggers.v1.TriggersService/GetTrigger", func(ctx context.Context, s *TriggersService) error {
-		_, err := s.Get(ctx, nil, "9", nil)
+		_, err := s.Get(ctx, nil, codecs.FormatID(9), nil)
 		return err
 	}, &triggersv1.GetTriggerResponse{Trigger: &triggersv1.Trigger{TriggerId: 9}}},
 	{"ListEvents", "/triggers.v1.TriggersService/ListTriggerEvents", func(ctx context.Context, s *TriggersService) error {

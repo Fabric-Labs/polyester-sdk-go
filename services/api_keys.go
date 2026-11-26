@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/auth"
 	"github.com/Fabric-Labs/polyester-sdk-go/codecs"
@@ -49,7 +50,10 @@ func (s *ApiKeysService) List(ctx context.Context, account AccountScope, subAcco
 // Get returns one API key. An API key needs READ_API_KEYS on its policy, and
 // a key outside its scope answers not found.
 func (s *ApiKeysService) Get(ctx context.Context, keyID string) (*models.ApiKeySummary, error) {
-	return UnaryAuthDecoded(ctx, s.transport, s.client().GetApiKey, &authv1.GetApiKeyRequest{KeyId: keyID}, decode.ApiKeyFromGetProto)
+	// The server reads the key ID with surrounding whitespace trimmed.
+	return UnaryAuthDecoded(ctx, s.transport, s.client().GetApiKey, &authv1.GetApiKeyRequest{KeyId: keyID}, echoed("GetApiKey", "key_id", strings.TrimSpace(keyID), func(msg *authv1.GetApiKeyResponse) (string, bool) {
+		return msg.GetApiKey().GetKeyId(), msg.GetApiKey() != nil
+	}, decode.ApiKeyFromGetProto))
 }
 
 func (s *ApiKeysService) GenerateKeypair() models.Ed25519Keypair {
