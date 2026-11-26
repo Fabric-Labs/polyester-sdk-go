@@ -20,6 +20,7 @@ func statementExport(op string, msg *ledgerrdv1.StatementExport) (models.Stateme
 		EndTime:         timestampTime(msg.GetEndTime()),
 		AssetID:         msg.GetAssetId(),
 		IdempotencyKey:  msg.GetIdempotencyKey(),
+		Type:            enumLabel(msg.GetType(), ""),
 		Status:          enumLabel(msg.GetStatus(), "STATEMENT_EXPORT_STATUS_"),
 		CompleteThrough: timestampTime(msg.GetCompleteThrough()),
 		Movements:       msg.GetMovements(),
@@ -28,6 +29,8 @@ func statementExport(op string, msg *ledgerrdv1.StatementExport) (models.Stateme
 		ReadyAt:         timestampTime(msg.GetReadyAt()),
 		ExpiresAt:       timestampTime(msg.GetExpiresAt()),
 		FailureReason:   enumLabel(msg.GetFailureReason(), "STATEMENT_EXPORT_FAILURE_REASON_"),
+
+		HistoryAvailableFrom: timestampTime(msg.GetHistoryAvailableFrom()),
 	}
 	if msg.SubaccountId != nil {
 		if err := requireID(op, "subaccount_id", msg.GetSubaccountId()); err != nil {

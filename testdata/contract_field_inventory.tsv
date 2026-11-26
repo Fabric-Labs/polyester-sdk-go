@@ -107,6 +107,7 @@ ledger.read.v1.CreateStatementExportRequest.end_time	covered	CreateStatementExpo
 ledger.read.v1.CreateStatementExportRequest.idempotency_key	covered	CreateStatementExportOptions.IdempotencyKey
 ledger.read.v1.CreateStatementExportRequest.start_time	covered	CreateStatementExportOptions.StartTime
 ledger.read.v1.CreateStatementExportRequest.subaccount_id	covered	CreateStatementExportOptions.Account, SubAccountID
+ledger.read.v1.CreateStatementExportRequest.type	covered	CreateStatementExportOptions.Type
 ledger.read.v1.CreateStatementExportResponse.export	covered	models.StatementExport
 ledger.read.v1.GetBalanceHistoryResponse.bucket	covered	models.BalanceHistory.Bucket
 ledger.read.v1.GetBalanceHistoryResponse.end_ts_sec	covered	models.BalanceHistory.EndTsSec
@@ -135,6 +136,10 @@ ledger.read.v1.StatementExport.ready_at	covered	models.StatementExport.ReadyAt
 ledger.read.v1.StatementExport.start_time	covered	models.StatementExport.StartTime
 ledger.read.v1.StatementExport.status	covered	models.StatementExport.Status
 ledger.read.v1.StatementExport.subaccount_id	covered	models.StatementExport.SubaccountID
+ledger.read.v1.StatementExport.type	covered	models.StatementExport.Type
+ledger.read.v1.StatementExport.history_available_from	covered	models.StatementExport.HistoryAvailableFrom
+ledger.read.v1.ErrorDetail.code	covered	errors.APIError.Code
+ledger.read.v1.ErrorDetail.history_available_from	covered	errors.APIError.HistoryAvailableFrom
 orderbook.v1.GetOrderBookRequest.depth	covered	Orderbook.Get depth, sent as given (0 for the default 50)
 orderbook.v1.GetOrderBookRequest.symbol_id	covered	Orderbook.Get symbol, resolved through the spot catalog
 orderbook.v1.GetOrderBookResponse.asks	covered	models.OrderbookData.Asks

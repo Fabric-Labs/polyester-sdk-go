@@ -609,6 +609,13 @@ type APIError struct {
 	// on the vault's whitelist for 24 hours; nil when the server does not
 	// know yet.
 	PayableFrom *time.Time
+	// HistoryAvailableFrom is the earliest instant whose balances the
+	// account history holds, on a CodeStatementHistoryUnavailable refusal of
+	// a balances statement export, to the nanosecond: create it again with a
+	// StartTime at or after it. It is read from the ConnectRPC detail's
+	// history_available_from or the REST problem's historyAvailableFrom; nil
+	// otherwise, or when the answer names none.
+	HistoryAvailableFrom *time.Time
 	// RetryAt is the auth detail's retry_after: the time from which the same
 	// request may succeed, on an AUTH_SOCIAL_ACCOUNT_COOLDOWN or
 	// AUTH_SOCIAL_CHANGE_LIMIT_REACHED refusal; nil otherwise.
@@ -640,6 +647,22 @@ const CodeRouteSuspended = "ERROR_CODE_ROUTE_SUSPENDED"
 func IsRouteSuspended(err error) bool {
 	var apiErr *APIError
 	return errors.As(err, &apiErr) && apiErr.Code == CodeRouteSuspended
+}
+
+// CodeStatementHistoryUnavailable refuses a balances statement export
+// (models.StatementExportTypeBalances) whose period starts before the
+// earliest instant whose balances the account history holds (ledger.read.v1
+// ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE, Connect failed_precondition, REST
+// 409). Nothing was created: create the export again with a StartTime at or
+// after APIError.HistoryAvailableFrom. It is not retryable as is.
+const CodeStatementHistoryUnavailable = "ERROR_CODE_STATEMENT_HISTORY_UNAVAILABLE"
+
+// IsStatementHistoryUnavailable reports whether err refuses a balances
+// statement export that starts before the account history; see
+// CodeStatementHistoryUnavailable.
+func IsStatementHistoryUnavailable(err error) bool {
+	var apiErr *APIError
+	return errors.As(err, &apiErr) && apiErr.Code == CodeStatementHistoryUnavailable
 }
 
 // CodeIdempotencyKeyAbandoned refuses an internal transfer batch whose
