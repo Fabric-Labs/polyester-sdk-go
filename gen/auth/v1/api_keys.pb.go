@@ -1927,15 +1927,15 @@ const file_auth_v1_api_keys_proto_rawDesc = "" +
 	"\x13TRADE_WITH_APPROVAL\x10\x022\xaf\x17\n" +
 	"\rApiKeyService\x12\xb0\x02\n" +
 	"\fCreateApiKey\x12\x1c.auth.v1.CreateApiKeyRequest\x1a\x1d.auth.v1.CreateApiKeyResponse\"\xe2\x01\xbaG\xb8\x01\n" +
-	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xe3\x02\n" +
+	"\fAuth Service\x12\x0eCreate API Key\x1a\x97\x01Create a new API key for the caller account, including public key material and metadata. Requires the acting caller to have accepted the current terms.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x04\x82\xd3\xe4\x93\x02\x16:\x01*\"\x11/v1/auth/api-keys\x12\xe3\x02\n" +
 	"\vListApiKeys\x12\x1b.auth.v1.ListApiKeysRequest\x1a\x1c.auth.v1.ListApiKeysResponse\"\x98\x02\xbaG\xf5\x01\n" +
 	"\fAuth Service\x12\rList API Keys\x1a\xd5\x01List non-revoked API keys for the caller account, or for a sub-account the caller owns or administers, newest first. An API key needs READ_API_KEYS; a key scoped to a sub-account sees only that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x13\x12\x11/v1/auth/api-keys\x12\xd9\x02\n" +
 	"\tGetApiKey\x12\x19.auth.v1.GetApiKeyRequest\x1a\x1a.auth.v1.GetApiKeyResponse\"\x94\x02\xbaG\xe8\x01\n" +
 	"\fAuth Service\x12\vGet API Key\x1a\xca\x01Retrieve a single API key owned by the caller account or scoped to a sub-account the caller administers. An API key needs READ_API_KEYS; a key scoped to a sub-account reads only that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/api-keys/{key_id}\x12\xe4\x01\n" +
 	"\fDeleteApiKey\x12\x1c.auth.v1.DeleteApiKeyRequest\x1a\x1d.auth.v1.DeleteApiKeyResponse\"\x96\x01\xbaGg\n" +
-	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xee\x01\n" +
+	"\fAuth Service\x12\x0eDelete API Key\x1aGRevoke an API key owned by the caller account. Revocation is permanent.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x04\x82\xd3\xe4\x93\x02\x1c*\x1a/v1/auth/api-keys/{key_id}\x12\xee\x01\n" +
 	"\fUpdateApiKey\x12\x1c.auth.v1.UpdateApiKeyRequest\x1a\x1d.auth.v1.UpdateApiKeyResponse\"\xa0\x01\xbaGn\n" +
-	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}\x12\xf7\x02\n" +
+	"\fAuth Service\x12\x0eUpdate API Key\x1aNUpdate mutable API key fields, including label, status, whitelist, and expiry.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x04\x82\xd3\xe4\x93\x02\x1f:\x01*2\x1a/v1/auth/api-keys/{key_id}\x12\xf7\x02\n" +
 	"\x10SetAssistantKeys\x12 .auth.v1.SetAssistantKeysRequest\x1a!.auth.v1.SetAssistantKeysResponse\"\x9d\x02\xbaG\xee\x01\n" +
 	"\fAuth Service\x12\x12Set Assistant Keys\x1a\xc9\x01Create or replace the caller's Polyester AI assistant key set with one fresh step-up proof, or none from an MFA-elevated session. All keys change or none do; accounts left out lose their assistant key.\x98\xb5\x18\x01\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\x1c:\x01*\x1a\x17/v1/auth/assistant-keys\x12\xf1\x01\n" +
 	"\x11ListAssistantKeys\x12!.auth.v1.ListAssistantKeysRequest\x1a\".auth.v1.ListAssistantKeysResponse\"\x94\x01\xbaGm\n" +

@@ -2615,11 +2615,11 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x16CreateSubaccountPolicy\x12&.auth.v1.CreateSubaccountPolicyRequest\x1a'.auth.v1.CreateSubaccountPolicyResponse\"\xab\x01\xbaGw\n" +
 	"\fAuth Service\x12\x18Create Subaccount Policy\x1aMCreate a new sub-account policy template for the caller account or workspace.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02\":\x01*\"\x1d/v1/auth/policies/subaccounts\x12\xf2\x02\n" +
 	"\x16UpdateSubaccountPolicy\x12&.auth.v1.UpdateSubaccountPolicyRequest\x1a'.auth.v1.UpdateSubaccountPolicyResponse\"\x86\x02\xbaG\xc4\x01\n" +
-	"\fAuth Service\x12\x18Update Subaccount Policy\x1a\x99\x01Change selected fields on an existing sub-account policy. Editing a template changes only the template: sub-accounts it was applied to keep their copies.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x98\x02\n" +
+	"\fAuth Service\x12\x18Update Subaccount Policy\x1a\x99\x01Change selected fields on an existing sub-account policy. Editing a template changes only the template: sub-accounts it was applied to keep their copies.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x04\x82\xd3\xe4\x93\x02.:\x01*2)/v1/auth/policies/subaccounts/{policy_id}\x12\x98\x02\n" +
 	"\x16DeleteSubaccountPolicy\x12&.auth.v1.DeleteSubaccountPolicyRequest\x1a'.auth.v1.DeleteSubaccountPolicyResponse\"\xac\x01\xbaGo\n" +
 	"\fAuth Service\x12\x18Delete Subaccount Policy\x1aEDelete an existing sub-account policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02+*)/v1/auth/policies/subaccounts/{policy_id}\x12\xb3\x02\n" +
 	"\x13SetSubaccountPolicy\x12#.auth.v1.SetSubaccountPolicyRequest\x1a$.auth.v1.SetSubaccountPolicyResponse\"\xd0\x01\xbaG\x8c\x01\n" +
-	"\fAuth Service\x12\x15Set Subaccount Policy\x1aeAttach a policy to the target sub-account, apply a template to it as a new copy, or clear its policy.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xdf\x02\n" +
+	"\fAuth Service\x12\x15Set Subaccount Policy\x1aeAttach a policy to the target sub-account, apply a template to it as a new copy, or clear its policy.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x04\x82\xd3\xe4\x93\x020:\x01*2+/v1/auth/subaccounts/{subaccount_id}/policy\x12\xdf\x02\n" +
 	"\x0fListApiPolicies\x12\x1f.auth.v1.ListApiPoliciesRequest\x1a .auth.v1.ListApiPoliciesResponse\"\x88\x02\xbaG\xdc\x01\n" +
 	"\fAuth Service\x12\x15List API Key Policies\x1a\xb4\x01List API key policy templates available to the caller. An API key needs READ_API_POLICIES; a key scoped to a sub-account sees only the policies attached to that sub-account's keys.\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02\x1c\x12\x1a/v1/auth/policies/api-keys\x12\xe1\x02\n" +
 	"\fGetApiPolicy\x12\x1c.auth.v1.GetApiPolicyRequest\x1a\x1d.auth.v1.GetApiPolicyResponse\"\x93\x02\xbaG\xdb\x01\n" +
@@ -2631,7 +2631,7 @@ const file_auth_v1_policies_proto_rawDesc = "" +
 	"\x0fDeleteApiPolicy\x12\x1f.auth.v1.DeleteApiPolicyRequest\x1a .auth.v1.DeleteApiPolicyResponse\"\xa2\x01\xbaGh\n" +
 	"\fAuth Service\x12\x15Delete API Key Policy\x1aADelete an existing API key policy template when it is not in use.\x98\xb5\x18\x02\xa2\xb5\x18\x01\x01\x82\xd3\xe4\x93\x02(*&/v1/auth/policies/api-keys/{policy_id}\x12\x92\x02\n" +
 	"\x0fSetApiKeyPolicy\x12\x1f.auth.v1.SetApiKeyPolicyRequest\x1a .auth.v1.SetApiKeyPolicyResponse\"\xbb\x01\xbaG\x81\x01\n" +
-	"\fAuth Service\x12\x12Set API Key Policy\x1a]Attach a policy to the target key, apply a template to it as a new copy, or clear its policy.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x02\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policy\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
+	"\fAuth Service\x12\x12Set API Key Policy\x1a]Attach a policy to the target key, apply a template to it as a new copy, or clear its policy.\x98\xb5\x18\x03\xa2\xb5\x18\x02\x01\x04\x82\xd3\xe4\x93\x02&:\x01*2!/v1/auth/api-keys/{key_id}/policy\x1a\v\x8a\xb5\x18\aaccountB<Z:github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1;authv1b\x06proto3"
 
 var (
 	file_auth_v1_policies_proto_rawDescOnce sync.Once
