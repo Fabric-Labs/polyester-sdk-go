@@ -44,3 +44,16 @@ func TestBatchReplaceRefusalNamesTheItemIndex(t *testing.T) {
 		t.Fatalf("modify violations=%#v", v)
 	}
 }
+
+// An empty new attached risk on a batch item is refused with its index and
+// the same hint a modify gives: clearing risk is ClearAttachedRisk.
+func TestBatchReplaceEmptyRiskKeepsTheClearHint(t *testing.T) {
+	valid := models.BatchReplaceItem{Key: models.OrderKeyByID(FormatID(100)), NewPrice: ptr(models.PriceFromDecimal("185"))}
+	empty := models.BatchReplaceItem{Key: models.OrderKeyByID(FormatID(101)), NewAttachedRisk: &models.AttachedRiskInput{}}
+	_, err := BatchReplaceOrdersToProto([]models.BatchReplaceItem{valid, empty}, 3, nil, ptr("batch-1"), 6)
+	var validation *errors.ValidationError
+	const want = "items[1].new_attached_risk requires take_profit and/or a stop leg; to remove the order's attached risk, set ClearAttachedRisk instead"
+	if !stderrors.As(err, &validation) || validation.Msg != want {
+		t.Fatalf("empty risk err=%v", err)
+	}
+}

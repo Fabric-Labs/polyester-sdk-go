@@ -21,7 +21,9 @@ func RiskPolicyToProto(in *models.AttachedRiskInput, fieldName, symbol string) (
 	hasStop := in.StopLoss != nil || in.TrailingStop != nil
 	if in.TakeProfit == nil && !hasStop {
 		msg := fieldName + " requires take_profit and/or a stop leg"
-		if fieldName == "new_attached_risk" {
+		// A modify's or a batch item's new_attached_risk, whose path a whole
+		// batch request names under the item's index.
+		if fieldName == "new_attached_risk" || strings.HasSuffix(fieldName, ".new_attached_risk") {
 			msg += "; to remove the order's attached risk, set ClearAttachedRisk instead"
 		}
 		return nil, &errors.ValidationError{Msg: msg}
