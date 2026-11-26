@@ -56,9 +56,15 @@ type StatementExportServiceClient interface {
 	// idempotency key.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: the period, asset or idempotency key is invalid.
+	//   - INVALID_ARGUMENT: the period, asset, type or idempotency key is
+	//     invalid.
 	//   - FAILED_PRECONDITION (IDEMPOTENCY_KEY_REUSED): the key was used for a
 	//     request with other fields.
+	//   - FAILED_PRECONDITION (STATEMENT_HISTORY_UNAVAILABLE): a BALANCES
+	//     period starts before the earliest instant whose balances the account
+	//     history holds. The error detail's history_available_from is that
+	//     instant; REST answers `409` with it as `historyAvailableFrom`. Create
+	//     the export again with a start at or after it.
 	//   - RESOURCE_EXHAUSTED (STATEMENT_EXPORT_LIMIT_REACHED): the root account
 	//     has 5 exports QUEUED or PROCESSING.
 	//   - PERMISSION_DENIED, NOT_FOUND: the account cannot be read.
@@ -197,9 +203,15 @@ type StatementExportServiceHandler interface {
 	// idempotency key.
 	//
 	// Errors:
-	//   - INVALID_ARGUMENT: the period, asset or idempotency key is invalid.
+	//   - INVALID_ARGUMENT: the period, asset, type or idempotency key is
+	//     invalid.
 	//   - FAILED_PRECONDITION (IDEMPOTENCY_KEY_REUSED): the key was used for a
 	//     request with other fields.
+	//   - FAILED_PRECONDITION (STATEMENT_HISTORY_UNAVAILABLE): a BALANCES
+	//     period starts before the earliest instant whose balances the account
+	//     history holds. The error detail's history_available_from is that
+	//     instant; REST answers `409` with it as `historyAvailableFrom`. Create
+	//     the export again with a start at or after it.
 	//   - RESOURCE_EXHAUSTED (STATEMENT_EXPORT_LIMIT_REACHED): the root account
 	//     has 5 exports QUEUED or PROCESSING.
 	//   - PERMISSION_DENIED, NOT_FOUND: the account cannot be read.

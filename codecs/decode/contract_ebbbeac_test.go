@@ -85,6 +85,18 @@ func TestPolicyActionsNameReadStatements(t *testing.T) {
 	}
 }
 
+// Policy reads name the strategy fork and bot funds return permissions, the
+// API-key actions of StrategiesService.ForkStrategy and ReturnBotFunds.
+func TestPolicyActionsNameForkStrategies(t *testing.T) {
+	actions := []authv1.PolicyAction{authv1.PolicyAction_READ_STRATEGIES, authv1.PolicyAction_FORK_STRATEGIES, authv1.PolicyAction_RETURN_STRATEGY_BOT_FUNDS}
+	sub := decode.SubaccountPolicyMessageFromProto(&authv1.SubaccountPolicyView{Id: 1, Actions: actions})
+	api := decode.ApiPolicyMessageFromProto(&authv1.ApiPolicyView{Id: 2, Actions: actions})
+	want := []string{"READ_STRATEGIES", "FORK_STRATEGIES", "RETURN_STRATEGY_BOT_FUNDS"}
+	if !reflect.DeepEqual(sub.Actions, want) || !reflect.DeepEqual(api.Actions, want) {
+		t.Fatalf("actions = %v and %v, want %v", sub.Actions, api.Actions, want)
+	}
+}
+
 // Get, list and stream decode one complete API key: the attached policy, the
 // public key, the creator and a fractional creation time are kept.
 func TestApiKeyReadsKeepTheCompleteModel(t *testing.T) {

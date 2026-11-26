@@ -128,8 +128,9 @@ type AssistantServiceClient interface {
 	WatchRun(context.Context, *connect.Request[v1.WatchRunRequest]) (*connect.ServerStreamForClient[v1.WatchRunResponse], error)
 	// CancelRun asks an active run to stop. It returns once the request is
 	// recorded; the run then ends with RunFailed and category CANCELLED, and its
-	// subagents stop too. A pending approval of the run expires. Cancelling a
-	// run that already ended changes nothing and succeeds.
+	// subagents stop too. A pending approval of the run ends APPROVAL_CANCELLED,
+	// or EXPIRED once its expiry has passed, reported before RunFailed. Cancelling
+	// a run that already ended changes nothing and succeeds.
 	//
 	// Errors:
 	// - INVALID_ARGUMENT: malformed request.
@@ -144,7 +145,8 @@ type AssistantServiceClient interface {
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: APPROVAL_NOT_FOUND.
-	//   - FAILED_PRECONDITION: APPROVAL_ALREADY_DECIDED or APPROVAL_EXPIRED.
+	//   - FAILED_PRECONDITION: APPROVAL_ALREADY_DECIDED, APPROVAL_EXPIRED or
+	//     APPROVAL_RUN_ENDED.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: SERVICE_UNAVAILABLE or an unknown
 	//     outcome; retry the same request.
 	//   - UNAUTHENTICATED: missing or invalid credentials.
@@ -600,8 +602,9 @@ type AssistantServiceHandler interface {
 	WatchRun(context.Context, *connect.Request[v1.WatchRunRequest], *connect.ServerStream[v1.WatchRunResponse]) error
 	// CancelRun asks an active run to stop. It returns once the request is
 	// recorded; the run then ends with RunFailed and category CANCELLED, and its
-	// subagents stop too. A pending approval of the run expires. Cancelling a
-	// run that already ended changes nothing and succeeds.
+	// subagents stop too. A pending approval of the run ends APPROVAL_CANCELLED,
+	// or EXPIRED once its expiry has passed, reported before RunFailed. Cancelling
+	// a run that already ended changes nothing and succeeds.
 	//
 	// Errors:
 	// - INVALID_ARGUMENT: malformed request.
@@ -616,7 +619,8 @@ type AssistantServiceHandler interface {
 	// Errors:
 	//   - INVALID_ARGUMENT: malformed request.
 	//   - NOT_FOUND: APPROVAL_NOT_FOUND.
-	//   - FAILED_PRECONDITION: APPROVAL_ALREADY_DECIDED or APPROVAL_EXPIRED.
+	//   - FAILED_PRECONDITION: APPROVAL_ALREADY_DECIDED, APPROVAL_EXPIRED or
+	//     APPROVAL_RUN_ENDED.
 	//   - UNAVAILABLE, DEADLINE_EXCEEDED: SERVICE_UNAVAILABLE or an unknown
 	//     outcome; retry the same request.
 	//   - UNAUTHENTICATED: missing or invalid credentials.

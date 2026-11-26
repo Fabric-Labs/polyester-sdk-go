@@ -100,7 +100,8 @@ const (
 	// stop a bot. Not returned until the limit is enforced.
 	ErrorCode_INDICATOR_SETTINGS_LIMIT_REACHED ErrorCode = 19
 	// The idempotency key was already used with a different request. The
-	// original backtest, proposal, stop, strategy or saved draft stands.
+	// original backtest, proposal, stop, strategy, saved draft or funds return
+	// stands.
 	ErrorCode_IDEMPOTENCY_CONFLICT ErrorCode = 20
 	// A required service is temporarily unavailable; retry the same request.
 	// Every call of this API is safe to retry.
@@ -165,6 +166,31 @@ const (
 	// The caller published as many times as allowed in the current UTC day.
 	// retry_after says when the day resets (00:00 UTC).
 	ErrorCode_PUBLISH_LIMIT_REACHED ErrorCode = 40
+	// The listing is held by moderation: it can't be published or unpublished,
+	// nor its strategy deleted, until it is released. The author's strategy
+	// shows the hold's reason.
+	ErrorCode_LISTING_HELD ErrorCode = 41
+	// The caller is the listing's author, who can't report it.
+	ErrorCode_CANNOT_REPORT_OWN_LISTING ErrorCode = 42
+	// The caller reported as many listings as allowed in the current UTC day.
+	// retry_after says when the day resets (00:00 UTC).
+	ErrorCode_REPORT_LIMIT_REACHED ErrorCode = 43
+	// The funding subaccount is, or was, a strategy bot's subaccount. A bot's
+	// funds never fund another bot: fund a deploy from the main account or a
+	// subaccount no bot has held. field_path names funding_subaccount_id.
+	ErrorCode_FUNDING_SOURCE_IS_BOT ErrorCode = 44
+	// The bot may still trade, so its funds can't be returned yet: it is
+	// deploying, running, paused or stopping, or its stop isn't complete.
+	// Retry once the bot reads STOPPED. If the bot reads STOPPED but an API-key
+	// call still gets BOT_NOT_STOPPED because the bot's access is still live,
+	// its owner must first call ReturnBotFunds from their own interactive
+	// session to end that access; retrying with the API key alone cannot.
+	// Afterwards a root-scoped API key with RETURN_STRATEGY_BOT_FUNDS can return
+	// the funds. Retry a recorded return with the same idempotency key.
+	ErrorCode_BOT_NOT_STOPPED ErrorCode = 45
+	// The bot's subaccount has no available balance to return, or the return
+	// under the idempotency key ended with nothing moved.
+	ErrorCode_NOTHING_TO_RETURN ErrorCode = 46
 )
 
 // Enum value maps for ErrorCode.
@@ -210,6 +236,12 @@ var (
 		38: "LISTING_CAP_REACHED",
 		39: "USERNAME_REQUIRED",
 		40: "PUBLISH_LIMIT_REACHED",
+		41: "LISTING_HELD",
+		42: "CANNOT_REPORT_OWN_LISTING",
+		43: "REPORT_LIMIT_REACHED",
+		44: "FUNDING_SOURCE_IS_BOT",
+		45: "BOT_NOT_STOPPED",
+		46: "NOTHING_TO_RETURN",
 	}
 	ErrorCode_value = map[string]int32{
 		"ERROR_UNSPECIFIED":                 0,
@@ -252,6 +284,12 @@ var (
 		"LISTING_CAP_REACHED":               38,
 		"USERNAME_REQUIRED":                 39,
 		"PUBLISH_LIMIT_REACHED":             40,
+		"LISTING_HELD":                      41,
+		"CANNOT_REPORT_OWN_LISTING":         42,
+		"REPORT_LIMIT_REACHED":              43,
+		"FUNDING_SOURCE_IS_BOT":             44,
+		"BOT_NOT_STOPPED":                   45,
+		"NOTHING_TO_RETURN":                 46,
 	}
 )
 
@@ -532,6 +570,70 @@ func (StopMode) EnumDescriptor() ([]byte, []int) {
 	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{4}
 }
 
+// BotFundsReturnStatus is how a return of a stopped bot's funds to its
+// owner's main account stands.
+type BotFundsReturnStatus int32
+
+const (
+	// Status was not specified.
+	BotFundsReturnStatus_BOT_FUNDS_RETURN_STATUS_UNSPECIFIED BotFundsReturnStatus = 0
+	// The return is under way: it completes on its own, and GetBotFundsReturn
+	// reads it. It stays under way while anything stays on the bot's
+	// subaccount, such as what its open orders hold (held), and returns it as
+	// it becomes spendable: the orders a KEEP_ORDERS stop kept can stay open
+	// for days.
+	BotFundsReturnStatus_RETURN_PROCESSING BotFundsReturnStatus = 1
+	// Nothing spendable or held stays on the bot's subaccount, and every asset
+	// in assets is credited to the owner's main account.
+	BotFundsReturnStatus_RETURN_COMPLETED BotFundsReturnStatus = 2
+	// The return ended with nothing moved: by the time it could move, nothing
+	// was left on the bot's subaccount to return.
+	BotFundsReturnStatus_RETURN_NOTHING_MOVED BotFundsReturnStatus = 3
+)
+
+// Enum value maps for BotFundsReturnStatus.
+var (
+	BotFundsReturnStatus_name = map[int32]string{
+		0: "BOT_FUNDS_RETURN_STATUS_UNSPECIFIED",
+		1: "RETURN_PROCESSING",
+		2: "RETURN_COMPLETED",
+		3: "RETURN_NOTHING_MOVED",
+	}
+	BotFundsReturnStatus_value = map[string]int32{
+		"BOT_FUNDS_RETURN_STATUS_UNSPECIFIED": 0,
+		"RETURN_PROCESSING":                   1,
+		"RETURN_COMPLETED":                    2,
+		"RETURN_NOTHING_MOVED":                3,
+	}
+)
+
+func (x BotFundsReturnStatus) Enum() *BotFundsReturnStatus {
+	p := new(BotFundsReturnStatus)
+	*p = x
+	return p
+}
+
+func (x BotFundsReturnStatus) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (BotFundsReturnStatus) Descriptor() protoreflect.EnumDescriptor {
+	return file_strategies_v1_strategies_proto_enumTypes[5].Descriptor()
+}
+
+func (BotFundsReturnStatus) Type() protoreflect.EnumType {
+	return &file_strategies_v1_strategies_proto_enumTypes[5]
+}
+
+func (x BotFundsReturnStatus) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use BotFundsReturnStatus.Descriptor instead.
+func (BotFundsReturnStatus) EnumDescriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{5}
+}
+
 // StrategyTag is a community strategy's type, from a fixed list. Markets are
 // never tags: a listing's markets come from its version.
 type StrategyTag int32
@@ -590,11 +692,11 @@ func (x StrategyTag) String() string {
 }
 
 func (StrategyTag) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[5].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[6].Descriptor()
 }
 
 func (StrategyTag) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[5]
+	return &file_strategies_v1_strategies_proto_enumTypes[6]
 }
 
 func (x StrategyTag) Number() protoreflect.EnumNumber {
@@ -603,7 +705,72 @@ func (x StrategyTag) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StrategyTag.Descriptor instead.
 func (StrategyTag) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{5}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{6}
+}
+
+// ReportReason is why a reader reports a community listing.
+type ReportReason int32
+
+const (
+	// Not set. Never returned, and refused in a request.
+	ReportReason_REPORT_REASON_UNSPECIFIED ReportReason = 0
+	// Its results or description mislead about what the strategy does.
+	ReportReason_MISLEADING_RESULTS ReportReason = 1
+	// Its code could harm whoever runs it.
+	ReportReason_HARMFUL_CODE ReportReason = 2
+	// It is spam.
+	ReportReason_SPAM ReportReason = 3
+	// It copies someone else's strategy without crediting it.
+	ReportReason_COPIED_WITHOUT_CREDIT ReportReason = 4
+	// Another reason, which note explains.
+	ReportReason_OTHER ReportReason = 5
+)
+
+// Enum value maps for ReportReason.
+var (
+	ReportReason_name = map[int32]string{
+		0: "REPORT_REASON_UNSPECIFIED",
+		1: "MISLEADING_RESULTS",
+		2: "HARMFUL_CODE",
+		3: "SPAM",
+		4: "COPIED_WITHOUT_CREDIT",
+		5: "OTHER",
+	}
+	ReportReason_value = map[string]int32{
+		"REPORT_REASON_UNSPECIFIED": 0,
+		"MISLEADING_RESULTS":        1,
+		"HARMFUL_CODE":              2,
+		"SPAM":                      3,
+		"COPIED_WITHOUT_CREDIT":     4,
+		"OTHER":                     5,
+	}
+)
+
+func (x ReportReason) Enum() *ReportReason {
+	p := new(ReportReason)
+	*p = x
+	return p
+}
+
+func (x ReportReason) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (ReportReason) Descriptor() protoreflect.EnumDescriptor {
+	return file_strategies_v1_strategies_proto_enumTypes[7].Descriptor()
+}
+
+func (ReportReason) Type() protoreflect.EnumType {
+	return &file_strategies_v1_strategies_proto_enumTypes[7]
+}
+
+func (x ReportReason) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use ReportReason.Descriptor instead.
+func (ReportReason) EnumDescriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{7}
 }
 
 // Status is where a backtest is.
@@ -659,11 +826,11 @@ func (x Backtest_Status) String() string {
 }
 
 func (Backtest_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[6].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[8].Descriptor()
 }
 
 func (Backtest_Status) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[6]
+	return &file_strategies_v1_strategies_proto_enumTypes[8]
 }
 
 func (x Backtest_Status) Number() protoreflect.EnumNumber {
@@ -716,11 +883,11 @@ func (x ScenarioSummary_Outcome) String() string {
 }
 
 func (ScenarioSummary_Outcome) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[7].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[9].Descriptor()
 }
 
 func (ScenarioSummary_Outcome) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[7]
+	return &file_strategies_v1_strategies_proto_enumTypes[9]
 }
 
 func (x ScenarioSummary_Outcome) Number() protoreflect.EnumNumber {
@@ -798,11 +965,11 @@ func (x DeployStatus_State) String() string {
 }
 
 func (DeployStatus_State) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[8].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[10].Descriptor()
 }
 
 func (DeployStatus_State) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[8]
+	return &file_strategies_v1_strategies_proto_enumTypes[10]
 }
 
 func (x DeployStatus_State) Number() protoreflect.EnumNumber {
@@ -849,11 +1016,11 @@ func (x DeployWait_Reason) String() string {
 }
 
 func (DeployWait_Reason) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[9].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[11].Descriptor()
 }
 
 func (DeployWait_Reason) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[9]
+	return &file_strategies_v1_strategies_proto_enumTypes[11]
 }
 
 func (x DeployWait_Reason) Number() protoreflect.EnumNumber {
@@ -926,11 +1093,11 @@ func (x Bot_Status) String() string {
 }
 
 func (Bot_Status) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[10].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[12].Descriptor()
 }
 
 func (Bot_Status) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[10]
+	return &file_strategies_v1_strategies_proto_enumTypes[12]
 }
 
 func (x Bot_Status) Number() protoreflect.EnumNumber {
@@ -990,11 +1157,11 @@ func (x Bot_PauseReason) String() string {
 }
 
 func (Bot_PauseReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[11].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[13].Descriptor()
 }
 
 func (Bot_PauseReason) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[11]
+	return &file_strategies_v1_strategies_proto_enumTypes[13]
 }
 
 func (x Bot_PauseReason) Number() protoreflect.EnumNumber {
@@ -1048,11 +1215,11 @@ func (x FlowNode_Kind) String() string {
 }
 
 func (FlowNode_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[12].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[14].Descriptor()
 }
 
 func (FlowNode_Kind) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[12]
+	return &file_strategies_v1_strategies_proto_enumTypes[14]
 }
 
 func (x FlowNode_Kind) Number() protoreflect.EnumNumber {
@@ -1061,7 +1228,7 @@ func (x FlowNode_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use FlowNode_Kind.Descriptor instead.
 func (FlowNode_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{75, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{80, 0}
 }
 
 // State is whether the listing is shown.
@@ -1076,6 +1243,11 @@ const (
 	// answers LISTING_NOT_FOUND. The author's next publish makes it public
 	// again.
 	StrategyListing_HIDDEN StrategyListing_State = 2
+	// Held by moderation: out of the list, and GetCommunityStrategy answers
+	// LISTING_NOT_FOUND. hold_reason says why. Only moderation releases it;
+	// until then publishing and unpublishing it, and deleting its strategy,
+	// are LISTING_HELD. No bot, copy or deployment changes.
+	StrategyListing_HELD StrategyListing_State = 3
 )
 
 // Enum value maps for StrategyListing_State.
@@ -1084,11 +1256,13 @@ var (
 		0: "LISTING_STATE_UNSPECIFIED",
 		1: "PUBLIC",
 		2: "HIDDEN",
+		3: "HELD",
 	}
 	StrategyListing_State_value = map[string]int32{
 		"LISTING_STATE_UNSPECIFIED": 0,
 		"PUBLIC":                    1,
 		"HIDDEN":                    2,
+		"HELD":                      3,
 	}
 )
 
@@ -1103,11 +1277,11 @@ func (x StrategyListing_State) String() string {
 }
 
 func (StrategyListing_State) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[13].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[15].Descriptor()
 }
 
 func (StrategyListing_State) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[13]
+	return &file_strategies_v1_strategies_proto_enumTypes[15]
 }
 
 func (x StrategyListing_State) Number() protoreflect.EnumNumber {
@@ -1116,7 +1290,7 @@ func (x StrategyListing_State) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StrategyListing_State.Descriptor instead.
 func (StrategyListing_State) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{79, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{84, 0}
 }
 
 // SavedBy is how the caller that saved a draft signed in.
@@ -1160,11 +1334,11 @@ func (x StrategyRevision_SavedBy) String() string {
 }
 
 func (StrategyRevision_SavedBy) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[14].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[16].Descriptor()
 }
 
 func (StrategyRevision_SavedBy) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[14]
+	return &file_strategies_v1_strategies_proto_enumTypes[16]
 }
 
 func (x StrategyRevision_SavedBy) Number() protoreflect.EnumNumber {
@@ -1173,7 +1347,7 @@ func (x StrategyRevision_SavedBy) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use StrategyRevision_SavedBy.Descriptor instead.
 func (StrategyRevision_SavedBy) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{83, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{89, 0}
 }
 
 // Kind is what a log entry records.
@@ -1217,11 +1391,11 @@ func (x BotLogEntry_Kind) String() string {
 }
 
 func (BotLogEntry_Kind) Descriptor() protoreflect.EnumDescriptor {
-	return file_strategies_v1_strategies_proto_enumTypes[15].Descriptor()
+	return file_strategies_v1_strategies_proto_enumTypes[17].Descriptor()
 }
 
 func (BotLogEntry_Kind) Type() protoreflect.EnumType {
-	return &file_strategies_v1_strategies_proto_enumTypes[15]
+	return &file_strategies_v1_strategies_proto_enumTypes[17]
 }
 
 func (x BotLogEntry_Kind) Number() protoreflect.EnumNumber {
@@ -1230,7 +1404,7 @@ func (x BotLogEntry_Kind) Number() protoreflect.EnumNumber {
 
 // Deprecated: Use BotLogEntry_Kind.Descriptor instead.
 func (BotLogEntry_Kind) EnumDescriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{108, 0}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{114, 0}
 }
 
 // BotCapDetail explains BOT_CAP_REACHED.
@@ -1494,8 +1668,8 @@ type ErrorDetail struct {
 	// FUNDING_INVALID and MANIFEST_TOO_LARGE.
 	FieldPath string `protobuf:"bytes,2,opt,name=field_path,json=fieldPath,proto3" json:"field_path,omitempty"`
 	// When the same request may succeed. Set only with
-	// SCENARIO_RUN_LIMIT_REACHED, PUBLISH_LIMIT_REACHED, and with
-	// BACKTEST_LIMIT_REACHED for the daily limit.
+	// SCENARIO_RUN_LIMIT_REACHED, PUBLISH_LIMIT_REACHED, REPORT_LIMIT_REACHED,
+	// and with BACKTEST_LIMIT_REACHED for the daily limit.
 	RetryAfter *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=retry_after,json=retryAfter,proto3" json:"retry_after,omitempty"`
 	// Set only with BOT_CAP_REACHED.
 	BotCap *BotCapDetail `protobuf:"bytes,4,opt,name=bot_cap,json=botCap,proto3" json:"bot_cap,omitempty"`
@@ -3070,7 +3244,9 @@ type ScenarioResult struct {
 	Actual []*structpb.Struct `protobuf:"bytes,4,rep,name=actual,proto3" json:"actual,omitempty"`
 	// The code's log lines, oldest first: at most 50.
 	Logs []string `protobuf:"bytes,5,rep,name=logs,proto3" json:"logs,omitempty"`
-	// The handler's error, when it failed. Empty otherwise.
+	// Why the example failed: the handler's error, or that a call took longer
+	// than allowed or the runtime failed on this run, which running the
+	// examples again retries. Empty otherwise.
 	Error         string `protobuf:"bytes,6,opt,name=error,proto3" json:"error,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4736,14 +4912,15 @@ type ExplainStrategyResponse struct {
 	Settings []*SettingField `protobuf:"bytes,3,rep,name=settings,proto3" json:"settings,omitempty"`
 	// Each behaviour example and its last result, in manifest order.
 	Scenarios []*ScenarioSummary `protobuf:"bytes,4,rep,name=scenarios,proto3" json:"scenarios,omitempty"`
-	// The latest backtest. Omitted when there is none; backtest_absent_reason
-	// then says why.
+	// The latest eligible completed backtest with the default settings: the
+	// caller's own, finished and within retention. Omitted when there is none;
+	// backtest_absent_reason then says why.
 	Backtest *BacktestSummary `protobuf:"bytes,5,opt,name=backtest,proto3" json:"backtest,omitempty"`
 	// Why there is no backtest, for example that the bot cannot be backtested
 	// on candles. Empty when backtest is set.
 	BacktestAbsentReason string `protobuf:"bytes,6,opt,name=backtest_absent_reason,json=backtestAbsentReason,proto3" json:"backtest_absent_reason,omitempty"`
-	// What to weigh before deploying, for example "never backtested" or "trades
-	// a thin market".
+	// What to weigh before deploying, for example "no completed backtest
+	// available" or "trades a thin market".
 	Warnings []string `protobuf:"bytes,7,rep,name=warnings,proto3" json:"warnings,omitempty"`
 	// What the bot does not do, for example "stopping the bot does not sell its
 	// holdings".
@@ -5086,7 +5263,9 @@ type ProposeDeployRequest struct {
 	IdempotencyKey string `protobuf:"bytes,5,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
 	// The subaccount that funds the bot. Zero means the main account. It must
 	// be an active subaccount of the caller's main account; any other,
-	// including a disabled one, is FUNDING_SUBACCOUNT_NOT_FOUND.
+	// including a disabled one, is FUNDING_SUBACCOUNT_NOT_FOUND. A subaccount
+	// that is or was a strategy bot's is FUNDING_SOURCE_IS_BOT, even with no
+	// funding.
 	FundingSubaccountId uint64 `protobuf:"fixed64,6,opt,name=funding_subaccount_id,json=fundingSubaccountId,proto3" json:"funding_subaccount_id,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -5883,7 +6062,16 @@ type Bot struct {
 	// the current UTC hour, which is still under way. An hour it did nothing
 	// in is there with zero counts. A bot deployed again within the day counts
 	// every one of its runs. Counts lag the bot by up to about a minute.
-	Activity      []*BotActivityHour `protobuf:"bytes,16,rep,name=activity,proto3" json:"activity,omitempty"`
+	Activity []*BotActivityHour `protobuf:"bytes,16,rep,name=activity,proto3" json:"activity,omitempty"`
+	// Public ID of the strategy the bot was deployed from, as its deploy
+	// proposal recorded it. Zero when the run has no linked strategy, for
+	// example once the strategy is deleted.
+	StrategyId uint64 `protobuf:"fixed64,17,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// The strategy's revision whose version the bot runs, the number
+	// ListStrategyRevisions shows, as its deploy proposal recorded it. Zero
+	// when the run has no linked strategy, for example once the strategy is
+	// deleted.
+	Revision      uint64 `protobuf:"varint,18,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6021,6 +6209,20 @@ func (x *Bot) GetActivity() []*BotActivityHour {
 		return x.Activity
 	}
 	return nil
+}
+
+func (x *Bot) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+func (x *Bot) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
 }
 
 // BotActivityHour is what a bot did in one UTC hour, by when each event
@@ -6671,6 +6873,311 @@ func (x *StopBotResponse) GetMode() StopMode {
 	return StopMode_STOP_UNSPECIFIED
 }
 
+// BotFundsReturn is one return of a stopped bot's available balances to its
+// owner's main account.
+type BotFundsReturn struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public return ID: GetBotFundsReturn reads the return by it.
+	ReturnId uint64 `protobuf:"fixed64,1,opt,name=return_id,json=returnId,proto3" json:"return_id,omitempty"`
+	// Public bot ID of the bot whose funds it returns.
+	BotId uint64 `protobuf:"fixed64,2,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
+	// How the return stands.
+	Status BotFundsReturnStatus `protobuf:"varint,3,opt,name=status,proto3,enum=strategies.v1.BotFundsReturnStatus" json:"status,omitempty"`
+	// The amounts moved so far from the bot's subaccount to the main account,
+	// one per asset, confirmed only: an amount the return is still moving
+	// counts once the move is confirmed. It grows while RETURN_PROCESSING, as
+	// more becomes spendable; empty for RETURN_NOTHING_MOVED.
+	Assets []*Money `protobuf:"bytes,4,rep,name=assets,proto3" json:"assets,omitempty"`
+	// When the return was requested.
+	RequestedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=requested_at,json=requestedAt,proto3" json:"requested_at,omitempty"`
+	// When it completed or ended with nothing moved; unset while processing.
+	FinishedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=finished_at,json=finishedAt,proto3" json:"finished_at,omitempty"`
+	// What still stays on the bot's subaccount, one per asset, as the return
+	// last read it: what its open orders' holds reserve. The return takes
+	// it once released, as the orders fill or end. Empty once the return
+	// finished.
+	Held          []*Money `protobuf:"bytes,7,rep,name=held,proto3" json:"held,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *BotFundsReturn) Reset() {
+	*x = BotFundsReturn{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[68]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *BotFundsReturn) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*BotFundsReturn) ProtoMessage() {}
+
+func (x *BotFundsReturn) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[68]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use BotFundsReturn.ProtoReflect.Descriptor instead.
+func (*BotFundsReturn) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{68}
+}
+
+func (x *BotFundsReturn) GetReturnId() uint64 {
+	if x != nil {
+		return x.ReturnId
+	}
+	return 0
+}
+
+func (x *BotFundsReturn) GetBotId() uint64 {
+	if x != nil {
+		return x.BotId
+	}
+	return 0
+}
+
+func (x *BotFundsReturn) GetStatus() BotFundsReturnStatus {
+	if x != nil {
+		return x.Status
+	}
+	return BotFundsReturnStatus_BOT_FUNDS_RETURN_STATUS_UNSPECIFIED
+}
+
+func (x *BotFundsReturn) GetAssets() []*Money {
+	if x != nil {
+		return x.Assets
+	}
+	return nil
+}
+
+func (x *BotFundsReturn) GetRequestedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RequestedAt
+	}
+	return nil
+}
+
+func (x *BotFundsReturn) GetFinishedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.FinishedAt
+	}
+	return nil
+}
+
+func (x *BotFundsReturn) GetHeld() []*Money {
+	if x != nil {
+		return x.Held
+	}
+	return nil
+}
+
+// ReturnBotFundsRequest returns one stopped bot's funds to the caller's main
+// account.
+type ReturnBotFundsRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public bot ID. The bot must belong to the caller's main account.
+	BotId uint64 `protobuf:"fixed64,1,opt,name=bot_id,json=botId,proto3" json:"bot_id,omitempty"`
+	// Client-chosen key, unique per caller, that makes the call idempotent: the
+	// same key and bot return the same return, as it stands now, and never
+	// start a second one; the same key for another bot is
+	// IDEMPOTENCY_CONFLICT. Required.
+	IdempotencyKey string `protobuf:"bytes,2,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ReturnBotFundsRequest) Reset() {
+	*x = ReturnBotFundsRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[69]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReturnBotFundsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReturnBotFundsRequest) ProtoMessage() {}
+
+func (x *ReturnBotFundsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[69]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReturnBotFundsRequest.ProtoReflect.Descriptor instead.
+func (*ReturnBotFundsRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{69}
+}
+
+func (x *ReturnBotFundsRequest) GetBotId() uint64 {
+	if x != nil {
+		return x.BotId
+	}
+	return 0
+}
+
+func (x *ReturnBotFundsRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+// ReturnBotFundsResponse is the return the call started or joined.
+type ReturnBotFundsResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The return. It reads RETURN_PROCESSING while anything stays on the bot's
+	// subaccount, then RETURN_COMPLETED.
+	FundsReturn   *BotFundsReturn `protobuf:"bytes,1,opt,name=funds_return,json=fundsReturn,proto3" json:"funds_return,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReturnBotFundsResponse) Reset() {
+	*x = ReturnBotFundsResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[70]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReturnBotFundsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReturnBotFundsResponse) ProtoMessage() {}
+
+func (x *ReturnBotFundsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[70]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReturnBotFundsResponse.ProtoReflect.Descriptor instead.
+func (*ReturnBotFundsResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{70}
+}
+
+func (x *ReturnBotFundsResponse) GetFundsReturn() *BotFundsReturn {
+	if x != nil {
+		return x.FundsReturn
+	}
+	return nil
+}
+
+// GetBotFundsReturnRequest reads one return of the caller's.
+type GetBotFundsReturnRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public return ID, as ReturnBotFunds answered it.
+	ReturnId      uint64 `protobuf:"fixed64,1,opt,name=return_id,json=returnId,proto3" json:"return_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBotFundsReturnRequest) Reset() {
+	*x = GetBotFundsReturnRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[71]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBotFundsReturnRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBotFundsReturnRequest) ProtoMessage() {}
+
+func (x *GetBotFundsReturnRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[71]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBotFundsReturnRequest.ProtoReflect.Descriptor instead.
+func (*GetBotFundsReturnRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{71}
+}
+
+func (x *GetBotFundsReturnRequest) GetReturnId() uint64 {
+	if x != nil {
+		return x.ReturnId
+	}
+	return 0
+}
+
+// GetBotFundsReturnResponse is the return as it stands.
+type GetBotFundsReturnResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The return.
+	FundsReturn   *BotFundsReturn `protobuf:"bytes,1,opt,name=funds_return,json=fundsReturn,proto3" json:"funds_return,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetBotFundsReturnResponse) Reset() {
+	*x = GetBotFundsReturnResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[72]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetBotFundsReturnResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetBotFundsReturnResponse) ProtoMessage() {}
+
+func (x *GetBotFundsReturnResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[72]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetBotFundsReturnResponse.ProtoReflect.Descriptor instead.
+func (*GetBotFundsReturnResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{72}
+}
+
+func (x *GetBotFundsReturnResponse) GetFundsReturn() *BotFundsReturn {
+	if x != nil {
+		return x.FundsReturn
+	}
+	return nil
+}
+
 // GetBotResponse is a bot with its money rules, settings and recent
 // decisions. The bot's subaccount is read like any other, by its
 // subaccount_id: its balances with LedgerReadService.GetBalances, its open
@@ -6698,7 +7205,7 @@ type GetBotResponse struct {
 
 func (x *GetBotResponse) Reset() {
 	*x = GetBotResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[68]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[73]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6710,7 +7217,7 @@ func (x *GetBotResponse) String() string {
 func (*GetBotResponse) ProtoMessage() {}
 
 func (x *GetBotResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[68]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[73]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6723,7 +7230,7 @@ func (x *GetBotResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetBotResponse.ProtoReflect.Descriptor instead.
 func (*GetBotResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{68}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{73}
 }
 
 func (x *GetBotResponse) GetBot() *Bot {
@@ -6778,7 +7285,7 @@ type ListBotVersionsRequest struct {
 
 func (x *ListBotVersionsRequest) Reset() {
 	*x = ListBotVersionsRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[69]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[74]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6790,7 +7297,7 @@ func (x *ListBotVersionsRequest) String() string {
 func (*ListBotVersionsRequest) ProtoMessage() {}
 
 func (x *ListBotVersionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[69]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[74]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6803,7 +7310,7 @@ func (x *ListBotVersionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotVersionsRequest.ProtoReflect.Descriptor instead.
 func (*ListBotVersionsRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{69}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{74}
 }
 
 func (x *ListBotVersionsRequest) GetBotId() uint64 {
@@ -6840,14 +7347,23 @@ type BotVersion struct {
 	StartedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=started_at,json=startedAt,proto3" json:"started_at,omitempty"`
 	// When the stop of this run was recorded. Omitted while the run has no
 	// stop.
-	StoppedAt     *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=stopped_at,json=stoppedAt,proto3" json:"stopped_at,omitempty"`
+	StoppedAt *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=stopped_at,json=stoppedAt,proto3" json:"stopped_at,omitempty"`
+	// Public ID of the strategy the run was deployed from, as its deploy
+	// proposal recorded it. Zero when the run has no linked strategy, for
+	// example once the strategy is deleted.
+	StrategyId uint64 `protobuf:"fixed64,6,opt,name=strategy_id,json=strategyId,proto3" json:"strategy_id,omitempty"`
+	// The strategy's revision whose version the run ran, the number
+	// ListStrategyRevisions shows, as its deploy proposal recorded it. Zero
+	// when the run has no linked strategy, for example once the strategy is
+	// deleted.
+	Revision      uint64 `protobuf:"varint,7,opt,name=revision,proto3" json:"revision,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *BotVersion) Reset() {
 	*x = BotVersion{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[70]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[75]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6859,7 +7375,7 @@ func (x *BotVersion) String() string {
 func (*BotVersion) ProtoMessage() {}
 
 func (x *BotVersion) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[70]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[75]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6872,7 +7388,7 @@ func (x *BotVersion) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotVersion.ProtoReflect.Descriptor instead.
 func (*BotVersion) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{70}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{75}
 }
 
 func (x *BotVersion) GetVersionId() string {
@@ -6910,6 +7426,20 @@ func (x *BotVersion) GetStoppedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *BotVersion) GetStrategyId() uint64 {
+	if x != nil {
+		return x.StrategyId
+	}
+	return 0
+}
+
+func (x *BotVersion) GetRevision() uint64 {
+	if x != nil {
+		return x.Revision
+	}
+	return 0
+}
+
 // ListBotVersionsResponse returns one page of a bot's versions.
 type ListBotVersionsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -6924,7 +7454,7 @@ type ListBotVersionsResponse struct {
 
 func (x *ListBotVersionsResponse) Reset() {
 	*x = ListBotVersionsResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[71]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[76]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6936,7 +7466,7 @@ func (x *ListBotVersionsResponse) String() string {
 func (*ListBotVersionsResponse) ProtoMessage() {}
 
 func (x *ListBotVersionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[71]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[76]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -6949,7 +7479,7 @@ func (x *ListBotVersionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotVersionsResponse.ProtoReflect.Descriptor instead.
 func (*ListBotVersionsResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{71}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{76}
 }
 
 func (x *ListBotVersionsResponse) GetVersions() []*BotVersion {
@@ -6977,7 +7507,7 @@ type GetStrategyVersionRequest struct {
 
 func (x *GetStrategyVersionRequest) Reset() {
 	*x = GetStrategyVersionRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[72]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[77]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -6989,7 +7519,7 @@ func (x *GetStrategyVersionRequest) String() string {
 func (*GetStrategyVersionRequest) ProtoMessage() {}
 
 func (x *GetStrategyVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[72]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[77]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7002,7 +7532,7 @@ func (x *GetStrategyVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyVersionRequest.ProtoReflect.Descriptor instead.
 func (*GetStrategyVersionRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{72}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{77}
 }
 
 func (x *GetStrategyVersionRequest) GetVersionId() string {
@@ -7048,7 +7578,7 @@ type GetStrategyVersionResponse struct {
 
 func (x *GetStrategyVersionResponse) Reset() {
 	*x = GetStrategyVersionResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[73]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[78]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7060,7 +7590,7 @@ func (x *GetStrategyVersionResponse) String() string {
 func (*GetStrategyVersionResponse) ProtoMessage() {}
 
 func (x *GetStrategyVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[73]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[78]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7073,7 +7603,7 @@ func (x *GetStrategyVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyVersionResponse.ProtoReflect.Descriptor instead.
 func (*GetStrategyVersionResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{73}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{78}
 }
 
 func (x *GetStrategyVersionResponse) GetVersionId() string {
@@ -7167,7 +7697,7 @@ type StrategyFlow struct {
 
 func (x *StrategyFlow) Reset() {
 	*x = StrategyFlow{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[74]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[79]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7179,7 +7709,7 @@ func (x *StrategyFlow) String() string {
 func (*StrategyFlow) ProtoMessage() {}
 
 func (x *StrategyFlow) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[74]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[79]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7192,7 +7722,7 @@ func (x *StrategyFlow) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyFlow.ProtoReflect.Descriptor instead.
 func (*StrategyFlow) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{74}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{79}
 }
 
 func (x *StrategyFlow) GetNodes() []*FlowNode {
@@ -7252,7 +7782,7 @@ type FlowNode struct {
 
 func (x *FlowNode) Reset() {
 	*x = FlowNode{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[75]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[80]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7264,7 +7794,7 @@ func (x *FlowNode) String() string {
 func (*FlowNode) ProtoMessage() {}
 
 func (x *FlowNode) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[75]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[80]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7277,7 +7807,7 @@ func (x *FlowNode) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlowNode.ProtoReflect.Descriptor instead.
 func (*FlowNode) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{75}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{80}
 }
 
 func (x *FlowNode) GetNodeId() string {
@@ -7344,7 +7874,7 @@ type FlowEdge struct {
 
 func (x *FlowEdge) Reset() {
 	*x = FlowEdge{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[76]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[81]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7356,7 +7886,7 @@ func (x *FlowEdge) String() string {
 func (*FlowEdge) ProtoMessage() {}
 
 func (x *FlowEdge) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[76]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[81]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7369,7 +7899,7 @@ func (x *FlowEdge) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use FlowEdge.ProtoReflect.Descriptor instead.
 func (*FlowEdge) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{76}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{81}
 }
 
 func (x *FlowEdge) GetFromNodeId() string {
@@ -7407,7 +7937,7 @@ type SourceSpan struct {
 
 func (x *SourceSpan) Reset() {
 	*x = SourceSpan{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[77]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[82]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7419,7 +7949,7 @@ func (x *SourceSpan) String() string {
 func (*SourceSpan) ProtoMessage() {}
 
 func (x *SourceSpan) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[77]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[82]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7432,7 +7962,7 @@ func (x *SourceSpan) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SourceSpan.ProtoReflect.Descriptor instead.
 func (*SourceSpan) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{77}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{82}
 }
 
 func (x *SourceSpan) GetStartLine() uint32 {
@@ -7500,7 +8030,7 @@ type Strategy struct {
 
 func (x *Strategy) Reset() {
 	*x = Strategy{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[78]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[83]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7512,7 +8042,7 @@ func (x *Strategy) String() string {
 func (*Strategy) ProtoMessage() {}
 
 func (x *Strategy) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[78]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[83]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7525,7 +8055,7 @@ func (x *Strategy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use Strategy.ProtoReflect.Descriptor instead.
 func (*Strategy) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{78}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{83}
 }
 
 func (x *Strategy) GetStrategyId() uint64 {
@@ -7623,14 +8153,16 @@ type StrategyListing struct {
 	// The version it shows: the one last published.
 	VersionId string `protobuf:"bytes,3,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
 	// When that version was published.
-	PublishedAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	// Why moderation holds the listing. Set only when state is HELD.
+	HoldReason    string `protobuf:"bytes,5,opt,name=hold_reason,json=holdReason,proto3" json:"hold_reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *StrategyListing) Reset() {
 	*x = StrategyListing{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[79]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[84]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7642,7 +8174,7 @@ func (x *StrategyListing) String() string {
 func (*StrategyListing) ProtoMessage() {}
 
 func (x *StrategyListing) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[79]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[84]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7655,7 +8187,7 @@ func (x *StrategyListing) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyListing.ProtoReflect.Descriptor instead.
 func (*StrategyListing) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{79}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{84}
 }
 
 func (x *StrategyListing) GetListingId() uint64 {
@@ -7686,6 +8218,13 @@ func (x *StrategyListing) GetPublishedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *StrategyListing) GetHoldReason() string {
+	if x != nil {
+		return x.HoldReason
+	}
+	return ""
+}
+
 // StrategyBot is a bot deployed from a strategy, as the strategy shows it.
 type StrategyBot struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -7699,7 +8238,7 @@ type StrategyBot struct {
 
 func (x *StrategyBot) Reset() {
 	*x = StrategyBot{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[80]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[85]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7711,7 +8250,7 @@ func (x *StrategyBot) String() string {
 func (*StrategyBot) ProtoMessage() {}
 
 func (x *StrategyBot) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[80]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[85]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7724,7 +8263,7 @@ func (x *StrategyBot) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyBot.ProtoReflect.Descriptor instead.
 func (*StrategyBot) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{80}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{85}
 }
 
 func (x *StrategyBot) GetBotId() uint64 {
@@ -7751,6 +8290,7 @@ type StrategyOrigin struct {
 	//
 	//	*StrategyOrigin_TemplateId
 	//	*StrategyOrigin_Duplicate
+	//	*StrategyOrigin_Fork
 	Source        isStrategyOrigin_Source `protobuf_oneof:"source"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -7758,7 +8298,7 @@ type StrategyOrigin struct {
 
 func (x *StrategyOrigin) Reset() {
 	*x = StrategyOrigin{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[81]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[86]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7770,7 +8310,7 @@ func (x *StrategyOrigin) String() string {
 func (*StrategyOrigin) ProtoMessage() {}
 
 func (x *StrategyOrigin) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[81]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[86]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7783,7 +8323,7 @@ func (x *StrategyOrigin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyOrigin.ProtoReflect.Descriptor instead.
 func (*StrategyOrigin) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{81}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{86}
 }
 
 func (x *StrategyOrigin) GetSource() isStrategyOrigin_Source {
@@ -7811,6 +8351,15 @@ func (x *StrategyOrigin) GetDuplicate() *StrategyDuplicateOrigin {
 	return nil
 }
 
+func (x *StrategyOrigin) GetFork() *StrategyForkOrigin {
+	if x != nil {
+		if x, ok := x.Source.(*StrategyOrigin_Fork); ok {
+			return x.Fork
+		}
+	}
+	return nil
+}
+
 type isStrategyOrigin_Source interface {
 	isStrategyOrigin_Source()
 }
@@ -7825,9 +8374,92 @@ type StrategyOrigin_Duplicate struct {
 	Duplicate *StrategyDuplicateOrigin `protobuf:"bytes,2,opt,name=duplicate,proto3,oneof"`
 }
 
+type StrategyOrigin_Fork struct {
+	// The community listing it was forked from.
+	Fork *StrategyForkOrigin `protobuf:"bytes,3,opt,name=fork,proto3,oneof"`
+}
+
 func (*StrategyOrigin_TemplateId) isStrategyOrigin_Source() {}
 
 func (*StrategyOrigin_Duplicate) isStrategyOrigin_Source() {}
+
+func (*StrategyOrigin_Fork) isStrategyOrigin_Source() {}
+
+// StrategyForkOrigin is the community listing a strategy was forked from.
+// The strategy shows it was forked even once the listing is no longer
+// public; it then names the listing no more.
+type StrategyForkOrigin struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public listing ID, while the listing is public. Zero once it isn't.
+	ListingId uint64 `protobuf:"fixed64,1,opt,name=listing_id,json=listingId,proto3" json:"listing_id,omitempty"`
+	// The listing's title, while it is public. Empty otherwise.
+	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// The listing author's current username, while it is public. Empty
+	// otherwise.
+	AuthorUsername string `protobuf:"bytes,3,opt,name=author_username,json=authorUsername,proto3" json:"author_username,omitempty"`
+	// The published version copied, which is the strategy's revision 1.
+	SourceVersionId string `protobuf:"bytes,4,opt,name=source_version_id,json=sourceVersionId,proto3" json:"source_version_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *StrategyForkOrigin) Reset() {
+	*x = StrategyForkOrigin{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[87]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *StrategyForkOrigin) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*StrategyForkOrigin) ProtoMessage() {}
+
+func (x *StrategyForkOrigin) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[87]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use StrategyForkOrigin.ProtoReflect.Descriptor instead.
+func (*StrategyForkOrigin) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{87}
+}
+
+func (x *StrategyForkOrigin) GetListingId() uint64 {
+	if x != nil {
+		return x.ListingId
+	}
+	return 0
+}
+
+func (x *StrategyForkOrigin) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *StrategyForkOrigin) GetAuthorUsername() string {
+	if x != nil {
+		return x.AuthorUsername
+	}
+	return ""
+}
+
+func (x *StrategyForkOrigin) GetSourceVersionId() string {
+	if x != nil {
+		return x.SourceVersionId
+	}
+	return ""
+}
 
 // StrategyDuplicateOrigin is the version of the caller's a strategy was
 // copied from. A copy depends on the version only, never on a strategy
@@ -7842,7 +8474,7 @@ type StrategyDuplicateOrigin struct {
 
 func (x *StrategyDuplicateOrigin) Reset() {
 	*x = StrategyDuplicateOrigin{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[82]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[88]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7854,7 +8486,7 @@ func (x *StrategyDuplicateOrigin) String() string {
 func (*StrategyDuplicateOrigin) ProtoMessage() {}
 
 func (x *StrategyDuplicateOrigin) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[82]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[88]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7867,7 +8499,7 @@ func (x *StrategyDuplicateOrigin) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyDuplicateOrigin.ProtoReflect.Descriptor instead.
 func (*StrategyDuplicateOrigin) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{82}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{88}
 }
 
 func (x *StrategyDuplicateOrigin) GetSourceVersionId() string {
@@ -7896,7 +8528,7 @@ type StrategyRevision struct {
 
 func (x *StrategyRevision) Reset() {
 	*x = StrategyRevision{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[83]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[89]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7908,7 +8540,7 @@ func (x *StrategyRevision) String() string {
 func (*StrategyRevision) ProtoMessage() {}
 
 func (x *StrategyRevision) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[83]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[89]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -7921,7 +8553,7 @@ func (x *StrategyRevision) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyRevision.ProtoReflect.Descriptor instead.
 func (*StrategyRevision) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{83}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{89}
 }
 
 func (x *StrategyRevision) GetRevision() uint64 {
@@ -7983,7 +8615,7 @@ type CreateStrategyRequest struct {
 
 func (x *CreateStrategyRequest) Reset() {
 	*x = CreateStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[84]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[90]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -7995,7 +8627,7 @@ func (x *CreateStrategyRequest) String() string {
 func (*CreateStrategyRequest) ProtoMessage() {}
 
 func (x *CreateStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[84]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[90]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8008,7 +8640,7 @@ func (x *CreateStrategyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateStrategyRequest.ProtoReflect.Descriptor instead.
 func (*CreateStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{84}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{90}
 }
 
 func (x *CreateStrategyRequest) GetName() string {
@@ -8083,7 +8715,7 @@ type CreateStrategyResponse struct {
 
 func (x *CreateStrategyResponse) Reset() {
 	*x = CreateStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[85]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[91]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8095,7 +8727,7 @@ func (x *CreateStrategyResponse) String() string {
 func (*CreateStrategyResponse) ProtoMessage() {}
 
 func (x *CreateStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[85]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[91]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8108,7 +8740,7 @@ func (x *CreateStrategyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CreateStrategyResponse.ProtoReflect.Descriptor instead.
 func (*CreateStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{85}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{91}
 }
 
 func (x *CreateStrategyResponse) GetStrategy() *Strategy {
@@ -8163,7 +8795,7 @@ type SaveDraftVersionRequest struct {
 
 func (x *SaveDraftVersionRequest) Reset() {
 	*x = SaveDraftVersionRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[86]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[92]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8175,7 +8807,7 @@ func (x *SaveDraftVersionRequest) String() string {
 func (*SaveDraftVersionRequest) ProtoMessage() {}
 
 func (x *SaveDraftVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[86]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[92]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8188,7 +8820,7 @@ func (x *SaveDraftVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveDraftVersionRequest.ProtoReflect.Descriptor instead.
 func (*SaveDraftVersionRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{86}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{92}
 }
 
 func (x *SaveDraftVersionRequest) GetStrategyId() uint64 {
@@ -8263,7 +8895,7 @@ type SaveDraftVersionResponse struct {
 
 func (x *SaveDraftVersionResponse) Reset() {
 	*x = SaveDraftVersionResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[87]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[93]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8275,7 +8907,7 @@ func (x *SaveDraftVersionResponse) String() string {
 func (*SaveDraftVersionResponse) ProtoMessage() {}
 
 func (x *SaveDraftVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[87]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[93]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8288,7 +8920,7 @@ func (x *SaveDraftVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveDraftVersionResponse.ProtoReflect.Descriptor instead.
 func (*SaveDraftVersionResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{87}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{93}
 }
 
 func (x *SaveDraftVersionResponse) GetRevision() uint64 {
@@ -8316,7 +8948,7 @@ type GetStrategyRequest struct {
 
 func (x *GetStrategyRequest) Reset() {
 	*x = GetStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[88]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[94]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8328,7 +8960,7 @@ func (x *GetStrategyRequest) String() string {
 func (*GetStrategyRequest) ProtoMessage() {}
 
 func (x *GetStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[88]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[94]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8341,7 +8973,7 @@ func (x *GetStrategyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyRequest.ProtoReflect.Descriptor instead.
 func (*GetStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{88}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{94}
 }
 
 func (x *GetStrategyRequest) GetStrategyId() uint64 {
@@ -8368,7 +9000,7 @@ type GetStrategyResponse struct {
 
 func (x *GetStrategyResponse) Reset() {
 	*x = GetStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[89]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[95]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8380,7 +9012,7 @@ func (x *GetStrategyResponse) String() string {
 func (*GetStrategyResponse) ProtoMessage() {}
 
 func (x *GetStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[89]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[95]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8393,7 +9025,7 @@ func (x *GetStrategyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyResponse.ProtoReflect.Descriptor instead.
 func (*GetStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{89}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{95}
 }
 
 func (x *GetStrategyResponse) GetStrategy() *Strategy {
@@ -8431,7 +9063,7 @@ type ListStrategiesRequest struct {
 
 func (x *ListStrategiesRequest) Reset() {
 	*x = ListStrategiesRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[90]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[96]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8443,7 +9075,7 @@ func (x *ListStrategiesRequest) String() string {
 func (*ListStrategiesRequest) ProtoMessage() {}
 
 func (x *ListStrategiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[90]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[96]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8456,7 +9088,7 @@ func (x *ListStrategiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStrategiesRequest.ProtoReflect.Descriptor instead.
 func (*ListStrategiesRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{90}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{96}
 }
 
 func (x *ListStrategiesRequest) GetLimit() uint32 {
@@ -8487,7 +9119,7 @@ type ListStrategiesResponse struct {
 
 func (x *ListStrategiesResponse) Reset() {
 	*x = ListStrategiesResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[91]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[97]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8499,7 +9131,7 @@ func (x *ListStrategiesResponse) String() string {
 func (*ListStrategiesResponse) ProtoMessage() {}
 
 func (x *ListStrategiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[91]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[97]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8512,7 +9144,7 @@ func (x *ListStrategiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStrategiesResponse.ProtoReflect.Descriptor instead.
 func (*ListStrategiesResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{91}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{97}
 }
 
 func (x *ListStrategiesResponse) GetStrategies() []*Strategy {
@@ -8547,7 +9179,7 @@ type ListStrategyRevisionsRequest struct {
 
 func (x *ListStrategyRevisionsRequest) Reset() {
 	*x = ListStrategyRevisionsRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[92]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[98]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8559,7 +9191,7 @@ func (x *ListStrategyRevisionsRequest) String() string {
 func (*ListStrategyRevisionsRequest) ProtoMessage() {}
 
 func (x *ListStrategyRevisionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[92]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[98]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8572,7 +9204,7 @@ func (x *ListStrategyRevisionsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStrategyRevisionsRequest.ProtoReflect.Descriptor instead.
 func (*ListStrategyRevisionsRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{92}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{98}
 }
 
 func (x *ListStrategyRevisionsRequest) GetStrategyId() uint64 {
@@ -8609,7 +9241,7 @@ type ListStrategyRevisionsResponse struct {
 
 func (x *ListStrategyRevisionsResponse) Reset() {
 	*x = ListStrategyRevisionsResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[93]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[99]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8621,7 +9253,7 @@ func (x *ListStrategyRevisionsResponse) String() string {
 func (*ListStrategyRevisionsResponse) ProtoMessage() {}
 
 func (x *ListStrategyRevisionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[93]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[99]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8634,7 +9266,7 @@ func (x *ListStrategyRevisionsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListStrategyRevisionsResponse.ProtoReflect.Descriptor instead.
 func (*ListStrategyRevisionsResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{93}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{99}
 }
 
 func (x *ListStrategyRevisionsResponse) GetRevisions() []*StrategyRevision {
@@ -8664,7 +9296,7 @@ type RenameStrategyRequest struct {
 
 func (x *RenameStrategyRequest) Reset() {
 	*x = RenameStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[94]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[100]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8676,7 +9308,7 @@ func (x *RenameStrategyRequest) String() string {
 func (*RenameStrategyRequest) ProtoMessage() {}
 
 func (x *RenameStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[94]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[100]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8689,7 +9321,7 @@ func (x *RenameStrategyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameStrategyRequest.ProtoReflect.Descriptor instead.
 func (*RenameStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{94}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{100}
 }
 
 func (x *RenameStrategyRequest) GetStrategyId() uint64 {
@@ -8717,7 +9349,7 @@ type RenameStrategyResponse struct {
 
 func (x *RenameStrategyResponse) Reset() {
 	*x = RenameStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[95]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[101]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8729,7 +9361,7 @@ func (x *RenameStrategyResponse) String() string {
 func (*RenameStrategyResponse) ProtoMessage() {}
 
 func (x *RenameStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[95]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[101]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8742,7 +9374,7 @@ func (x *RenameStrategyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use RenameStrategyResponse.ProtoReflect.Descriptor instead.
 func (*RenameStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{95}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{101}
 }
 
 func (x *RenameStrategyResponse) GetStrategy() *Strategy {
@@ -8763,7 +9395,7 @@ type DeleteStrategyRequest struct {
 
 func (x *DeleteStrategyRequest) Reset() {
 	*x = DeleteStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[96]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[102]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8775,7 +9407,7 @@ func (x *DeleteStrategyRequest) String() string {
 func (*DeleteStrategyRequest) ProtoMessage() {}
 
 func (x *DeleteStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[96]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[102]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8788,7 +9420,7 @@ func (x *DeleteStrategyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteStrategyRequest.ProtoReflect.Descriptor instead.
 func (*DeleteStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{96}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{102}
 }
 
 func (x *DeleteStrategyRequest) GetStrategyId() uint64 {
@@ -8807,7 +9439,7 @@ type DeleteStrategyResponse struct {
 
 func (x *DeleteStrategyResponse) Reset() {
 	*x = DeleteStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[97]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[103]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8819,7 +9451,7 @@ func (x *DeleteStrategyResponse) String() string {
 func (*DeleteStrategyResponse) ProtoMessage() {}
 
 func (x *DeleteStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[97]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[103]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8832,7 +9464,7 @@ func (x *DeleteStrategyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use DeleteStrategyResponse.ProtoReflect.Descriptor instead.
 func (*DeleteStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{97}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{103}
 }
 
 // StrategyNotes is the caller's notes about one strategy: what it is meant
@@ -8864,7 +9496,7 @@ type StrategyNotes struct {
 
 func (x *StrategyNotes) Reset() {
 	*x = StrategyNotes{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[98]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[104]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8876,7 +9508,7 @@ func (x *StrategyNotes) String() string {
 func (*StrategyNotes) ProtoMessage() {}
 
 func (x *StrategyNotes) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[98]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[104]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8889,7 +9521,7 @@ func (x *StrategyNotes) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyNotes.ProtoReflect.Descriptor instead.
 func (*StrategyNotes) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{98}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{104}
 }
 
 func (x *StrategyNotes) GetStrategyId() uint64 {
@@ -8945,7 +9577,7 @@ type GetStrategyNotesRequest struct {
 
 func (x *GetStrategyNotesRequest) Reset() {
 	*x = GetStrategyNotesRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[99]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[105]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -8957,7 +9589,7 @@ func (x *GetStrategyNotesRequest) String() string {
 func (*GetStrategyNotesRequest) ProtoMessage() {}
 
 func (x *GetStrategyNotesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[99]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[105]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -8970,7 +9602,7 @@ func (x *GetStrategyNotesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyNotesRequest.ProtoReflect.Descriptor instead.
 func (*GetStrategyNotesRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{99}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{105}
 }
 
 func (x *GetStrategyNotesRequest) GetStrategyId() uint64 {
@@ -8991,7 +9623,7 @@ type GetStrategyNotesResponse struct {
 
 func (x *GetStrategyNotesResponse) Reset() {
 	*x = GetStrategyNotesResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[100]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[106]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9003,7 +9635,7 @@ func (x *GetStrategyNotesResponse) String() string {
 func (*GetStrategyNotesResponse) ProtoMessage() {}
 
 func (x *GetStrategyNotesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[100]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[106]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9016,7 +9648,7 @@ func (x *GetStrategyNotesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetStrategyNotesResponse.ProtoReflect.Descriptor instead.
 func (*GetStrategyNotesResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{100}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{106}
 }
 
 func (x *GetStrategyNotesResponse) GetNotes() *StrategyNotes {
@@ -9059,7 +9691,7 @@ type SaveStrategyNotesRequest struct {
 
 func (x *SaveStrategyNotesRequest) Reset() {
 	*x = SaveStrategyNotesRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[101]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[107]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9071,7 +9703,7 @@ func (x *SaveStrategyNotesRequest) String() string {
 func (*SaveStrategyNotesRequest) ProtoMessage() {}
 
 func (x *SaveStrategyNotesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[101]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[107]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9084,7 +9716,7 @@ func (x *SaveStrategyNotesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveStrategyNotesRequest.ProtoReflect.Descriptor instead.
 func (*SaveStrategyNotesRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{101}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{107}
 }
 
 func (x *SaveStrategyNotesRequest) GetStrategyId() uint64 {
@@ -9141,7 +9773,7 @@ type SaveStrategyNotesResponse struct {
 
 func (x *SaveStrategyNotesResponse) Reset() {
 	*x = SaveStrategyNotesResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[102]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[108]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9153,7 +9785,7 @@ func (x *SaveStrategyNotesResponse) String() string {
 func (*SaveStrategyNotesResponse) ProtoMessage() {}
 
 func (x *SaveStrategyNotesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[102]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[108]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9166,7 +9798,7 @@ func (x *SaveStrategyNotesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SaveStrategyNotesResponse.ProtoReflect.Descriptor instead.
 func (*SaveStrategyNotesResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{102}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{108}
 }
 
 func (x *SaveStrategyNotesResponse) GetNotes() *StrategyNotes {
@@ -9194,7 +9826,7 @@ type ListStrategyNotesRevisionsRequest struct {
 
 func (x *ListStrategyNotesRevisionsRequest) Reset() {
 	*x = ListStrategyNotesRevisionsRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[103]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[109]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9206,7 +9838,7 @@ func (x *ListStrategyNotesRevisionsRequest) String() string {
 func (*ListStrategyNotesRevisionsRequest) ProtoMessage() {}
 
 func (x *ListStrategyNotesRevisionsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[103]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[109]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9219,7 +9851,7 @@ func (x *ListStrategyNotesRevisionsRequest) ProtoReflect() protoreflect.Message 
 
 // Deprecated: Use ListStrategyNotesRevisionsRequest.ProtoReflect.Descriptor instead.
 func (*ListStrategyNotesRevisionsRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{103}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{109}
 }
 
 func (x *ListStrategyNotesRevisionsRequest) GetStrategyId() uint64 {
@@ -9257,7 +9889,7 @@ type ListStrategyNotesRevisionsResponse struct {
 
 func (x *ListStrategyNotesRevisionsResponse) Reset() {
 	*x = ListStrategyNotesRevisionsResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[104]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[110]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9269,7 +9901,7 @@ func (x *ListStrategyNotesRevisionsResponse) String() string {
 func (*ListStrategyNotesRevisionsResponse) ProtoMessage() {}
 
 func (x *ListStrategyNotesRevisionsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[104]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[110]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9282,7 +9914,7 @@ func (x *ListStrategyNotesRevisionsResponse) ProtoReflect() protoreflect.Message
 
 // Deprecated: Use ListStrategyNotesRevisionsResponse.ProtoReflect.Descriptor instead.
 func (*ListStrategyNotesRevisionsResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{104}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{110}
 }
 
 func (x *ListStrategyNotesRevisionsResponse) GetRevisions() []*StrategyNotes {
@@ -9317,7 +9949,7 @@ type ListBacktestsRequest struct {
 
 func (x *ListBacktestsRequest) Reset() {
 	*x = ListBacktestsRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[105]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[111]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9329,7 +9961,7 @@ func (x *ListBacktestsRequest) String() string {
 func (*ListBacktestsRequest) ProtoMessage() {}
 
 func (x *ListBacktestsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[105]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[111]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9342,7 +9974,7 @@ func (x *ListBacktestsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBacktestsRequest.ProtoReflect.Descriptor instead.
 func (*ListBacktestsRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{105}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{111}
 }
 
 func (x *ListBacktestsRequest) GetStrategyId() uint64 {
@@ -9388,7 +10020,7 @@ type StrategyBacktest struct {
 
 func (x *StrategyBacktest) Reset() {
 	*x = StrategyBacktest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[106]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[112]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9400,7 +10032,7 @@ func (x *StrategyBacktest) String() string {
 func (*StrategyBacktest) ProtoMessage() {}
 
 func (x *StrategyBacktest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[106]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[112]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9413,7 +10045,7 @@ func (x *StrategyBacktest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use StrategyBacktest.ProtoReflect.Descriptor instead.
 func (*StrategyBacktest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{106}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{112}
 }
 
 func (x *StrategyBacktest) GetSummary() *BacktestSummary {
@@ -9471,7 +10103,7 @@ type ListBacktestsResponse struct {
 
 func (x *ListBacktestsResponse) Reset() {
 	*x = ListBacktestsResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[107]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[113]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9483,7 +10115,7 @@ func (x *ListBacktestsResponse) String() string {
 func (*ListBacktestsResponse) ProtoMessage() {}
 
 func (x *ListBacktestsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[107]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[113]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9496,7 +10128,7 @@ func (x *ListBacktestsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBacktestsResponse.ProtoReflect.Descriptor instead.
 func (*ListBacktestsResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{107}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{113}
 }
 
 func (x *ListBacktestsResponse) GetBacktests() []*StrategyBacktest {
@@ -9536,7 +10168,7 @@ type BotLogEntry struct {
 
 func (x *BotLogEntry) Reset() {
 	*x = BotLogEntry{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[108]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[114]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9548,7 +10180,7 @@ func (x *BotLogEntry) String() string {
 func (*BotLogEntry) ProtoMessage() {}
 
 func (x *BotLogEntry) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[108]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[114]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9561,7 +10193,7 @@ func (x *BotLogEntry) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use BotLogEntry.ProtoReflect.Descriptor instead.
 func (*BotLogEntry) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{108}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{114}
 }
 
 func (x *BotLogEntry) GetSequence() uint64 {
@@ -9616,7 +10248,7 @@ type ListBotLogsRequest struct {
 
 func (x *ListBotLogsRequest) Reset() {
 	*x = ListBotLogsRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[109]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[115]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9628,7 +10260,7 @@ func (x *ListBotLogsRequest) String() string {
 func (*ListBotLogsRequest) ProtoMessage() {}
 
 func (x *ListBotLogsRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[109]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[115]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9641,7 +10273,7 @@ func (x *ListBotLogsRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotLogsRequest.ProtoReflect.Descriptor instead.
 func (*ListBotLogsRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{109}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{115}
 }
 
 func (x *ListBotLogsRequest) GetBotId() uint64 {
@@ -9696,7 +10328,7 @@ type ListBotLogsResponse struct {
 
 func (x *ListBotLogsResponse) Reset() {
 	*x = ListBotLogsResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[110]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[116]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9708,7 +10340,7 @@ func (x *ListBotLogsResponse) String() string {
 func (*ListBotLogsResponse) ProtoMessage() {}
 
 func (x *ListBotLogsResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[110]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[116]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9721,7 +10353,7 @@ func (x *ListBotLogsResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListBotLogsResponse.ProtoReflect.Descriptor instead.
 func (*ListBotLogsResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{110}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{116}
 }
 
 func (x *ListBotLogsResponse) GetEntries() []*BotLogEntry {
@@ -9788,7 +10420,7 @@ type CommunityBacktest struct {
 
 func (x *CommunityBacktest) Reset() {
 	*x = CommunityBacktest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[111]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[117]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9800,7 +10432,7 @@ func (x *CommunityBacktest) String() string {
 func (*CommunityBacktest) ProtoMessage() {}
 
 func (x *CommunityBacktest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[111]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[117]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9813,7 +10445,7 @@ func (x *CommunityBacktest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommunityBacktest.ProtoReflect.Descriptor instead.
 func (*CommunityBacktest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{111}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{117}
 }
 
 func (x *CommunityBacktest) GetStatus() Backtest_Status {
@@ -9875,14 +10507,17 @@ type CommunityStrategySummary struct {
 	// The platform backtest of the published version, without its report.
 	Backtest *CommunityBacktest `protobuf:"bytes,6,opt,name=backtest,proto3" json:"backtest,omitempty"`
 	// When the shown version was published.
-	PublishedAt   *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	PublishedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=published_at,json=publishedAt,proto3" json:"published_at,omitempty"`
+	// How many accounts forked the listing. An account that forked it more
+	// than once counts once, and its author's own copies never count.
+	Forks         uint32 `protobuf:"varint,8,opt,name=forks,proto3" json:"forks,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CommunityStrategySummary) Reset() {
 	*x = CommunityStrategySummary{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[112]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[118]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -9894,7 +10529,7 @@ func (x *CommunityStrategySummary) String() string {
 func (*CommunityStrategySummary) ProtoMessage() {}
 
 func (x *CommunityStrategySummary) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[112]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[118]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -9907,7 +10542,7 @@ func (x *CommunityStrategySummary) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommunityStrategySummary.ProtoReflect.Descriptor instead.
 func (*CommunityStrategySummary) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{112}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{118}
 }
 
 func (x *CommunityStrategySummary) GetListingId() uint64 {
@@ -9959,6 +10594,81 @@ func (x *CommunityStrategySummary) GetPublishedAt() *timestamppb.Timestamp {
 	return nil
 }
 
+func (x *CommunityStrategySummary) GetForks() uint32 {
+	if x != nil {
+		return x.Forks
+	}
+	return 0
+}
+
+// CommunityForkSource is the community listing a listed strategy was
+// forked from. It never shows more of the source than the source's own
+// listing does.
+type CommunityForkSource struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public listing ID of the source, while it is public. Zero once it
+	// isn't: the strategy is then shown as forked from a community strategy.
+	ListingId uint64 `protobuf:"fixed64,1,opt,name=listing_id,json=listingId,proto3" json:"listing_id,omitempty"`
+	// The source listing's title, while it is public. Empty otherwise.
+	Title string `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	// The source author's current username, while the source is public.
+	// Empty otherwise.
+	AuthorUsername string `protobuf:"bytes,3,opt,name=author_username,json=authorUsername,proto3" json:"author_username,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *CommunityForkSource) Reset() {
+	*x = CommunityForkSource{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[119]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommunityForkSource) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommunityForkSource) ProtoMessage() {}
+
+func (x *CommunityForkSource) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[119]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommunityForkSource.ProtoReflect.Descriptor instead.
+func (*CommunityForkSource) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{119}
+}
+
+func (x *CommunityForkSource) GetListingId() uint64 {
+	if x != nil {
+		return x.ListingId
+	}
+	return 0
+}
+
+func (x *CommunityForkSource) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *CommunityForkSource) GetAuthorUsername() string {
+	if x != nil {
+		return x.AuthorUsername
+	}
+	return ""
+}
+
 // CommunityStrategy is one public community listing with its published
 // version: everything a reader needs to judge it, and nothing of its
 // author's account. The settings shown are the version's defaults, never
@@ -9995,14 +10705,21 @@ type CommunityStrategy struct {
 	// what it may do. Unset for a version stored before flows existed.
 	Flow *StrategyFlow `protobuf:"bytes,14,opt,name=flow,proto3" json:"flow,omitempty"`
 	// The platform backtest of the published version, with its report.
-	Backtest      *CommunityBacktest `protobuf:"bytes,15,opt,name=backtest,proto3" json:"backtest,omitempty"`
+	Backtest *CommunityBacktest `protobuf:"bytes,15,opt,name=backtest,proto3" json:"backtest,omitempty"`
+	// How many accounts forked the listing. An account that forked it more
+	// than once counts once, and its author's own copies never count.
+	Forks uint32 `protobuf:"varint,16,opt,name=forks,proto3" json:"forks,omitempty"`
+	// The listing the strategy was forked from. Unset when it wasn't forked.
+	// The platform sets it from the strategy's origin at each publish; its
+	// author can't remove or change it.
+	ForkedFrom    *CommunityForkSource `protobuf:"bytes,17,opt,name=forked_from,json=forkedFrom,proto3" json:"forked_from,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CommunityStrategy) Reset() {
 	*x = CommunityStrategy{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[113]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[120]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10014,7 +10731,7 @@ func (x *CommunityStrategy) String() string {
 func (*CommunityStrategy) ProtoMessage() {}
 
 func (x *CommunityStrategy) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[113]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[120]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10027,7 +10744,7 @@ func (x *CommunityStrategy) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use CommunityStrategy.ProtoReflect.Descriptor instead.
 func (*CommunityStrategy) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{113}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{120}
 }
 
 func (x *CommunityStrategy) GetListingId() uint64 {
@@ -10135,6 +10852,20 @@ func (x *CommunityStrategy) GetBacktest() *CommunityBacktest {
 	return nil
 }
 
+func (x *CommunityStrategy) GetForks() uint32 {
+	if x != nil {
+		return x.Forks
+	}
+	return 0
+}
+
+func (x *CommunityStrategy) GetForkedFrom() *CommunityForkSource {
+	if x != nil {
+		return x.ForkedFrom
+	}
+	return nil
+}
+
 // PublishStrategyVersionRequest publishes one version of one of the caller's
 // strategies as the strategy's community listing.
 type PublishStrategyVersionRequest struct {
@@ -10160,7 +10891,7 @@ type PublishStrategyVersionRequest struct {
 
 func (x *PublishStrategyVersionRequest) Reset() {
 	*x = PublishStrategyVersionRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[114]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[121]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10172,7 +10903,7 @@ func (x *PublishStrategyVersionRequest) String() string {
 func (*PublishStrategyVersionRequest) ProtoMessage() {}
 
 func (x *PublishStrategyVersionRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[114]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[121]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10185,7 +10916,7 @@ func (x *PublishStrategyVersionRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishStrategyVersionRequest.ProtoReflect.Descriptor instead.
 func (*PublishStrategyVersionRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{114}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{121}
 }
 
 func (x *PublishStrategyVersionRequest) GetStrategyId() uint64 {
@@ -10241,7 +10972,7 @@ type PublishStrategyVersionResponse struct {
 
 func (x *PublishStrategyVersionResponse) Reset() {
 	*x = PublishStrategyVersionResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[115]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[122]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10253,7 +10984,7 @@ func (x *PublishStrategyVersionResponse) String() string {
 func (*PublishStrategyVersionResponse) ProtoMessage() {}
 
 func (x *PublishStrategyVersionResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[115]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[122]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10266,7 +10997,7 @@ func (x *PublishStrategyVersionResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PublishStrategyVersionResponse.ProtoReflect.Descriptor instead.
 func (*PublishStrategyVersionResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{115}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{122}
 }
 
 func (x *PublishStrategyVersionResponse) GetListing() *StrategyListing {
@@ -10288,7 +11019,7 @@ type UnpublishStrategyRequest struct {
 
 func (x *UnpublishStrategyRequest) Reset() {
 	*x = UnpublishStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[116]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[123]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10300,7 +11031,7 @@ func (x *UnpublishStrategyRequest) String() string {
 func (*UnpublishStrategyRequest) ProtoMessage() {}
 
 func (x *UnpublishStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[116]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[123]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10313,7 +11044,7 @@ func (x *UnpublishStrategyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnpublishStrategyRequest.ProtoReflect.Descriptor instead.
 func (*UnpublishStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{116}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{123}
 }
 
 func (x *UnpublishStrategyRequest) GetListingId() uint64 {
@@ -10334,7 +11065,7 @@ type UnpublishStrategyResponse struct {
 
 func (x *UnpublishStrategyResponse) Reset() {
 	*x = UnpublishStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[117]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[124]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10346,7 +11077,7 @@ func (x *UnpublishStrategyResponse) String() string {
 func (*UnpublishStrategyResponse) ProtoMessage() {}
 
 func (x *UnpublishStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[117]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[124]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10359,7 +11090,7 @@ func (x *UnpublishStrategyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use UnpublishStrategyResponse.ProtoReflect.Descriptor instead.
 func (*UnpublishStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{117}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{124}
 }
 
 func (x *UnpublishStrategyResponse) GetListing() *StrategyListing {
@@ -10390,7 +11121,7 @@ type ListCommunityStrategiesRequest struct {
 
 func (x *ListCommunityStrategiesRequest) Reset() {
 	*x = ListCommunityStrategiesRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[118]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[125]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10402,7 +11133,7 @@ func (x *ListCommunityStrategiesRequest) String() string {
 func (*ListCommunityStrategiesRequest) ProtoMessage() {}
 
 func (x *ListCommunityStrategiesRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[118]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[125]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10415,7 +11146,7 @@ func (x *ListCommunityStrategiesRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommunityStrategiesRequest.ProtoReflect.Descriptor instead.
 func (*ListCommunityStrategiesRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{118}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{125}
 }
 
 func (x *ListCommunityStrategiesRequest) GetTags() []StrategyTag {
@@ -10461,7 +11192,7 @@ type ListCommunityStrategiesResponse struct {
 
 func (x *ListCommunityStrategiesResponse) Reset() {
 	*x = ListCommunityStrategiesResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[119]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[126]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10473,7 +11204,7 @@ func (x *ListCommunityStrategiesResponse) String() string {
 func (*ListCommunityStrategiesResponse) ProtoMessage() {}
 
 func (x *ListCommunityStrategiesResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[119]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[126]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10486,7 +11217,7 @@ func (x *ListCommunityStrategiesResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use ListCommunityStrategiesResponse.ProtoReflect.Descriptor instead.
 func (*ListCommunityStrategiesResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{119}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{126}
 }
 
 func (x *ListCommunityStrategiesResponse) GetStrategies() []*CommunityStrategySummary {
@@ -10503,6 +11234,254 @@ func (x *ListCommunityStrategiesResponse) GetNextPageToken() string {
 	return ""
 }
 
+// ForkStrategyRequest copies one public community listing's published
+// version into a new strategy of the caller.
+type ForkStrategyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public listing ID.
+	ListingId uint64 `protobuf:"fixed64,1,opt,name=listing_id,json=listingId,proto3" json:"listing_id,omitempty"`
+	// Name of the new strategy.
+	Name string `protobuf:"bytes,2,opt,name=name,proto3" json:"name,omitempty"`
+	// Client-chosen key, unique per caller, that makes the call idempotent: the
+	// same key and request return the strategy the first call created, as it
+	// stands now, and never fork again; another request with the same key, a
+	// CreateStrategy's or a SaveDraftVersion's included, is
+	// IDEMPOTENCY_CONFLICT. Required.
+	IdempotencyKey string `protobuf:"bytes,3,opt,name=idempotency_key,json=idempotencyKey,proto3" json:"idempotency_key,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
+}
+
+func (x *ForkStrategyRequest) Reset() {
+	*x = ForkStrategyRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[127]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForkStrategyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForkStrategyRequest) ProtoMessage() {}
+
+func (x *ForkStrategyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[127]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForkStrategyRequest.ProtoReflect.Descriptor instead.
+func (*ForkStrategyRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{127}
+}
+
+func (x *ForkStrategyRequest) GetListingId() uint64 {
+	if x != nil {
+		return x.ListingId
+	}
+	return 0
+}
+
+func (x *ForkStrategyRequest) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *ForkStrategyRequest) GetIdempotencyKey() string {
+	if x != nil {
+		return x.IdempotencyKey
+	}
+	return ""
+}
+
+// ForkStrategyResponse is the new strategy.
+type ForkStrategyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// The strategy, as it stands now: the published version is its revision
+	// 1, and its origin names the listing.
+	Strategy *Strategy `protobuf:"bytes,1,opt,name=strategy,proto3" json:"strategy,omitempty"`
+	// The check result of revision 1's version, as the listing published it.
+	Version       *VersionValidation `protobuf:"bytes,2,opt,name=version,proto3" json:"version,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ForkStrategyResponse) Reset() {
+	*x = ForkStrategyResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[128]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ForkStrategyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ForkStrategyResponse) ProtoMessage() {}
+
+func (x *ForkStrategyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[128]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ForkStrategyResponse.ProtoReflect.Descriptor instead.
+func (*ForkStrategyResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{128}
+}
+
+func (x *ForkStrategyResponse) GetStrategy() *Strategy {
+	if x != nil {
+		return x.Strategy
+	}
+	return nil
+}
+
+func (x *ForkStrategyResponse) GetVersion() *VersionValidation {
+	if x != nil {
+		return x.Version
+	}
+	return nil
+}
+
+// ReportCommunityStrategyRequest reports one public community listing to
+// moderation.
+type ReportCommunityStrategyRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Public listing ID.
+	ListingId uint64 `protobuf:"fixed64,1,opt,name=listing_id,json=listingId,proto3" json:"listing_id,omitempty"`
+	// The version the reader saw, as GetCommunityStrategy returned it: the
+	// report is about that version, whatever the listing shows later.
+	VersionId string `protobuf:"bytes,2,opt,name=version_id,json=versionId,proto3" json:"version_id,omitempty"`
+	// Why it is reported.
+	Reason ReportReason `protobuf:"varint,3,opt,name=reason,proto3,enum=strategies.v1.ReportReason" json:"reason,omitempty"`
+	// What the reader adds. At most 500 characters; required when reason is
+	// OTHER.
+	Note          string `protobuf:"bytes,4,opt,name=note,proto3" json:"note,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportCommunityStrategyRequest) Reset() {
+	*x = ReportCommunityStrategyRequest{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[129]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportCommunityStrategyRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportCommunityStrategyRequest) ProtoMessage() {}
+
+func (x *ReportCommunityStrategyRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[129]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportCommunityStrategyRequest.ProtoReflect.Descriptor instead.
+func (*ReportCommunityStrategyRequest) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{129}
+}
+
+func (x *ReportCommunityStrategyRequest) GetListingId() uint64 {
+	if x != nil {
+		return x.ListingId
+	}
+	return 0
+}
+
+func (x *ReportCommunityStrategyRequest) GetVersionId() string {
+	if x != nil {
+		return x.VersionId
+	}
+	return ""
+}
+
+func (x *ReportCommunityStrategyRequest) GetReason() ReportReason {
+	if x != nil {
+		return x.Reason
+	}
+	return ReportReason_REPORT_REASON_UNSPECIFIED
+}
+
+func (x *ReportCommunityStrategyRequest) GetNote() string {
+	if x != nil {
+		return x.Note
+	}
+	return ""
+}
+
+// ReportCommunityStrategyResponse confirms the report.
+type ReportCommunityStrategyResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// When the report was recorded. A repeat of the caller's report of the
+	// same version answers the first report's time.
+	ReportedAt    *timestamppb.Timestamp `protobuf:"bytes,1,opt,name=reported_at,json=reportedAt,proto3" json:"reported_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ReportCommunityStrategyResponse) Reset() {
+	*x = ReportCommunityStrategyResponse{}
+	mi := &file_strategies_v1_strategies_proto_msgTypes[130]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ReportCommunityStrategyResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ReportCommunityStrategyResponse) ProtoMessage() {}
+
+func (x *ReportCommunityStrategyResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_strategies_v1_strategies_proto_msgTypes[130]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ReportCommunityStrategyResponse.ProtoReflect.Descriptor instead.
+func (*ReportCommunityStrategyResponse) Descriptor() ([]byte, []int) {
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{130}
+}
+
+func (x *ReportCommunityStrategyResponse) GetReportedAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ReportedAt
+	}
+	return nil
+}
+
 // GetCommunityStrategyRequest reads one public community listing.
 type GetCommunityStrategyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -10514,7 +11493,7 @@ type GetCommunityStrategyRequest struct {
 
 func (x *GetCommunityStrategyRequest) Reset() {
 	*x = GetCommunityStrategyRequest{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[120]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[131]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10526,7 +11505,7 @@ func (x *GetCommunityStrategyRequest) String() string {
 func (*GetCommunityStrategyRequest) ProtoMessage() {}
 
 func (x *GetCommunityStrategyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[120]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[131]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10539,7 +11518,7 @@ func (x *GetCommunityStrategyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCommunityStrategyRequest.ProtoReflect.Descriptor instead.
 func (*GetCommunityStrategyRequest) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{120}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{131}
 }
 
 func (x *GetCommunityStrategyRequest) GetListingId() uint64 {
@@ -10560,7 +11539,7 @@ type GetCommunityStrategyResponse struct {
 
 func (x *GetCommunityStrategyResponse) Reset() {
 	*x = GetCommunityStrategyResponse{}
-	mi := &file_strategies_v1_strategies_proto_msgTypes[121]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[132]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -10572,7 +11551,7 @@ func (x *GetCommunityStrategyResponse) String() string {
 func (*GetCommunityStrategyResponse) ProtoMessage() {}
 
 func (x *GetCommunityStrategyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_strategies_v1_strategies_proto_msgTypes[121]
+	mi := &file_strategies_v1_strategies_proto_msgTypes[132]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -10585,7 +11564,7 @@ func (x *GetCommunityStrategyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetCommunityStrategyResponse.ProtoReflect.Descriptor instead.
 func (*GetCommunityStrategyResponse) Descriptor() ([]byte, []int) {
-	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{121}
+	return file_strategies_v1_strategies_proto_rawDescGZIP(), []int{132}
 }
 
 func (x *GetCommunityStrategyResponse) GetStrategy() *CommunityStrategy {
@@ -11015,7 +11994,7 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x06status\x18\x03 \x01(\v2\x1b.strategies.v1.DeployStatusR\x06status\x129\n" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x128\n" +
-	"\x18funding_subaccount_label\x18\x05 \x01(\tR\x16fundingSubaccountLabel\"\x88\a\n" +
+	"\x18funding_subaccount_label\x18\x05 \x01(\tR\x16fundingSubaccountLabel\"\xc5\a\n" +
 	"\x03Bot\x12\x15\n" +
 	"\x06bot_id\x18\x01 \x01(\x06R\x05botId\x12\x12\n" +
 	"\x04name\x18\x02 \x01(\tR\x04name\x12#\n" +
@@ -11035,7 +12014,10 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\fuptime_ratio\x18\r \x01(\tR\vuptimeRatio\x12?\n" +
 	"\rrunning_since\x18\x0e \x01(\v2\x1a.google.protobuf.TimestampR\frunningSince\x12A\n" +
 	"\fpause_reason\x18\x0f \x01(\x0e2\x1e.strategies.v1.Bot.PauseReasonR\vpauseReason\x12:\n" +
-	"\bactivity\x18\x10 \x03(\v2\x1e.strategies.v1.BotActivityHourR\bactivity\"c\n" +
+	"\bactivity\x18\x10 \x03(\v2\x1e.strategies.v1.BotActivityHourR\bactivity\x12\x1f\n" +
+	"\vstrategy_id\x18\x11 \x01(\x06R\n" +
+	"strategyId\x12\x1a\n" +
+	"\brevision\x18\x12 \x01(\x04R\brevision\"c\n" +
 	"\x06Status\x12\x16\n" +
 	"\x12STATUS_UNSPECIFIED\x10\x00\x12\r\n" +
 	"\tDEPLOYING\x10\x01\x12\v\n" +
@@ -11089,7 +12071,25 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x0fidempotency_key\x18\x03 \x01(\tB\x1f\xbaH\x1cr\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKey\"d\n" +
 	"\x0fStopBotResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.strategies.v1.BotR\x03bot\x12+\n" +
-	"\x04mode\x18\x02 \x01(\x0e2\x17.strategies.v1.StopModeR\x04mode\"\x93\x02\n" +
+	"\x04mode\x18\x02 \x01(\x0e2\x17.strategies.v1.StopModeR\x04mode\"\xd5\x02\n" +
+	"\x0eBotFundsReturn\x12\x1b\n" +
+	"\treturn_id\x18\x01 \x01(\x06R\breturnId\x12\x15\n" +
+	"\x06bot_id\x18\x02 \x01(\x06R\x05botId\x12;\n" +
+	"\x06status\x18\x03 \x01(\x0e2#.strategies.v1.BotFundsReturnStatusR\x06status\x12,\n" +
+	"\x06assets\x18\x04 \x03(\v2\x14.strategies.v1.MoneyR\x06assets\x12=\n" +
+	"\frequested_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vrequestedAt\x12;\n" +
+	"\vfinished_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"finishedAt\x12(\n" +
+	"\x04held\x18\a \x03(\v2\x14.strategies.v1.MoneyR\x04held\"\x88\x01\n" +
+	"\x15ReturnBotFundsRequest\x12%\n" +
+	"\x06bot_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05botId\x12H\n" +
+	"\x0fidempotency_key\x18\x02 \x01(\tB\x1f\xbaH\x1cr\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKey\"Z\n" +
+	"\x16ReturnBotFundsResponse\x12@\n" +
+	"\ffunds_return\x18\x01 \x01(\v2\x1d.strategies.v1.BotFundsReturnR\vfundsReturn\"G\n" +
+	"\x18GetBotFundsReturnRequest\x12+\n" +
+	"\treturn_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\breturnId\"]\n" +
+	"\x19GetBotFundsReturnResponse\x12@\n" +
+	"\ffunds_return\x18\x01 \x01(\v2\x1d.strategies.v1.BotFundsReturnR\vfundsReturn\"\x93\x02\n" +
 	"\x0eGetBotResponse\x12$\n" +
 	"\x03bot\x18\x01 \x01(\v2\x12.strategies.v1.BotR\x03bot\x127\n" +
 	"\n" +
@@ -11101,7 +12101,7 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x06bot_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\x05botId\x12\x1e\n" +
 	"\x05limit\x18\x02 \x01(\rB\b\xbaH\x05*\x03\x18\xc8\x01R\x05limit\x12'\n" +
 	"\n" +
-	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\xde\x01\n" +
+	"page_token\x18\x03 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x02R\tpageToken\"\x9b\x02\n" +
 	"\n" +
 	"BotVersion\x12\x1d\n" +
 	"\n" +
@@ -11111,7 +12111,10 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\n" +
 	"started_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tstartedAt\x129\n" +
 	"\n" +
-	"stopped_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstoppedAt\"x\n" +
+	"stopped_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\tstoppedAt\x12\x1f\n" +
+	"\vstrategy_id\x18\x06 \x01(\x06R\n" +
+	"strategyId\x12\x1a\n" +
+	"\brevision\x18\a \x01(\x04R\brevision\"x\n" +
 	"\x17ListBotVersionsResponse\x125\n" +
 	"\bversions\x18\x01 \x03(\v2\x19.strategies.v1.BotVersionR\bversions\x12&\n" +
 	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"F\n" +
@@ -11181,28 +12184,38 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\amarkets\x18\n" +
 	" \x03(\tR\amarkets\x12\x18\n" +
 	"\asummary\x18\v \x01(\tR\asummary\x128\n" +
-	"\alisting\x18\f \x01(\v2\x1e.strategies.v1.StrategyListingR\alisting\"\x8a\x02\n" +
+	"\alisting\x18\f \x01(\v2\x1e.strategies.v1.StrategyListingR\alisting\"\xb5\x02\n" +
 	"\x0fStrategyListing\x12\x1d\n" +
 	"\n" +
 	"listing_id\x18\x01 \x01(\x06R\tlistingId\x12:\n" +
 	"\x05state\x18\x02 \x01(\x0e2$.strategies.v1.StrategyListing.StateR\x05state\x12\x1d\n" +
 	"\n" +
 	"version_id\x18\x03 \x01(\tR\tversionId\x12=\n" +
-	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\">\n" +
+	"\fpublished_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x12\x1f\n" +
+	"\vhold_reason\x18\x05 \x01(\tR\n" +
+	"holdReason\"H\n" +
 	"\x05State\x12\x1d\n" +
 	"\x19LISTING_STATE_UNSPECIFIED\x10\x00\x12\n" +
 	"\n" +
 	"\x06PUBLIC\x10\x01\x12\n" +
 	"\n" +
-	"\x06HIDDEN\x10\x02\"W\n" +
+	"\x06HIDDEN\x10\x02\x12\b\n" +
+	"\x04HELD\x10\x03\"W\n" +
 	"\vStrategyBot\x12\x15\n" +
 	"\x06bot_id\x18\x01 \x01(\x06R\x05botId\x121\n" +
-	"\x06status\x18\x02 \x01(\x0e2\x19.strategies.v1.Bot.StatusR\x06status\"\x85\x01\n" +
+	"\x06status\x18\x02 \x01(\x0e2\x19.strategies.v1.Bot.StatusR\x06status\"\xbe\x01\n" +
 	"\x0eStrategyOrigin\x12!\n" +
 	"\vtemplate_id\x18\x01 \x01(\tH\x00R\n" +
 	"templateId\x12F\n" +
-	"\tduplicate\x18\x02 \x01(\v2&.strategies.v1.StrategyDuplicateOriginH\x00R\tduplicateB\b\n" +
-	"\x06source\"E\n" +
+	"\tduplicate\x18\x02 \x01(\v2&.strategies.v1.StrategyDuplicateOriginH\x00R\tduplicate\x127\n" +
+	"\x04fork\x18\x03 \x01(\v2!.strategies.v1.StrategyForkOriginH\x00R\x04forkB\b\n" +
+	"\x06source\"\x9e\x01\n" +
+	"\x12StrategyForkOrigin\x12\x1d\n" +
+	"\n" +
+	"listing_id\x18\x01 \x01(\x06R\tlistingId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +
+	"\x0fauthor_username\x18\x03 \x01(\tR\x0eauthorUsername\x12*\n" +
+	"\x11source_version_id\x18\x04 \x01(\tR\x0fsourceVersionId\"E\n" +
 	"\x17StrategyDuplicateOrigin\x12*\n" +
 	"\x11source_version_id\x18\x02 \x01(\tR\x0fsourceVersionId\"\xb0\x02\n" +
 	"\x10StrategyRevision\x12\x1a\n" +
@@ -11358,7 +12371,7 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x06window\x18\x03 \x01(\v2\x19.strategies.v1.TimeWindowR\x06window\x128\n" +
 	"\ametrics\x18\x04 \x01(\v2\x1e.strategies.v1.BacktestMetricsR\ametrics\x125\n" +
 	"\x06report\x18\x05 \x01(\v2\x1d.strategies.v1.BacktestReportR\x06report\x12\x18\n" +
-	"\afailure\x18\x06 \x01(\tR\afailure\"\xbf\x02\n" +
+	"\afailure\x18\x06 \x01(\tR\afailure\"\xd5\x02\n" +
 	"\x18CommunityStrategySummary\x12\x1d\n" +
 	"\n" +
 	"listing_id\x18\x01 \x01(\x06R\tlistingId\x12\x14\n" +
@@ -11367,7 +12380,13 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\amarkets\x18\x04 \x03(\tR\amarkets\x12'\n" +
 	"\x0fauthor_username\x18\x05 \x01(\tR\x0eauthorUsername\x12<\n" +
 	"\bbacktest\x18\x06 \x01(\v2 .strategies.v1.CommunityBacktestR\bbacktest\x12=\n" +
-	"\fpublished_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\"\x97\x05\n" +
+	"\fpublished_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\vpublishedAt\x12\x14\n" +
+	"\x05forks\x18\b \x01(\rR\x05forks\"s\n" +
+	"\x13CommunityForkSource\x12\x1d\n" +
+	"\n" +
+	"listing_id\x18\x01 \x01(\x06R\tlistingId\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12'\n" +
+	"\x0fauthor_username\x18\x03 \x01(\tR\x0eauthorUsername\"\xf2\x05\n" +
 	"\x11CommunityStrategy\x12\x1d\n" +
 	"\n" +
 	"listing_id\x18\x01 \x01(\x06R\tlistingId\x12\x14\n" +
@@ -11387,7 +12406,10 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\n" +
 	"money_card\x18\r \x01(\v2\x18.strategies.v1.MoneyCardR\tmoneyCard\x12/\n" +
 	"\x04flow\x18\x0e \x01(\v2\x1b.strategies.v1.StrategyFlowR\x04flow\x12<\n" +
-	"\bbacktest\x18\x0f \x01(\v2 .strategies.v1.CommunityBacktestR\bbacktest\"\xd7\x02\n" +
+	"\bbacktest\x18\x0f \x01(\v2 .strategies.v1.CommunityBacktestR\bbacktest\x12\x14\n" +
+	"\x05forks\x18\x10 \x01(\rR\x05forks\x12C\n" +
+	"\vforked_from\x18\x11 \x01(\v2\".strategies.v1.CommunityForkSourceR\n" +
+	"forkedFrom\"\xd7\x02\n" +
 	"\x1dPublishStrategyVersionRequest\x12/\n" +
 	"\vstrategy_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\n" +
 	"strategyId\x12)\n" +
@@ -11415,12 +12437,32 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\n" +
 	"strategies\x18\x01 \x03(\v2'.strategies.v1.CommunityStrategySummaryR\n" +
 	"strategies\x12&\n" +
-	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"L\n" +
+	"\x0fnext_page_token\x18\x02 \x01(\tR\rnextPageToken\"\xad\x01\n" +
+	"\x13ForkStrategyRequest\x12-\n" +
+	"\n" +
+	"listing_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\tlistingId\x12\x1d\n" +
+	"\x04name\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x04name\x12H\n" +
+	"\x0fidempotency_key\x18\x03 \x01(\tB\x1f\xbaH\x1cr\x1a2\x18^[A-Za-z0-9._:-]{1,128}$R\x0eidempotencyKey\"\x87\x01\n" +
+	"\x14ForkStrategyResponse\x123\n" +
+	"\bstrategy\x18\x01 \x01(\v2\x17.strategies.v1.StrategyR\bstrategy\x12:\n" +
+	"\aversion\x18\x02 \x01(\v2 .strategies.v1.VersionValidationR\aversion\"\xdb\x02\n" +
+	"\x1eReportCommunityStrategyRequest\x12-\n" +
+	"\n" +
+	"listing_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\tlistingId\x12)\n" +
+	"\n" +
+	"version_id\x18\x02 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\tversionId\x12@\n" +
+	"\x06reason\x18\x03 \x01(\x0e2\x1b.strategies.v1.ReportReasonB\v\xbaH\b\xc8\x01\x01\x82\x01\x02\x10\x01R\x06reason\x12\x1c\n" +
+	"\x04note\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\xf4\x03R\x04note:\x7f\xbaH|\x1az\n" +
+	"(report_community_strategy.note_for_other\x12%note is required when reason is OTHER\x1a'this.reason != 5 || size(this.note) > 0\"^\n" +
+	"\x1fReportCommunityStrategyResponse\x12;\n" +
+	"\vreported_at\x18\x01 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"reportedAt\"L\n" +
 	"\x1bGetCommunityStrategyRequest\x12-\n" +
 	"\n" +
 	"listing_id\x18\x01 \x01(\x06B\x0e\xbaH\vR\t!\x00\x00\x00\x00\x00\x00\x00\x00R\tlistingId\"\\\n" +
 	"\x1cGetCommunityStrategyResponse\x12<\n" +
-	"\bstrategy\x18\x01 \x01(\v2 .strategies.v1.CommunityStrategyR\bstrategy*\xfe\a\n" +
+	"\bstrategy\x18\x01 \x01(\v2 .strategies.v1.CommunityStrategyR\bstrategy*\x90\t\n" +
 	"\tErrorCode\x12\x15\n" +
 	"\x11ERROR_UNSPECIFIED\x10\x00\x12\x15\n" +
 	"\x11VERSION_NOT_FOUND\x10\x01\x12\x16\n" +
@@ -11462,7 +12504,13 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x11LISTING_NOT_FOUND\x10%\x12\x17\n" +
 	"\x13LISTING_CAP_REACHED\x10&\x12\x15\n" +
 	"\x11USERNAME_REQUIRED\x10'\x12\x19\n" +
-	"\x15PUBLISH_LIMIT_REACHED\x10(*\xd7\x01\n" +
+	"\x15PUBLISH_LIMIT_REACHED\x10(\x12\x10\n" +
+	"\fLISTING_HELD\x10)\x12\x1d\n" +
+	"\x19CANNOT_REPORT_OWN_LISTING\x10*\x12\x18\n" +
+	"\x14REPORT_LIMIT_REACHED\x10+\x12\x19\n" +
+	"\x15FUNDING_SOURCE_IS_BOT\x10,\x12\x13\n" +
+	"\x0fBOT_NOT_STOPPED\x10-\x12\x15\n" +
+	"\x11NOTHING_TO_RETURN\x10.*\xd7\x01\n" +
 	"\x15NotBacktestableReason\x12'\n" +
 	"#NOT_BACKTESTABLE_REASON_UNSPECIFIED\x10\x00\x12\x1e\n" +
 	"\x1aREACTS_TO_TRADES_OR_QUOTES\x10\x01\x12\x18\n" +
@@ -11486,7 +12534,12 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\bStopMode\x12\x14\n" +
 	"\x10STOP_UNSPECIFIED\x10\x00\x12\x0f\n" +
 	"\vKEEP_ORDERS\x10\x01\x12\x11\n" +
-	"\rCANCEL_ORDERS\x10\x02*\x83\x01\n" +
+	"\rCANCEL_ORDERS\x10\x02*\x86\x01\n" +
+	"\x14BotFundsReturnStatus\x12'\n" +
+	"#BOT_FUNDS_RETURN_STATUS_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11RETURN_PROCESSING\x10\x01\x12\x14\n" +
+	"\x10RETURN_COMPLETED\x10\x02\x12\x18\n" +
+	"\x14RETURN_NOTHING_MOVED\x10\x03*\x83\x01\n" +
 	"\vStrategyTag\x12\x13\n" +
 	"\x0fTAG_UNSPECIFIED\x10\x00\x12\t\n" +
 	"\x05TREND\x10\x01\x12\x12\n" +
@@ -11495,7 +12548,14 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x03DCA\x10\x04\x12\x11\n" +
 	"\rMARKET_MAKING\x10\x05\x12\r\n" +
 	"\tARBITRAGE\x10\x06\x12\v\n" +
-	"\aSIGNALS\x10\a2\xfaN\n" +
+	"\aSIGNALS\x10\a*\x87\x01\n" +
+	"\fReportReason\x12\x1d\n" +
+	"\x19REPORT_REASON_UNSPECIFIED\x10\x00\x12\x16\n" +
+	"\x12MISLEADING_RESULTS\x10\x01\x12\x10\n" +
+	"\fHARMFUL_CODE\x10\x02\x12\b\n" +
+	"\x04SPAM\x10\x03\x12\x19\n" +
+	"\x15COPIED_WITHOUT_CREDIT\x10\x04\x12\t\n" +
+	"\x05OTHER\x10\x052\xc8Z\n" +
 	"\x11StrategiesService\x12\xe2\x02\n" +
 	"\x14GetStrategyReference\x12*.strategies.v1.GetStrategyReferenceRequest\x1a+.strategies.v1.GetStrategyReferenceResponse\"\xf0\x01\xbaG\xe5\x01\n" +
 	"\x12Strategies Service\x12\x16Get Strategy Reference\x1a\xb4\x01Get the bot API reference and the skill pack for writing bots, and the manifest's JSON Schema, the allowed indicators and the limits of one runtime version once they are available.Z\x00\x88\xb5\x18\x01\x90\x02\x01\x12\xf0\x01\n" +
@@ -11512,9 +12572,9 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x15ListStrategyRevisions\x12+.strategies.v1.ListStrategyRevisionsRequest\x1a,.strategies.v1.ListStrategyRevisionsResponse\"\xcc\x01\xbaG\xbf\x01\n" +
 	"\x12Strategies Service\x12\x17List Strategy Revisions\x1a\x8f\x01List a strategy's saved drafts, newest first, with how each was saved. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xf0\x01\n" +
 	"\x0eRenameStrategy\x12$.strategies.v1.RenameStrategyRequest\x1a%.strategies.v1.RenameStrategyResponse\"\x90\x01\xbaG\x83\x01\n" +
-	"\x12Strategies Service\x12\x0fRename Strategy\x1a\\Rename a strategy. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xfa\x02\n" +
-	"\x0eDeleteStrategy\x12$.strategies.v1.DeleteStrategyRequest\x1a%.strategies.v1.DeleteStrategyResponse\"\x9a\x02\xbaG\x8d\x02\n" +
-	"\x12Strategies Service\x12\x0fDelete Strategy\x1a\xe5\x01Delete a strategy and its revisions, unless a bot deployed from it is still running, a deploy proposal of it is waiting or its community listing is public. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xab\x02\n" +
+	"\x12Strategies Service\x12\x0fRename Strategy\x1a\\Rename a strategy. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\x90\x03\n" +
+	"\x0eDeleteStrategy\x12$.strategies.v1.DeleteStrategyRequest\x1a%.strategies.v1.DeleteStrategyResponse\"\xb0\x02\xbaG\xa3\x02\n" +
+	"\x12Strategies Service\x12\x0fDelete Strategy\x1a\xfb\x01Delete a strategy and its revisions, unless a bot deployed from it is still running, a deploy proposal of it is waiting or its community listing is public or held by moderation. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xab\x02\n" +
 	"\x10GetStrategyNotes\x12&.strategies.v1.GetStrategyNotesRequest\x1a'.strategies.v1.GetStrategyNotesResponse\"\xc5\x01\xbaG\xb8\x01\n" +
 	"\x12Strategies Service\x12\x12Get Strategy Notes\x1a\x8d\x01Read a strategy's notes: its one-line summary and its Markdown body. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xd8\x02\n" +
 	"\x11SaveStrategyNotes\x12'.strategies.v1.SaveStrategyNotesRequest\x1a(.strategies.v1.SaveStrategyNotesResponse\"\xef\x01\xbaG\xe2\x01\n" +
@@ -11522,9 +12582,9 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x1aListStrategyNotesRevisions\x120.strategies.v1.ListStrategyNotesRevisionsRequest\x1a1.strategies.v1.ListStrategyNotesRevisionsResponse\"\xd1\x01\xbaG\xc4\x01\n" +
 	"\x12Strategies Service\x12\x1dList Strategy Notes Revisions\x1a\x8e\x01List a strategy's saved notes, newest first, with how each was saved. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x98\x02\n" +
 	"\rListBacktests\x12#.strategies.v1.ListBacktestsRequest\x1a$.strategies.v1.ListBacktestsResponse\"\xbb\x01\xbaG\xae\x01\n" +
-	"\x12Strategies Service\x12\x0eList Backtests\x1a\x87\x01List a strategy's backtests, newest first, each as a headline. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xa2\x02\n" +
-	"\fRunScenarios\x12\".strategies.v1.RunScenariosRequest\x1a#.strategies.v1.RunScenariosResponse\"\xc8\x01\xbaG\xbb\x01\n" +
-	"\x12Strategies Service\x12\rRun Scenarios\x1a\x95\x01Run a version's behaviour examples against its code and record the results. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\x9b\x02\n" +
+	"\x12Strategies Service\x12\x0eList Backtests\x1a\x87\x01List a strategy's backtests, newest first, each as a headline. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xb1\x03\n" +
+	"\fRunScenarios\x12\".strategies.v1.RunScenariosRequest\x1a#.strategies.v1.RunScenariosResponse\"\xd7\x02\xbaG\xca\x02\n" +
+	"\x12Strategies Service\x12\rRun Scenarios\x1a\xa4\x02Run a version's behaviour examples against its code and record the results. A run where a call takes longer than allowed or the runtime fails is returned but not recorded, so running the examples again runs them again. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\x9b\x02\n" +
 	"\rStartBacktest\x12#.strategies.v1.StartBacktestRequest\x1a$.strategies.v1.StartBacktestResponse\"\xbe\x01\xbaG\xb1\x01\n" +
 	"\x12Strategies Service\x12\x0eStart Backtest\x1a\x8a\x01Start a backtest of a version over a window of past market data. An API key needs DRAFT_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\x84\x02\n" +
 	"\vGetBacktest\x12!.strategies.v1.GetBacktestRequest\x1a\".strategies.v1.GetBacktestResponse\"\xad\x01\xbaG\xa0\x01\n" +
@@ -11551,7 +12611,11 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x12GetStrategyVersion\x12(.strategies.v1.GetStrategyVersionRequest\x1a).strategies.v1.GetStrategyVersionResponse\"\xbe\x01\xbaG\xb1\x01\n" +
 	"\x12Strategies Service\x12\x14Get Strategy Version\x1a\x84\x01Read a strategy version's manifest, code and settings form. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\x87\x03\n" +
 	"\vListBotLogs\x12!.strategies.v1.ListBotLogsRequest\x1a\".strategies.v1.ListBotLogsResponse\"\xb0\x02\xbaG\xa3\x02\n" +
-	"\x12Strategies Service\x12\rList Bot Logs\x1a\xfd\x01Read a bot's recent activity, oldest first: the last 20 decisions of its current deployment, each with the lines its call wrote, and its last 20 errors. Older entries are not kept. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xd0\x02\n" +
+	"\x12Strategies Service\x12\rList Bot Logs\x1a\xfd\x01Read a bot's recent activity, oldest first: the last 20 decisions of its current deployment, each with the lines its call wrote, and its last 20 errors. Older entries are not kept. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xe1\x02\n" +
+	"\x0eReturnBotFunds\x12$.strategies.v1.ReturnBotFundsRequest\x1a%.strategies.v1.ReturnBotFundsResponse\"\x81\x02\xbaG\xf4\x01\n" +
+	"\x12Strategies Service\x12\x10Return Bot Funds\x1a\xcb\x01Return every available balance of a stopped bot's subaccount to the owner's main account. Only the bot's owner calls it. An API key needs RETURN_STRATEGY_BOT_FUNDS and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xc3\x02\n" +
+	"\x11GetBotFundsReturn\x12'.strategies.v1.GetBotFundsReturnRequest\x1a(.strategies.v1.GetBotFundsReturnResponse\"\xda\x01\xbaG\xcd\x01\n" +
+	"\x12Strategies Service\x12\x14Get Bot Funds Return\x1a\xa0\x01Read one return of a stopped bot's funds to the owner's main account, by its return ID. An API key needs READ_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x01\x12\xd0\x02\n" +
 	"\aStopBot\x12\x1d.strategies.v1.StopBotRequest\x1a\x1e.strategies.v1.StopBotResponse\"\x85\x02\xbaG\xf8\x01\n" +
 	"\x12Strategies Service\x12\bStop Bot\x1a\xd7\x01Stop a bot, handing its open orders to its subaccount or cancelling them. It reads stopping until the stop is reported complete, then stopped. An API key needs STOP_STRATEGIES and must be scoped to the main account.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xc4\x02\n" +
 	"\x16PublishStrategyVersion\x12,.strategies.v1.PublishStrategyVersionRequest\x1a-.strategies.v1.PublishStrategyVersionResponse\"\xcc\x01\xbaG\xc0\x01\n" +
@@ -11559,7 +12623,11 @@ const file_strategies_v1_strategies_proto_rawDesc = "" +
 	"\x11UnpublishStrategy\x12'.strategies.v1.UnpublishStrategyRequest\x1a(.strategies.v1.UnpublishStrategyResponse\"\x8f\x01\xbaG\x83\x01\n" +
 	"\x12Strategies Service\x12\x12Unpublish Strategy\x1aYUnpublish one of the caller's community listings. Copies already made stay. Session only.\xa2\xb5\x18\x01\x01\x90\x02\x02\x12\xb8\x02\n" +
 	"\x17ListCommunityStrategies\x12-.strategies.v1.ListCommunityStrategiesRequest\x1a..strategies.v1.ListCommunityStrategiesResponse\"\xbd\x01\xbaG\xb2\x01\n" +
-	"\x12Strategies Service\x12\x19List Community Strategies\x1a\x7fList the public community listings, most recently published first, optionally only those of some types or trading some markets.Z\x00\x88\xb5\x18\x01\x90\x02\x01\x12\xa4\x02\n" +
+	"\x12Strategies Service\x12\x19List Community Strategies\x1a\x7fList the public community listings, most recently published first, optionally only those of some types or trading some markets.Z\x00\x88\xb5\x18\x01\x90\x02\x01\x12\xb2\x02\n" +
+	"\x17ReportCommunityStrategy\x12-.strategies.v1.ReportCommunityStrategyRequest\x1a..strategies.v1.ReportCommunityStrategyResponse\"\xb7\x01\xbaG\xab\x01\n" +
+	"\x12Strategies Service\x12\x19Report Community Strategy\x1azReport a public community listing to moderation, with a reason and a note, about the version the reader saw. Session only.\xa2\xb5\x18\x01\x01\x90\x02\x02\x12\xc7\x02\n" +
+	"\fForkStrategy\x12\".strategies.v1.ForkStrategyRequest\x1a#.strategies.v1.ForkStrategyResponse\"\xed\x01\xbaG\xe0\x01\n" +
+	"\x12Strategies Service\x12\rFork Strategy\x1a\xba\x01Copy a public community listing's published version into a new strategy of the caller. An API key needs FORK_STRATEGIES and must be scoped to the main account; connected apps can't fork.\xa2\xb5\x18\x02\x01\x02\x90\x02\x02\x12\xa4\x02\n" +
 	"\x14GetCommunityStrategy\x12*.strategies.v1.GetCommunityStrategyRequest\x1a+.strategies.v1.GetCommunityStrategyResponse\"\xb2\x01\xbaG\xa7\x01\n" +
 	"\x12Strategies Service\x12\x16Get Community Strategy\x1awRead a public community listing with its published version's code, manifest, settings form, flow and platform backtest.Z\x00\x88\xb5\x18\x01\x90\x02\x01\x1a\v\x8a\xb5\x18\atradingB\x8c\x02\xbaG\xc0\x01:\xbd\x01\n" +
 	"\x12Strategies Service\x12\xa6\x01Write, test and propose trading bots: the bot format, validation, behaviour examples, backtests, deploy proposals, reads of the caller's bots, and community listings.ZFgithub.com/Fabric-Labs/polyester-sdk-go/gen/strategies/v1;strategiesv1b\x06proto3"
@@ -11576,410 +12644,444 @@ func file_strategies_v1_strategies_proto_rawDescGZIP() []byte {
 	return file_strategies_v1_strategies_proto_rawDescData
 }
 
-var file_strategies_v1_strategies_proto_enumTypes = make([]protoimpl.EnumInfo, 16)
-var file_strategies_v1_strategies_proto_msgTypes = make([]protoimpl.MessageInfo, 122)
+var file_strategies_v1_strategies_proto_enumTypes = make([]protoimpl.EnumInfo, 18)
+var file_strategies_v1_strategies_proto_msgTypes = make([]protoimpl.MessageInfo, 133)
 var file_strategies_v1_strategies_proto_goTypes = []any{
 	(ErrorCode)(0),                             // 0: strategies.v1.ErrorCode
 	(NotBacktestableReason)(0),                 // 1: strategies.v1.NotBacktestableReason
 	(OrderSide)(0),                             // 2: strategies.v1.OrderSide
 	(EvidenceGrade)(0),                         // 3: strategies.v1.EvidenceGrade
 	(StopMode)(0),                              // 4: strategies.v1.StopMode
-	(StrategyTag)(0),                           // 5: strategies.v1.StrategyTag
-	(Backtest_Status)(0),                       // 6: strategies.v1.Backtest.Status
-	(ScenarioSummary_Outcome)(0),               // 7: strategies.v1.ScenarioSummary.Outcome
-	(DeployStatus_State)(0),                    // 8: strategies.v1.DeployStatus.State
-	(DeployWait_Reason)(0),                     // 9: strategies.v1.DeployWait.Reason
-	(Bot_Status)(0),                            // 10: strategies.v1.Bot.Status
-	(Bot_PauseReason)(0),                       // 11: strategies.v1.Bot.PauseReason
-	(FlowNode_Kind)(0),                         // 12: strategies.v1.FlowNode.Kind
-	(StrategyListing_State)(0),                 // 13: strategies.v1.StrategyListing.State
-	(StrategyRevision_SavedBy)(0),              // 14: strategies.v1.StrategyRevision.SavedBy
-	(BotLogEntry_Kind)(0),                      // 15: strategies.v1.BotLogEntry.Kind
-	(*BotCapDetail)(nil),                       // 16: strategies.v1.BotCapDetail
-	(*StrategyCapDetail)(nil),                  // 17: strategies.v1.StrategyCapDetail
-	(*ListingCapDetail)(nil),                   // 18: strategies.v1.ListingCapDetail
-	(*RevisionConflictDetail)(nil),             // 19: strategies.v1.RevisionConflictDetail
-	(*ErrorDetail)(nil),                        // 20: strategies.v1.ErrorDetail
-	(*NotesConflictDetail)(nil),                // 21: strategies.v1.NotesConflictDetail
-	(*BacktestLimitDetail)(nil),                // 22: strategies.v1.BacktestLimitDetail
-	(*Money)(nil),                              // 23: strategies.v1.Money
-	(*TimeWindow)(nil),                         // 24: strategies.v1.TimeWindow
-	(*IndicatorLibrary)(nil),                   // 25: strategies.v1.IndicatorLibrary
-	(*IndicatorParameter)(nil),                 // 26: strategies.v1.IndicatorParameter
-	(*Indicator)(nil),                          // 27: strategies.v1.Indicator
-	(*StrategyLimits)(nil),                     // 28: strategies.v1.StrategyLimits
-	(*GetStrategyReferenceRequest)(nil),        // 29: strategies.v1.GetStrategyReferenceRequest
-	(*GetStrategyReferenceResponse)(nil),       // 30: strategies.v1.GetStrategyReferenceResponse
-	(*SkillDocument)(nil),                      // 31: strategies.v1.SkillDocument
-	(*StrategyTemplate)(nil),                   // 32: strategies.v1.StrategyTemplate
-	(*ListStrategyTemplatesRequest)(nil),       // 33: strategies.v1.ListStrategyTemplatesRequest
-	(*ListStrategyTemplatesResponse)(nil),      // 34: strategies.v1.ListStrategyTemplatesResponse
-	(*ValidationIssue)(nil),                    // 35: strategies.v1.ValidationIssue
-	(*MoneyCard)(nil),                          // 36: strategies.v1.MoneyCard
-	(*SettingField)(nil),                       // 37: strategies.v1.SettingField
-	(*VersionValidation)(nil),                  // 38: strategies.v1.VersionValidation
-	(*RunScenariosRequest)(nil),                // 39: strategies.v1.RunScenariosRequest
-	(*ScenarioResult)(nil),                     // 40: strategies.v1.ScenarioResult
-	(*RunScenariosResponse)(nil),               // 41: strategies.v1.RunScenariosResponse
-	(*BacktestMetrics)(nil),                    // 42: strategies.v1.BacktestMetrics
-	(*BacktestScenario)(nil),                   // 43: strategies.v1.BacktestScenario
-	(*EquityPoint)(nil),                        // 44: strategies.v1.EquityPoint
-	(*Baseline)(nil),                           // 45: strategies.v1.Baseline
-	(*BacktestTrade)(nil),                      // 46: strategies.v1.BacktestTrade
-	(*DataGap)(nil),                            // 47: strategies.v1.DataGap
-	(*BacktestReport)(nil),                     // 48: strategies.v1.BacktestReport
-	(*Backtest)(nil),                           // 49: strategies.v1.Backtest
-	(*StartBacktestRequest)(nil),               // 50: strategies.v1.StartBacktestRequest
-	(*StartBacktestResponse)(nil),              // 51: strategies.v1.StartBacktestResponse
-	(*GetBacktestRequest)(nil),                 // 52: strategies.v1.GetBacktestRequest
-	(*GetBacktestResponse)(nil),                // 53: strategies.v1.GetBacktestResponse
-	(*ListBacktestTradesRequest)(nil),          // 54: strategies.v1.ListBacktestTradesRequest
-	(*ListBacktestTradesResponse)(nil),         // 55: strategies.v1.ListBacktestTradesResponse
-	(*ScenarioSummary)(nil),                    // 56: strategies.v1.ScenarioSummary
-	(*BacktestSummary)(nil),                    // 57: strategies.v1.BacktestSummary
-	(*ExplainStrategyRequest)(nil),             // 58: strategies.v1.ExplainStrategyRequest
-	(*ExplainStrategyResponse)(nil),            // 59: strategies.v1.ExplainStrategyResponse
-	(*SettingValue)(nil),                       // 60: strategies.v1.SettingValue
-	(*DeployProposalSummary)(nil),              // 61: strategies.v1.DeployProposalSummary
-	(*ProposeDeployRequest)(nil),               // 62: strategies.v1.ProposeDeployRequest
-	(*ProposeDeployResponse)(nil),              // 63: strategies.v1.ProposeDeployResponse
-	(*DeployStatus)(nil),                       // 64: strategies.v1.DeployStatus
-	(*DeployWait)(nil),                         // 65: strategies.v1.DeployWait
-	(*GetDeployStatusRequest)(nil),             // 66: strategies.v1.GetDeployStatusRequest
-	(*GetDeployStatusResponse)(nil),            // 67: strategies.v1.GetDeployStatusResponse
-	(*SubaccountAuthorization)(nil),            // 68: strategies.v1.SubaccountAuthorization
-	(*DeployBotRequest)(nil),                   // 69: strategies.v1.DeployBotRequest
-	(*DeployBotResponse)(nil),                  // 70: strategies.v1.DeployBotResponse
-	(*GetDeployProposalRequest)(nil),           // 71: strategies.v1.GetDeployProposalRequest
-	(*GetDeployProposalResponse)(nil),          // 72: strategies.v1.GetDeployProposalResponse
-	(*Bot)(nil),                                // 73: strategies.v1.Bot
-	(*BotActivityHour)(nil),                    // 74: strategies.v1.BotActivityHour
-	(*BotFunding)(nil),                         // 75: strategies.v1.BotFunding
-	(*BotStatusCount)(nil),                     // 76: strategies.v1.BotStatusCount
-	(*ListBotsRequest)(nil),                    // 77: strategies.v1.ListBotsRequest
-	(*ListBotsResponse)(nil),                   // 78: strategies.v1.ListBotsResponse
-	(*BotDecision)(nil),                        // 79: strategies.v1.BotDecision
-	(*BotError)(nil),                           // 80: strategies.v1.BotError
-	(*GetBotRequest)(nil),                      // 81: strategies.v1.GetBotRequest
-	(*StopBotRequest)(nil),                     // 82: strategies.v1.StopBotRequest
-	(*StopBotResponse)(nil),                    // 83: strategies.v1.StopBotResponse
-	(*GetBotResponse)(nil),                     // 84: strategies.v1.GetBotResponse
-	(*ListBotVersionsRequest)(nil),             // 85: strategies.v1.ListBotVersionsRequest
-	(*BotVersion)(nil),                         // 86: strategies.v1.BotVersion
-	(*ListBotVersionsResponse)(nil),            // 87: strategies.v1.ListBotVersionsResponse
-	(*GetStrategyVersionRequest)(nil),          // 88: strategies.v1.GetStrategyVersionRequest
-	(*GetStrategyVersionResponse)(nil),         // 89: strategies.v1.GetStrategyVersionResponse
-	(*StrategyFlow)(nil),                       // 90: strategies.v1.StrategyFlow
-	(*FlowNode)(nil),                           // 91: strategies.v1.FlowNode
-	(*FlowEdge)(nil),                           // 92: strategies.v1.FlowEdge
-	(*SourceSpan)(nil),                         // 93: strategies.v1.SourceSpan
-	(*Strategy)(nil),                           // 94: strategies.v1.Strategy
-	(*StrategyListing)(nil),                    // 95: strategies.v1.StrategyListing
-	(*StrategyBot)(nil),                        // 96: strategies.v1.StrategyBot
-	(*StrategyOrigin)(nil),                     // 97: strategies.v1.StrategyOrigin
-	(*StrategyDuplicateOrigin)(nil),            // 98: strategies.v1.StrategyDuplicateOrigin
-	(*StrategyRevision)(nil),                   // 99: strategies.v1.StrategyRevision
-	(*CreateStrategyRequest)(nil),              // 100: strategies.v1.CreateStrategyRequest
-	(*CreateStrategyResponse)(nil),             // 101: strategies.v1.CreateStrategyResponse
-	(*SaveDraftVersionRequest)(nil),            // 102: strategies.v1.SaveDraftVersionRequest
-	(*SaveDraftVersionResponse)(nil),           // 103: strategies.v1.SaveDraftVersionResponse
-	(*GetStrategyRequest)(nil),                 // 104: strategies.v1.GetStrategyRequest
-	(*GetStrategyResponse)(nil),                // 105: strategies.v1.GetStrategyResponse
-	(*ListStrategiesRequest)(nil),              // 106: strategies.v1.ListStrategiesRequest
-	(*ListStrategiesResponse)(nil),             // 107: strategies.v1.ListStrategiesResponse
-	(*ListStrategyRevisionsRequest)(nil),       // 108: strategies.v1.ListStrategyRevisionsRequest
-	(*ListStrategyRevisionsResponse)(nil),      // 109: strategies.v1.ListStrategyRevisionsResponse
-	(*RenameStrategyRequest)(nil),              // 110: strategies.v1.RenameStrategyRequest
-	(*RenameStrategyResponse)(nil),             // 111: strategies.v1.RenameStrategyResponse
-	(*DeleteStrategyRequest)(nil),              // 112: strategies.v1.DeleteStrategyRequest
-	(*DeleteStrategyResponse)(nil),             // 113: strategies.v1.DeleteStrategyResponse
-	(*StrategyNotes)(nil),                      // 114: strategies.v1.StrategyNotes
-	(*GetStrategyNotesRequest)(nil),            // 115: strategies.v1.GetStrategyNotesRequest
-	(*GetStrategyNotesResponse)(nil),           // 116: strategies.v1.GetStrategyNotesResponse
-	(*SaveStrategyNotesRequest)(nil),           // 117: strategies.v1.SaveStrategyNotesRequest
-	(*SaveStrategyNotesResponse)(nil),          // 118: strategies.v1.SaveStrategyNotesResponse
-	(*ListStrategyNotesRevisionsRequest)(nil),  // 119: strategies.v1.ListStrategyNotesRevisionsRequest
-	(*ListStrategyNotesRevisionsResponse)(nil), // 120: strategies.v1.ListStrategyNotesRevisionsResponse
-	(*ListBacktestsRequest)(nil),               // 121: strategies.v1.ListBacktestsRequest
-	(*StrategyBacktest)(nil),                   // 122: strategies.v1.StrategyBacktest
-	(*ListBacktestsResponse)(nil),              // 123: strategies.v1.ListBacktestsResponse
-	(*BotLogEntry)(nil),                        // 124: strategies.v1.BotLogEntry
-	(*ListBotLogsRequest)(nil),                 // 125: strategies.v1.ListBotLogsRequest
-	(*ListBotLogsResponse)(nil),                // 126: strategies.v1.ListBotLogsResponse
-	(*CommunityBacktest)(nil),                  // 127: strategies.v1.CommunityBacktest
-	(*CommunityStrategySummary)(nil),           // 128: strategies.v1.CommunityStrategySummary
-	(*CommunityStrategy)(nil),                  // 129: strategies.v1.CommunityStrategy
-	(*PublishStrategyVersionRequest)(nil),      // 130: strategies.v1.PublishStrategyVersionRequest
-	(*PublishStrategyVersionResponse)(nil),     // 131: strategies.v1.PublishStrategyVersionResponse
-	(*UnpublishStrategyRequest)(nil),           // 132: strategies.v1.UnpublishStrategyRequest
-	(*UnpublishStrategyResponse)(nil),          // 133: strategies.v1.UnpublishStrategyResponse
-	(*ListCommunityStrategiesRequest)(nil),     // 134: strategies.v1.ListCommunityStrategiesRequest
-	(*ListCommunityStrategiesResponse)(nil),    // 135: strategies.v1.ListCommunityStrategiesResponse
-	(*GetCommunityStrategyRequest)(nil),        // 136: strategies.v1.GetCommunityStrategyRequest
-	(*GetCommunityStrategyResponse)(nil),       // 137: strategies.v1.GetCommunityStrategyResponse
-	(*timestamppb.Timestamp)(nil),              // 138: google.protobuf.Timestamp
-	(*structpb.Struct)(nil),                    // 139: google.protobuf.Struct
+	(BotFundsReturnStatus)(0),                  // 5: strategies.v1.BotFundsReturnStatus
+	(StrategyTag)(0),                           // 6: strategies.v1.StrategyTag
+	(ReportReason)(0),                          // 7: strategies.v1.ReportReason
+	(Backtest_Status)(0),                       // 8: strategies.v1.Backtest.Status
+	(ScenarioSummary_Outcome)(0),               // 9: strategies.v1.ScenarioSummary.Outcome
+	(DeployStatus_State)(0),                    // 10: strategies.v1.DeployStatus.State
+	(DeployWait_Reason)(0),                     // 11: strategies.v1.DeployWait.Reason
+	(Bot_Status)(0),                            // 12: strategies.v1.Bot.Status
+	(Bot_PauseReason)(0),                       // 13: strategies.v1.Bot.PauseReason
+	(FlowNode_Kind)(0),                         // 14: strategies.v1.FlowNode.Kind
+	(StrategyListing_State)(0),                 // 15: strategies.v1.StrategyListing.State
+	(StrategyRevision_SavedBy)(0),              // 16: strategies.v1.StrategyRevision.SavedBy
+	(BotLogEntry_Kind)(0),                      // 17: strategies.v1.BotLogEntry.Kind
+	(*BotCapDetail)(nil),                       // 18: strategies.v1.BotCapDetail
+	(*StrategyCapDetail)(nil),                  // 19: strategies.v1.StrategyCapDetail
+	(*ListingCapDetail)(nil),                   // 20: strategies.v1.ListingCapDetail
+	(*RevisionConflictDetail)(nil),             // 21: strategies.v1.RevisionConflictDetail
+	(*ErrorDetail)(nil),                        // 22: strategies.v1.ErrorDetail
+	(*NotesConflictDetail)(nil),                // 23: strategies.v1.NotesConflictDetail
+	(*BacktestLimitDetail)(nil),                // 24: strategies.v1.BacktestLimitDetail
+	(*Money)(nil),                              // 25: strategies.v1.Money
+	(*TimeWindow)(nil),                         // 26: strategies.v1.TimeWindow
+	(*IndicatorLibrary)(nil),                   // 27: strategies.v1.IndicatorLibrary
+	(*IndicatorParameter)(nil),                 // 28: strategies.v1.IndicatorParameter
+	(*Indicator)(nil),                          // 29: strategies.v1.Indicator
+	(*StrategyLimits)(nil),                     // 30: strategies.v1.StrategyLimits
+	(*GetStrategyReferenceRequest)(nil),        // 31: strategies.v1.GetStrategyReferenceRequest
+	(*GetStrategyReferenceResponse)(nil),       // 32: strategies.v1.GetStrategyReferenceResponse
+	(*SkillDocument)(nil),                      // 33: strategies.v1.SkillDocument
+	(*StrategyTemplate)(nil),                   // 34: strategies.v1.StrategyTemplate
+	(*ListStrategyTemplatesRequest)(nil),       // 35: strategies.v1.ListStrategyTemplatesRequest
+	(*ListStrategyTemplatesResponse)(nil),      // 36: strategies.v1.ListStrategyTemplatesResponse
+	(*ValidationIssue)(nil),                    // 37: strategies.v1.ValidationIssue
+	(*MoneyCard)(nil),                          // 38: strategies.v1.MoneyCard
+	(*SettingField)(nil),                       // 39: strategies.v1.SettingField
+	(*VersionValidation)(nil),                  // 40: strategies.v1.VersionValidation
+	(*RunScenariosRequest)(nil),                // 41: strategies.v1.RunScenariosRequest
+	(*ScenarioResult)(nil),                     // 42: strategies.v1.ScenarioResult
+	(*RunScenariosResponse)(nil),               // 43: strategies.v1.RunScenariosResponse
+	(*BacktestMetrics)(nil),                    // 44: strategies.v1.BacktestMetrics
+	(*BacktestScenario)(nil),                   // 45: strategies.v1.BacktestScenario
+	(*EquityPoint)(nil),                        // 46: strategies.v1.EquityPoint
+	(*Baseline)(nil),                           // 47: strategies.v1.Baseline
+	(*BacktestTrade)(nil),                      // 48: strategies.v1.BacktestTrade
+	(*DataGap)(nil),                            // 49: strategies.v1.DataGap
+	(*BacktestReport)(nil),                     // 50: strategies.v1.BacktestReport
+	(*Backtest)(nil),                           // 51: strategies.v1.Backtest
+	(*StartBacktestRequest)(nil),               // 52: strategies.v1.StartBacktestRequest
+	(*StartBacktestResponse)(nil),              // 53: strategies.v1.StartBacktestResponse
+	(*GetBacktestRequest)(nil),                 // 54: strategies.v1.GetBacktestRequest
+	(*GetBacktestResponse)(nil),                // 55: strategies.v1.GetBacktestResponse
+	(*ListBacktestTradesRequest)(nil),          // 56: strategies.v1.ListBacktestTradesRequest
+	(*ListBacktestTradesResponse)(nil),         // 57: strategies.v1.ListBacktestTradesResponse
+	(*ScenarioSummary)(nil),                    // 58: strategies.v1.ScenarioSummary
+	(*BacktestSummary)(nil),                    // 59: strategies.v1.BacktestSummary
+	(*ExplainStrategyRequest)(nil),             // 60: strategies.v1.ExplainStrategyRequest
+	(*ExplainStrategyResponse)(nil),            // 61: strategies.v1.ExplainStrategyResponse
+	(*SettingValue)(nil),                       // 62: strategies.v1.SettingValue
+	(*DeployProposalSummary)(nil),              // 63: strategies.v1.DeployProposalSummary
+	(*ProposeDeployRequest)(nil),               // 64: strategies.v1.ProposeDeployRequest
+	(*ProposeDeployResponse)(nil),              // 65: strategies.v1.ProposeDeployResponse
+	(*DeployStatus)(nil),                       // 66: strategies.v1.DeployStatus
+	(*DeployWait)(nil),                         // 67: strategies.v1.DeployWait
+	(*GetDeployStatusRequest)(nil),             // 68: strategies.v1.GetDeployStatusRequest
+	(*GetDeployStatusResponse)(nil),            // 69: strategies.v1.GetDeployStatusResponse
+	(*SubaccountAuthorization)(nil),            // 70: strategies.v1.SubaccountAuthorization
+	(*DeployBotRequest)(nil),                   // 71: strategies.v1.DeployBotRequest
+	(*DeployBotResponse)(nil),                  // 72: strategies.v1.DeployBotResponse
+	(*GetDeployProposalRequest)(nil),           // 73: strategies.v1.GetDeployProposalRequest
+	(*GetDeployProposalResponse)(nil),          // 74: strategies.v1.GetDeployProposalResponse
+	(*Bot)(nil),                                // 75: strategies.v1.Bot
+	(*BotActivityHour)(nil),                    // 76: strategies.v1.BotActivityHour
+	(*BotFunding)(nil),                         // 77: strategies.v1.BotFunding
+	(*BotStatusCount)(nil),                     // 78: strategies.v1.BotStatusCount
+	(*ListBotsRequest)(nil),                    // 79: strategies.v1.ListBotsRequest
+	(*ListBotsResponse)(nil),                   // 80: strategies.v1.ListBotsResponse
+	(*BotDecision)(nil),                        // 81: strategies.v1.BotDecision
+	(*BotError)(nil),                           // 82: strategies.v1.BotError
+	(*GetBotRequest)(nil),                      // 83: strategies.v1.GetBotRequest
+	(*StopBotRequest)(nil),                     // 84: strategies.v1.StopBotRequest
+	(*StopBotResponse)(nil),                    // 85: strategies.v1.StopBotResponse
+	(*BotFundsReturn)(nil),                     // 86: strategies.v1.BotFundsReturn
+	(*ReturnBotFundsRequest)(nil),              // 87: strategies.v1.ReturnBotFundsRequest
+	(*ReturnBotFundsResponse)(nil),             // 88: strategies.v1.ReturnBotFundsResponse
+	(*GetBotFundsReturnRequest)(nil),           // 89: strategies.v1.GetBotFundsReturnRequest
+	(*GetBotFundsReturnResponse)(nil),          // 90: strategies.v1.GetBotFundsReturnResponse
+	(*GetBotResponse)(nil),                     // 91: strategies.v1.GetBotResponse
+	(*ListBotVersionsRequest)(nil),             // 92: strategies.v1.ListBotVersionsRequest
+	(*BotVersion)(nil),                         // 93: strategies.v1.BotVersion
+	(*ListBotVersionsResponse)(nil),            // 94: strategies.v1.ListBotVersionsResponse
+	(*GetStrategyVersionRequest)(nil),          // 95: strategies.v1.GetStrategyVersionRequest
+	(*GetStrategyVersionResponse)(nil),         // 96: strategies.v1.GetStrategyVersionResponse
+	(*StrategyFlow)(nil),                       // 97: strategies.v1.StrategyFlow
+	(*FlowNode)(nil),                           // 98: strategies.v1.FlowNode
+	(*FlowEdge)(nil),                           // 99: strategies.v1.FlowEdge
+	(*SourceSpan)(nil),                         // 100: strategies.v1.SourceSpan
+	(*Strategy)(nil),                           // 101: strategies.v1.Strategy
+	(*StrategyListing)(nil),                    // 102: strategies.v1.StrategyListing
+	(*StrategyBot)(nil),                        // 103: strategies.v1.StrategyBot
+	(*StrategyOrigin)(nil),                     // 104: strategies.v1.StrategyOrigin
+	(*StrategyForkOrigin)(nil),                 // 105: strategies.v1.StrategyForkOrigin
+	(*StrategyDuplicateOrigin)(nil),            // 106: strategies.v1.StrategyDuplicateOrigin
+	(*StrategyRevision)(nil),                   // 107: strategies.v1.StrategyRevision
+	(*CreateStrategyRequest)(nil),              // 108: strategies.v1.CreateStrategyRequest
+	(*CreateStrategyResponse)(nil),             // 109: strategies.v1.CreateStrategyResponse
+	(*SaveDraftVersionRequest)(nil),            // 110: strategies.v1.SaveDraftVersionRequest
+	(*SaveDraftVersionResponse)(nil),           // 111: strategies.v1.SaveDraftVersionResponse
+	(*GetStrategyRequest)(nil),                 // 112: strategies.v1.GetStrategyRequest
+	(*GetStrategyResponse)(nil),                // 113: strategies.v1.GetStrategyResponse
+	(*ListStrategiesRequest)(nil),              // 114: strategies.v1.ListStrategiesRequest
+	(*ListStrategiesResponse)(nil),             // 115: strategies.v1.ListStrategiesResponse
+	(*ListStrategyRevisionsRequest)(nil),       // 116: strategies.v1.ListStrategyRevisionsRequest
+	(*ListStrategyRevisionsResponse)(nil),      // 117: strategies.v1.ListStrategyRevisionsResponse
+	(*RenameStrategyRequest)(nil),              // 118: strategies.v1.RenameStrategyRequest
+	(*RenameStrategyResponse)(nil),             // 119: strategies.v1.RenameStrategyResponse
+	(*DeleteStrategyRequest)(nil),              // 120: strategies.v1.DeleteStrategyRequest
+	(*DeleteStrategyResponse)(nil),             // 121: strategies.v1.DeleteStrategyResponse
+	(*StrategyNotes)(nil),                      // 122: strategies.v1.StrategyNotes
+	(*GetStrategyNotesRequest)(nil),            // 123: strategies.v1.GetStrategyNotesRequest
+	(*GetStrategyNotesResponse)(nil),           // 124: strategies.v1.GetStrategyNotesResponse
+	(*SaveStrategyNotesRequest)(nil),           // 125: strategies.v1.SaveStrategyNotesRequest
+	(*SaveStrategyNotesResponse)(nil),          // 126: strategies.v1.SaveStrategyNotesResponse
+	(*ListStrategyNotesRevisionsRequest)(nil),  // 127: strategies.v1.ListStrategyNotesRevisionsRequest
+	(*ListStrategyNotesRevisionsResponse)(nil), // 128: strategies.v1.ListStrategyNotesRevisionsResponse
+	(*ListBacktestsRequest)(nil),               // 129: strategies.v1.ListBacktestsRequest
+	(*StrategyBacktest)(nil),                   // 130: strategies.v1.StrategyBacktest
+	(*ListBacktestsResponse)(nil),              // 131: strategies.v1.ListBacktestsResponse
+	(*BotLogEntry)(nil),                        // 132: strategies.v1.BotLogEntry
+	(*ListBotLogsRequest)(nil),                 // 133: strategies.v1.ListBotLogsRequest
+	(*ListBotLogsResponse)(nil),                // 134: strategies.v1.ListBotLogsResponse
+	(*CommunityBacktest)(nil),                  // 135: strategies.v1.CommunityBacktest
+	(*CommunityStrategySummary)(nil),           // 136: strategies.v1.CommunityStrategySummary
+	(*CommunityForkSource)(nil),                // 137: strategies.v1.CommunityForkSource
+	(*CommunityStrategy)(nil),                  // 138: strategies.v1.CommunityStrategy
+	(*PublishStrategyVersionRequest)(nil),      // 139: strategies.v1.PublishStrategyVersionRequest
+	(*PublishStrategyVersionResponse)(nil),     // 140: strategies.v1.PublishStrategyVersionResponse
+	(*UnpublishStrategyRequest)(nil),           // 141: strategies.v1.UnpublishStrategyRequest
+	(*UnpublishStrategyResponse)(nil),          // 142: strategies.v1.UnpublishStrategyResponse
+	(*ListCommunityStrategiesRequest)(nil),     // 143: strategies.v1.ListCommunityStrategiesRequest
+	(*ListCommunityStrategiesResponse)(nil),    // 144: strategies.v1.ListCommunityStrategiesResponse
+	(*ForkStrategyRequest)(nil),                // 145: strategies.v1.ForkStrategyRequest
+	(*ForkStrategyResponse)(nil),               // 146: strategies.v1.ForkStrategyResponse
+	(*ReportCommunityStrategyRequest)(nil),     // 147: strategies.v1.ReportCommunityStrategyRequest
+	(*ReportCommunityStrategyResponse)(nil),    // 148: strategies.v1.ReportCommunityStrategyResponse
+	(*GetCommunityStrategyRequest)(nil),        // 149: strategies.v1.GetCommunityStrategyRequest
+	(*GetCommunityStrategyResponse)(nil),       // 150: strategies.v1.GetCommunityStrategyResponse
+	(*timestamppb.Timestamp)(nil),              // 151: google.protobuf.Timestamp
+	(*structpb.Struct)(nil),                    // 152: google.protobuf.Struct
 }
 var file_strategies_v1_strategies_proto_depIdxs = []int32{
 	0,   // 0: strategies.v1.ErrorDetail.code:type_name -> strategies.v1.ErrorCode
-	138, // 1: strategies.v1.ErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
-	16,  // 2: strategies.v1.ErrorDetail.bot_cap:type_name -> strategies.v1.BotCapDetail
-	23,  // 3: strategies.v1.ErrorDetail.shortfall:type_name -> strategies.v1.Money
-	17,  // 4: strategies.v1.ErrorDetail.strategy_cap:type_name -> strategies.v1.StrategyCapDetail
-	19,  // 5: strategies.v1.ErrorDetail.revision_conflict:type_name -> strategies.v1.RevisionConflictDetail
+	151, // 1: strategies.v1.ErrorDetail.retry_after:type_name -> google.protobuf.Timestamp
+	18,  // 2: strategies.v1.ErrorDetail.bot_cap:type_name -> strategies.v1.BotCapDetail
+	25,  // 3: strategies.v1.ErrorDetail.shortfall:type_name -> strategies.v1.Money
+	19,  // 4: strategies.v1.ErrorDetail.strategy_cap:type_name -> strategies.v1.StrategyCapDetail
+	21,  // 5: strategies.v1.ErrorDetail.revision_conflict:type_name -> strategies.v1.RevisionConflictDetail
 	1,   // 6: strategies.v1.ErrorDetail.not_backtestable_reason:type_name -> strategies.v1.NotBacktestableReason
-	22,  // 7: strategies.v1.ErrorDetail.backtest_limit:type_name -> strategies.v1.BacktestLimitDetail
-	21,  // 8: strategies.v1.ErrorDetail.notes_conflict:type_name -> strategies.v1.NotesConflictDetail
-	18,  // 9: strategies.v1.ErrorDetail.listing_cap:type_name -> strategies.v1.ListingCapDetail
-	138, // 10: strategies.v1.TimeWindow.start_time:type_name -> google.protobuf.Timestamp
-	138, // 11: strategies.v1.TimeWindow.end_time:type_name -> google.protobuf.Timestamp
-	26,  // 12: strategies.v1.Indicator.parameters:type_name -> strategies.v1.IndicatorParameter
-	25,  // 13: strategies.v1.GetStrategyReferenceResponse.indicator_library:type_name -> strategies.v1.IndicatorLibrary
-	139, // 14: strategies.v1.GetStrategyReferenceResponse.manifest_schema:type_name -> google.protobuf.Struct
-	27,  // 15: strategies.v1.GetStrategyReferenceResponse.indicators:type_name -> strategies.v1.Indicator
-	28,  // 16: strategies.v1.GetStrategyReferenceResponse.limits:type_name -> strategies.v1.StrategyLimits
-	31,  // 17: strategies.v1.GetStrategyReferenceResponse.skill_pack:type_name -> strategies.v1.SkillDocument
-	139, // 18: strategies.v1.StrategyTemplate.manifest:type_name -> google.protobuf.Struct
-	36,  // 19: strategies.v1.StrategyTemplate.money_card:type_name -> strategies.v1.MoneyCard
-	32,  // 20: strategies.v1.ListStrategyTemplatesResponse.templates:type_name -> strategies.v1.StrategyTemplate
-	23,  // 21: strategies.v1.MoneyCard.budget:type_name -> strategies.v1.Money
-	23,  // 22: strategies.v1.MoneyCard.max_order:type_name -> strategies.v1.Money
-	23,  // 23: strategies.v1.MoneyCard.daily_loss_threshold:type_name -> strategies.v1.Money
-	35,  // 24: strategies.v1.VersionValidation.errors:type_name -> strategies.v1.ValidationIssue
-	35,  // 25: strategies.v1.VersionValidation.warnings:type_name -> strategies.v1.ValidationIssue
-	36,  // 26: strategies.v1.VersionValidation.money_card:type_name -> strategies.v1.MoneyCard
-	37,  // 27: strategies.v1.VersionValidation.settings_form:type_name -> strategies.v1.SettingField
-	90,  // 28: strategies.v1.VersionValidation.flow:type_name -> strategies.v1.StrategyFlow
-	139, // 29: strategies.v1.ScenarioResult.expected:type_name -> google.protobuf.Struct
-	139, // 30: strategies.v1.ScenarioResult.actual:type_name -> google.protobuf.Struct
-	40,  // 31: strategies.v1.RunScenariosResponse.results:type_name -> strategies.v1.ScenarioResult
-	23,  // 32: strategies.v1.BacktestMetrics.fees:type_name -> strategies.v1.Money
-	138, // 33: strategies.v1.BacktestMetrics.max_drawdown_start:type_name -> google.protobuf.Timestamp
-	138, // 34: strategies.v1.BacktestMetrics.max_drawdown_end:type_name -> google.protobuf.Timestamp
-	42,  // 35: strategies.v1.BacktestScenario.metrics:type_name -> strategies.v1.BacktestMetrics
-	42,  // 36: strategies.v1.BacktestScenario.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
-	138, // 37: strategies.v1.EquityPoint.time:type_name -> google.protobuf.Timestamp
-	42,  // 38: strategies.v1.Baseline.metrics:type_name -> strategies.v1.BacktestMetrics
-	138, // 39: strategies.v1.BacktestTrade.time:type_name -> google.protobuf.Timestamp
+	24,  // 7: strategies.v1.ErrorDetail.backtest_limit:type_name -> strategies.v1.BacktestLimitDetail
+	23,  // 8: strategies.v1.ErrorDetail.notes_conflict:type_name -> strategies.v1.NotesConflictDetail
+	20,  // 9: strategies.v1.ErrorDetail.listing_cap:type_name -> strategies.v1.ListingCapDetail
+	151, // 10: strategies.v1.TimeWindow.start_time:type_name -> google.protobuf.Timestamp
+	151, // 11: strategies.v1.TimeWindow.end_time:type_name -> google.protobuf.Timestamp
+	28,  // 12: strategies.v1.Indicator.parameters:type_name -> strategies.v1.IndicatorParameter
+	27,  // 13: strategies.v1.GetStrategyReferenceResponse.indicator_library:type_name -> strategies.v1.IndicatorLibrary
+	152, // 14: strategies.v1.GetStrategyReferenceResponse.manifest_schema:type_name -> google.protobuf.Struct
+	29,  // 15: strategies.v1.GetStrategyReferenceResponse.indicators:type_name -> strategies.v1.Indicator
+	30,  // 16: strategies.v1.GetStrategyReferenceResponse.limits:type_name -> strategies.v1.StrategyLimits
+	33,  // 17: strategies.v1.GetStrategyReferenceResponse.skill_pack:type_name -> strategies.v1.SkillDocument
+	152, // 18: strategies.v1.StrategyTemplate.manifest:type_name -> google.protobuf.Struct
+	38,  // 19: strategies.v1.StrategyTemplate.money_card:type_name -> strategies.v1.MoneyCard
+	34,  // 20: strategies.v1.ListStrategyTemplatesResponse.templates:type_name -> strategies.v1.StrategyTemplate
+	25,  // 21: strategies.v1.MoneyCard.budget:type_name -> strategies.v1.Money
+	25,  // 22: strategies.v1.MoneyCard.max_order:type_name -> strategies.v1.Money
+	25,  // 23: strategies.v1.MoneyCard.daily_loss_threshold:type_name -> strategies.v1.Money
+	37,  // 24: strategies.v1.VersionValidation.errors:type_name -> strategies.v1.ValidationIssue
+	37,  // 25: strategies.v1.VersionValidation.warnings:type_name -> strategies.v1.ValidationIssue
+	38,  // 26: strategies.v1.VersionValidation.money_card:type_name -> strategies.v1.MoneyCard
+	39,  // 27: strategies.v1.VersionValidation.settings_form:type_name -> strategies.v1.SettingField
+	97,  // 28: strategies.v1.VersionValidation.flow:type_name -> strategies.v1.StrategyFlow
+	152, // 29: strategies.v1.ScenarioResult.expected:type_name -> google.protobuf.Struct
+	152, // 30: strategies.v1.ScenarioResult.actual:type_name -> google.protobuf.Struct
+	42,  // 31: strategies.v1.RunScenariosResponse.results:type_name -> strategies.v1.ScenarioResult
+	25,  // 32: strategies.v1.BacktestMetrics.fees:type_name -> strategies.v1.Money
+	151, // 33: strategies.v1.BacktestMetrics.max_drawdown_start:type_name -> google.protobuf.Timestamp
+	151, // 34: strategies.v1.BacktestMetrics.max_drawdown_end:type_name -> google.protobuf.Timestamp
+	44,  // 35: strategies.v1.BacktestScenario.metrics:type_name -> strategies.v1.BacktestMetrics
+	44,  // 36: strategies.v1.BacktestScenario.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
+	151, // 37: strategies.v1.EquityPoint.time:type_name -> google.protobuf.Timestamp
+	44,  // 38: strategies.v1.Baseline.metrics:type_name -> strategies.v1.BacktestMetrics
+	151, // 39: strategies.v1.BacktestTrade.time:type_name -> google.protobuf.Timestamp
 	2,   // 40: strategies.v1.BacktestTrade.side:type_name -> strategies.v1.OrderSide
-	23,  // 41: strategies.v1.BacktestTrade.fee:type_name -> strategies.v1.Money
-	24,  // 42: strategies.v1.DataGap.window:type_name -> strategies.v1.TimeWindow
-	24,  // 43: strategies.v1.BacktestReport.period:type_name -> strategies.v1.TimeWindow
-	24,  // 44: strategies.v1.BacktestReport.held_back_period:type_name -> strategies.v1.TimeWindow
-	42,  // 45: strategies.v1.BacktestReport.metrics:type_name -> strategies.v1.BacktestMetrics
-	42,  // 46: strategies.v1.BacktestReport.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
-	45,  // 47: strategies.v1.BacktestReport.baselines:type_name -> strategies.v1.Baseline
-	46,  // 48: strategies.v1.BacktestReport.trades:type_name -> strategies.v1.BacktestTrade
-	47,  // 49: strategies.v1.BacktestReport.data_gaps:type_name -> strategies.v1.DataGap
+	25,  // 41: strategies.v1.BacktestTrade.fee:type_name -> strategies.v1.Money
+	26,  // 42: strategies.v1.DataGap.window:type_name -> strategies.v1.TimeWindow
+	26,  // 43: strategies.v1.BacktestReport.period:type_name -> strategies.v1.TimeWindow
+	26,  // 44: strategies.v1.BacktestReport.held_back_period:type_name -> strategies.v1.TimeWindow
+	44,  // 45: strategies.v1.BacktestReport.metrics:type_name -> strategies.v1.BacktestMetrics
+	44,  // 46: strategies.v1.BacktestReport.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
+	47,  // 47: strategies.v1.BacktestReport.baselines:type_name -> strategies.v1.Baseline
+	48,  // 48: strategies.v1.BacktestReport.trades:type_name -> strategies.v1.BacktestTrade
+	49,  // 49: strategies.v1.BacktestReport.data_gaps:type_name -> strategies.v1.DataGap
 	3,   // 50: strategies.v1.BacktestReport.evidence_grade:type_name -> strategies.v1.EvidenceGrade
-	45,  // 51: strategies.v1.BacktestReport.held_back_baselines:type_name -> strategies.v1.Baseline
-	43,  // 52: strategies.v1.BacktestReport.scenarios:type_name -> strategies.v1.BacktestScenario
-	44,  // 53: strategies.v1.BacktestReport.equity:type_name -> strategies.v1.EquityPoint
-	138, // 54: strategies.v1.BacktestReport.held_back_start:type_name -> google.protobuf.Timestamp
-	138, // 55: strategies.v1.BacktestReport.window_max_drawdown_start:type_name -> google.protobuf.Timestamp
-	138, // 56: strategies.v1.BacktestReport.window_max_drawdown_end:type_name -> google.protobuf.Timestamp
-	6,   // 57: strategies.v1.Backtest.status:type_name -> strategies.v1.Backtest.Status
-	24,  // 58: strategies.v1.Backtest.window:type_name -> strategies.v1.TimeWindow
-	138, // 59: strategies.v1.Backtest.created_at:type_name -> google.protobuf.Timestamp
-	138, // 60: strategies.v1.Backtest.finished_at:type_name -> google.protobuf.Timestamp
-	48,  // 61: strategies.v1.Backtest.report:type_name -> strategies.v1.BacktestReport
+	47,  // 51: strategies.v1.BacktestReport.held_back_baselines:type_name -> strategies.v1.Baseline
+	45,  // 52: strategies.v1.BacktestReport.scenarios:type_name -> strategies.v1.BacktestScenario
+	46,  // 53: strategies.v1.BacktestReport.equity:type_name -> strategies.v1.EquityPoint
+	151, // 54: strategies.v1.BacktestReport.held_back_start:type_name -> google.protobuf.Timestamp
+	151, // 55: strategies.v1.BacktestReport.window_max_drawdown_start:type_name -> google.protobuf.Timestamp
+	151, // 56: strategies.v1.BacktestReport.window_max_drawdown_end:type_name -> google.protobuf.Timestamp
+	8,   // 57: strategies.v1.Backtest.status:type_name -> strategies.v1.Backtest.Status
+	26,  // 58: strategies.v1.Backtest.window:type_name -> strategies.v1.TimeWindow
+	151, // 59: strategies.v1.Backtest.created_at:type_name -> google.protobuf.Timestamp
+	151, // 60: strategies.v1.Backtest.finished_at:type_name -> google.protobuf.Timestamp
+	50,  // 61: strategies.v1.Backtest.report:type_name -> strategies.v1.BacktestReport
 	1,   // 62: strategies.v1.Backtest.not_backtestable_reason:type_name -> strategies.v1.NotBacktestableReason
-	138, // 63: strategies.v1.StartBacktestRequest.start_time:type_name -> google.protobuf.Timestamp
-	138, // 64: strategies.v1.StartBacktestRequest.end_time:type_name -> google.protobuf.Timestamp
-	60,  // 65: strategies.v1.StartBacktestRequest.settings:type_name -> strategies.v1.SettingValue
-	23,  // 66: strategies.v1.StartBacktestRequest.initial_balances:type_name -> strategies.v1.Money
-	6,   // 67: strategies.v1.StartBacktestResponse.status:type_name -> strategies.v1.Backtest.Status
-	49,  // 68: strategies.v1.GetBacktestResponse.backtest:type_name -> strategies.v1.Backtest
-	46,  // 69: strategies.v1.ListBacktestTradesResponse.trades:type_name -> strategies.v1.BacktestTrade
-	7,   // 70: strategies.v1.ScenarioSummary.outcome:type_name -> strategies.v1.ScenarioSummary.Outcome
-	6,   // 71: strategies.v1.BacktestSummary.status:type_name -> strategies.v1.Backtest.Status
-	42,  // 72: strategies.v1.BacktestSummary.metrics:type_name -> strategies.v1.BacktestMetrics
-	42,  // 73: strategies.v1.BacktestSummary.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
-	36,  // 74: strategies.v1.ExplainStrategyResponse.money_card:type_name -> strategies.v1.MoneyCard
-	37,  // 75: strategies.v1.ExplainStrategyResponse.settings:type_name -> strategies.v1.SettingField
-	56,  // 76: strategies.v1.ExplainStrategyResponse.scenarios:type_name -> strategies.v1.ScenarioSummary
-	57,  // 77: strategies.v1.ExplainStrategyResponse.backtest:type_name -> strategies.v1.BacktestSummary
-	36,  // 78: strategies.v1.DeployProposalSummary.money_card:type_name -> strategies.v1.MoneyCard
-	60,  // 79: strategies.v1.DeployProposalSummary.settings:type_name -> strategies.v1.SettingValue
-	23,  // 80: strategies.v1.DeployProposalSummary.funding:type_name -> strategies.v1.Money
-	57,  // 81: strategies.v1.DeployProposalSummary.backtest:type_name -> strategies.v1.BacktestSummary
+	151, // 63: strategies.v1.StartBacktestRequest.start_time:type_name -> google.protobuf.Timestamp
+	151, // 64: strategies.v1.StartBacktestRequest.end_time:type_name -> google.protobuf.Timestamp
+	62,  // 65: strategies.v1.StartBacktestRequest.settings:type_name -> strategies.v1.SettingValue
+	25,  // 66: strategies.v1.StartBacktestRequest.initial_balances:type_name -> strategies.v1.Money
+	8,   // 67: strategies.v1.StartBacktestResponse.status:type_name -> strategies.v1.Backtest.Status
+	51,  // 68: strategies.v1.GetBacktestResponse.backtest:type_name -> strategies.v1.Backtest
+	48,  // 69: strategies.v1.ListBacktestTradesResponse.trades:type_name -> strategies.v1.BacktestTrade
+	9,   // 70: strategies.v1.ScenarioSummary.outcome:type_name -> strategies.v1.ScenarioSummary.Outcome
+	8,   // 71: strategies.v1.BacktestSummary.status:type_name -> strategies.v1.Backtest.Status
+	44,  // 72: strategies.v1.BacktestSummary.metrics:type_name -> strategies.v1.BacktestMetrics
+	44,  // 73: strategies.v1.BacktestSummary.held_back_metrics:type_name -> strategies.v1.BacktestMetrics
+	38,  // 74: strategies.v1.ExplainStrategyResponse.money_card:type_name -> strategies.v1.MoneyCard
+	39,  // 75: strategies.v1.ExplainStrategyResponse.settings:type_name -> strategies.v1.SettingField
+	58,  // 76: strategies.v1.ExplainStrategyResponse.scenarios:type_name -> strategies.v1.ScenarioSummary
+	59,  // 77: strategies.v1.ExplainStrategyResponse.backtest:type_name -> strategies.v1.BacktestSummary
+	38,  // 78: strategies.v1.DeployProposalSummary.money_card:type_name -> strategies.v1.MoneyCard
+	62,  // 79: strategies.v1.DeployProposalSummary.settings:type_name -> strategies.v1.SettingValue
+	25,  // 80: strategies.v1.DeployProposalSummary.funding:type_name -> strategies.v1.Money
+	59,  // 81: strategies.v1.DeployProposalSummary.backtest:type_name -> strategies.v1.BacktestSummary
 	1,   // 82: strategies.v1.DeployProposalSummary.not_backtestable_reason:type_name -> strategies.v1.NotBacktestableReason
-	60,  // 83: strategies.v1.ProposeDeployRequest.settings:type_name -> strategies.v1.SettingValue
-	23,  // 84: strategies.v1.ProposeDeployRequest.funding:type_name -> strategies.v1.Money
-	61,  // 85: strategies.v1.ProposeDeployResponse.summary:type_name -> strategies.v1.DeployProposalSummary
-	138, // 86: strategies.v1.ProposeDeployResponse.expires_at:type_name -> google.protobuf.Timestamp
-	8,   // 87: strategies.v1.DeployStatus.state:type_name -> strategies.v1.DeployStatus.State
-	138, // 88: strategies.v1.DeployStatus.expires_at:type_name -> google.protobuf.Timestamp
-	138, // 89: strategies.v1.DeployStatus.updated_at:type_name -> google.protobuf.Timestamp
-	8,   // 90: strategies.v1.DeployStatus.failed_at:type_name -> strategies.v1.DeployStatus.State
-	65,  // 91: strategies.v1.DeployStatus.wait:type_name -> strategies.v1.DeployWait
-	9,   // 92: strategies.v1.DeployWait.reason:type_name -> strategies.v1.DeployWait.Reason
-	64,  // 93: strategies.v1.GetDeployStatusResponse.status:type_name -> strategies.v1.DeployStatus
-	68,  // 94: strategies.v1.DeployBotRequest.subaccount_authorization:type_name -> strategies.v1.SubaccountAuthorization
-	64,  // 95: strategies.v1.DeployBotResponse.status:type_name -> strategies.v1.DeployStatus
-	61,  // 96: strategies.v1.GetDeployProposalResponse.summary:type_name -> strategies.v1.DeployProposalSummary
-	64,  // 97: strategies.v1.GetDeployProposalResponse.status:type_name -> strategies.v1.DeployStatus
-	138, // 98: strategies.v1.GetDeployProposalResponse.created_at:type_name -> google.protobuf.Timestamp
-	10,  // 99: strategies.v1.Bot.status:type_name -> strategies.v1.Bot.Status
-	138, // 100: strategies.v1.Bot.last_decision_at:type_name -> google.protobuf.Timestamp
-	138, // 101: strategies.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
-	75,  // 102: strategies.v1.Bot.funding:type_name -> strategies.v1.BotFunding
-	138, // 103: strategies.v1.Bot.running_since:type_name -> google.protobuf.Timestamp
-	11,  // 104: strategies.v1.Bot.pause_reason:type_name -> strategies.v1.Bot.PauseReason
-	74,  // 105: strategies.v1.Bot.activity:type_name -> strategies.v1.BotActivityHour
-	138, // 106: strategies.v1.BotActivityHour.start:type_name -> google.protobuf.Timestamp
-	23,  // 107: strategies.v1.BotFunding.initial_funding:type_name -> strategies.v1.Money
-	10,  // 108: strategies.v1.BotStatusCount.status:type_name -> strategies.v1.Bot.Status
-	73,  // 109: strategies.v1.ListBotsResponse.bots:type_name -> strategies.v1.Bot
-	76,  // 110: strategies.v1.ListBotsResponse.status_counts:type_name -> strategies.v1.BotStatusCount
-	138, // 111: strategies.v1.BotDecision.decided_at:type_name -> google.protobuf.Timestamp
-	139, // 112: strategies.v1.BotDecision.orders:type_name -> google.protobuf.Struct
-	138, // 113: strategies.v1.BotError.time:type_name -> google.protobuf.Timestamp
+	62,  // 83: strategies.v1.ProposeDeployRequest.settings:type_name -> strategies.v1.SettingValue
+	25,  // 84: strategies.v1.ProposeDeployRequest.funding:type_name -> strategies.v1.Money
+	63,  // 85: strategies.v1.ProposeDeployResponse.summary:type_name -> strategies.v1.DeployProposalSummary
+	151, // 86: strategies.v1.ProposeDeployResponse.expires_at:type_name -> google.protobuf.Timestamp
+	10,  // 87: strategies.v1.DeployStatus.state:type_name -> strategies.v1.DeployStatus.State
+	151, // 88: strategies.v1.DeployStatus.expires_at:type_name -> google.protobuf.Timestamp
+	151, // 89: strategies.v1.DeployStatus.updated_at:type_name -> google.protobuf.Timestamp
+	10,  // 90: strategies.v1.DeployStatus.failed_at:type_name -> strategies.v1.DeployStatus.State
+	67,  // 91: strategies.v1.DeployStatus.wait:type_name -> strategies.v1.DeployWait
+	11,  // 92: strategies.v1.DeployWait.reason:type_name -> strategies.v1.DeployWait.Reason
+	66,  // 93: strategies.v1.GetDeployStatusResponse.status:type_name -> strategies.v1.DeployStatus
+	70,  // 94: strategies.v1.DeployBotRequest.subaccount_authorization:type_name -> strategies.v1.SubaccountAuthorization
+	66,  // 95: strategies.v1.DeployBotResponse.status:type_name -> strategies.v1.DeployStatus
+	63,  // 96: strategies.v1.GetDeployProposalResponse.summary:type_name -> strategies.v1.DeployProposalSummary
+	66,  // 97: strategies.v1.GetDeployProposalResponse.status:type_name -> strategies.v1.DeployStatus
+	151, // 98: strategies.v1.GetDeployProposalResponse.created_at:type_name -> google.protobuf.Timestamp
+	12,  // 99: strategies.v1.Bot.status:type_name -> strategies.v1.Bot.Status
+	151, // 100: strategies.v1.Bot.last_decision_at:type_name -> google.protobuf.Timestamp
+	151, // 101: strategies.v1.Bot.created_at:type_name -> google.protobuf.Timestamp
+	77,  // 102: strategies.v1.Bot.funding:type_name -> strategies.v1.BotFunding
+	151, // 103: strategies.v1.Bot.running_since:type_name -> google.protobuf.Timestamp
+	13,  // 104: strategies.v1.Bot.pause_reason:type_name -> strategies.v1.Bot.PauseReason
+	76,  // 105: strategies.v1.Bot.activity:type_name -> strategies.v1.BotActivityHour
+	151, // 106: strategies.v1.BotActivityHour.start:type_name -> google.protobuf.Timestamp
+	25,  // 107: strategies.v1.BotFunding.initial_funding:type_name -> strategies.v1.Money
+	12,  // 108: strategies.v1.BotStatusCount.status:type_name -> strategies.v1.Bot.Status
+	75,  // 109: strategies.v1.ListBotsResponse.bots:type_name -> strategies.v1.Bot
+	78,  // 110: strategies.v1.ListBotsResponse.status_counts:type_name -> strategies.v1.BotStatusCount
+	151, // 111: strategies.v1.BotDecision.decided_at:type_name -> google.protobuf.Timestamp
+	152, // 112: strategies.v1.BotDecision.orders:type_name -> google.protobuf.Struct
+	151, // 113: strategies.v1.BotError.time:type_name -> google.protobuf.Timestamp
 	4,   // 114: strategies.v1.StopBotRequest.mode:type_name -> strategies.v1.StopMode
-	73,  // 115: strategies.v1.StopBotResponse.bot:type_name -> strategies.v1.Bot
+	75,  // 115: strategies.v1.StopBotResponse.bot:type_name -> strategies.v1.Bot
 	4,   // 116: strategies.v1.StopBotResponse.mode:type_name -> strategies.v1.StopMode
-	73,  // 117: strategies.v1.GetBotResponse.bot:type_name -> strategies.v1.Bot
-	36,  // 118: strategies.v1.GetBotResponse.money_card:type_name -> strategies.v1.MoneyCard
-	60,  // 119: strategies.v1.GetBotResponse.settings:type_name -> strategies.v1.SettingValue
-	79,  // 120: strategies.v1.GetBotResponse.decisions:type_name -> strategies.v1.BotDecision
-	80,  // 121: strategies.v1.GetBotResponse.errors:type_name -> strategies.v1.BotError
-	138, // 122: strategies.v1.BotVersion.started_at:type_name -> google.protobuf.Timestamp
-	138, // 123: strategies.v1.BotVersion.stopped_at:type_name -> google.protobuf.Timestamp
-	86,  // 124: strategies.v1.ListBotVersionsResponse.versions:type_name -> strategies.v1.BotVersion
-	139, // 125: strategies.v1.GetStrategyVersionResponse.manifest:type_name -> google.protobuf.Struct
-	37,  // 126: strategies.v1.GetStrategyVersionResponse.settings_form:type_name -> strategies.v1.SettingField
-	138, // 127: strategies.v1.GetStrategyVersionResponse.created_at:type_name -> google.protobuf.Timestamp
-	90,  // 128: strategies.v1.GetStrategyVersionResponse.flow:type_name -> strategies.v1.StrategyFlow
-	38,  // 129: strategies.v1.GetStrategyVersionResponse.validation:type_name -> strategies.v1.VersionValidation
-	91,  // 130: strategies.v1.StrategyFlow.nodes:type_name -> strategies.v1.FlowNode
-	92,  // 131: strategies.v1.StrategyFlow.edges:type_name -> strategies.v1.FlowEdge
-	12,  // 132: strategies.v1.FlowNode.kind:type_name -> strategies.v1.FlowNode.Kind
-	93,  // 133: strategies.v1.FlowNode.span:type_name -> strategies.v1.SourceSpan
-	97,  // 134: strategies.v1.Strategy.origin:type_name -> strategies.v1.StrategyOrigin
-	138, // 135: strategies.v1.Strategy.created_at:type_name -> google.protobuf.Timestamp
-	138, // 136: strategies.v1.Strategy.updated_at:type_name -> google.protobuf.Timestamp
-	96,  // 137: strategies.v1.Strategy.bot:type_name -> strategies.v1.StrategyBot
-	95,  // 138: strategies.v1.Strategy.listing:type_name -> strategies.v1.StrategyListing
-	13,  // 139: strategies.v1.StrategyListing.state:type_name -> strategies.v1.StrategyListing.State
-	138, // 140: strategies.v1.StrategyListing.published_at:type_name -> google.protobuf.Timestamp
-	10,  // 141: strategies.v1.StrategyBot.status:type_name -> strategies.v1.Bot.Status
-	98,  // 142: strategies.v1.StrategyOrigin.duplicate:type_name -> strategies.v1.StrategyDuplicateOrigin
-	138, // 143: strategies.v1.StrategyRevision.saved_at:type_name -> google.protobuf.Timestamp
-	14,  // 144: strategies.v1.StrategyRevision.saved_by:type_name -> strategies.v1.StrategyRevision.SavedBy
-	94,  // 145: strategies.v1.CreateStrategyResponse.strategy:type_name -> strategies.v1.Strategy
-	38,  // 146: strategies.v1.CreateStrategyResponse.version:type_name -> strategies.v1.VersionValidation
-	139, // 147: strategies.v1.SaveDraftVersionRequest.manifest:type_name -> google.protobuf.Struct
-	38,  // 148: strategies.v1.SaveDraftVersionResponse.version:type_name -> strategies.v1.VersionValidation
-	94,  // 149: strategies.v1.GetStrategyResponse.strategy:type_name -> strategies.v1.Strategy
-	89,  // 150: strategies.v1.GetStrategyResponse.head:type_name -> strategies.v1.GetStrategyVersionResponse
-	114, // 151: strategies.v1.GetStrategyResponse.notes:type_name -> strategies.v1.StrategyNotes
-	94,  // 152: strategies.v1.ListStrategiesResponse.strategies:type_name -> strategies.v1.Strategy
-	99,  // 153: strategies.v1.ListStrategyRevisionsResponse.revisions:type_name -> strategies.v1.StrategyRevision
-	94,  // 154: strategies.v1.RenameStrategyResponse.strategy:type_name -> strategies.v1.Strategy
-	138, // 155: strategies.v1.StrategyNotes.saved_at:type_name -> google.protobuf.Timestamp
-	14,  // 156: strategies.v1.StrategyNotes.saved_by:type_name -> strategies.v1.StrategyRevision.SavedBy
-	114, // 157: strategies.v1.GetStrategyNotesResponse.notes:type_name -> strategies.v1.StrategyNotes
-	114, // 158: strategies.v1.SaveStrategyNotesResponse.notes:type_name -> strategies.v1.StrategyNotes
-	114, // 159: strategies.v1.ListStrategyNotesRevisionsResponse.revisions:type_name -> strategies.v1.StrategyNotes
-	57,  // 160: strategies.v1.StrategyBacktest.summary:type_name -> strategies.v1.BacktestSummary
-	24,  // 161: strategies.v1.StrategyBacktest.window:type_name -> strategies.v1.TimeWindow
-	138, // 162: strategies.v1.StrategyBacktest.created_at:type_name -> google.protobuf.Timestamp
-	138, // 163: strategies.v1.StrategyBacktest.finished_at:type_name -> google.protobuf.Timestamp
-	122, // 164: strategies.v1.ListBacktestsResponse.backtests:type_name -> strategies.v1.StrategyBacktest
-	138, // 165: strategies.v1.BotLogEntry.time:type_name -> google.protobuf.Timestamp
-	15,  // 166: strategies.v1.BotLogEntry.kind:type_name -> strategies.v1.BotLogEntry.Kind
-	138, // 167: strategies.v1.ListBotLogsRequest.start_time:type_name -> google.protobuf.Timestamp
-	124, // 168: strategies.v1.ListBotLogsResponse.entries:type_name -> strategies.v1.BotLogEntry
-	6,   // 169: strategies.v1.CommunityBacktest.status:type_name -> strategies.v1.Backtest.Status
-	1,   // 170: strategies.v1.CommunityBacktest.not_backtestable_reason:type_name -> strategies.v1.NotBacktestableReason
-	24,  // 171: strategies.v1.CommunityBacktest.window:type_name -> strategies.v1.TimeWindow
-	42,  // 172: strategies.v1.CommunityBacktest.metrics:type_name -> strategies.v1.BacktestMetrics
-	48,  // 173: strategies.v1.CommunityBacktest.report:type_name -> strategies.v1.BacktestReport
-	5,   // 174: strategies.v1.CommunityStrategySummary.tags:type_name -> strategies.v1.StrategyTag
-	127, // 175: strategies.v1.CommunityStrategySummary.backtest:type_name -> strategies.v1.CommunityBacktest
-	138, // 176: strategies.v1.CommunityStrategySummary.published_at:type_name -> google.protobuf.Timestamp
-	5,   // 177: strategies.v1.CommunityStrategy.tags:type_name -> strategies.v1.StrategyTag
-	138, // 178: strategies.v1.CommunityStrategy.published_at:type_name -> google.protobuf.Timestamp
-	139, // 179: strategies.v1.CommunityStrategy.manifest:type_name -> google.protobuf.Struct
-	37,  // 180: strategies.v1.CommunityStrategy.settings_form:type_name -> strategies.v1.SettingField
-	36,  // 181: strategies.v1.CommunityStrategy.money_card:type_name -> strategies.v1.MoneyCard
-	90,  // 182: strategies.v1.CommunityStrategy.flow:type_name -> strategies.v1.StrategyFlow
-	127, // 183: strategies.v1.CommunityStrategy.backtest:type_name -> strategies.v1.CommunityBacktest
-	5,   // 184: strategies.v1.PublishStrategyVersionRequest.tags:type_name -> strategies.v1.StrategyTag
-	95,  // 185: strategies.v1.PublishStrategyVersionResponse.listing:type_name -> strategies.v1.StrategyListing
-	95,  // 186: strategies.v1.UnpublishStrategyResponse.listing:type_name -> strategies.v1.StrategyListing
-	5,   // 187: strategies.v1.ListCommunityStrategiesRequest.tags:type_name -> strategies.v1.StrategyTag
-	128, // 188: strategies.v1.ListCommunityStrategiesResponse.strategies:type_name -> strategies.v1.CommunityStrategySummary
-	129, // 189: strategies.v1.GetCommunityStrategyResponse.strategy:type_name -> strategies.v1.CommunityStrategy
-	29,  // 190: strategies.v1.StrategiesService.GetStrategyReference:input_type -> strategies.v1.GetStrategyReferenceRequest
-	33,  // 191: strategies.v1.StrategiesService.ListStrategyTemplates:input_type -> strategies.v1.ListStrategyTemplatesRequest
-	100, // 192: strategies.v1.StrategiesService.CreateStrategy:input_type -> strategies.v1.CreateStrategyRequest
-	102, // 193: strategies.v1.StrategiesService.SaveDraftVersion:input_type -> strategies.v1.SaveDraftVersionRequest
-	104, // 194: strategies.v1.StrategiesService.GetStrategy:input_type -> strategies.v1.GetStrategyRequest
-	106, // 195: strategies.v1.StrategiesService.ListStrategies:input_type -> strategies.v1.ListStrategiesRequest
-	108, // 196: strategies.v1.StrategiesService.ListStrategyRevisions:input_type -> strategies.v1.ListStrategyRevisionsRequest
-	110, // 197: strategies.v1.StrategiesService.RenameStrategy:input_type -> strategies.v1.RenameStrategyRequest
-	112, // 198: strategies.v1.StrategiesService.DeleteStrategy:input_type -> strategies.v1.DeleteStrategyRequest
-	115, // 199: strategies.v1.StrategiesService.GetStrategyNotes:input_type -> strategies.v1.GetStrategyNotesRequest
-	117, // 200: strategies.v1.StrategiesService.SaveStrategyNotes:input_type -> strategies.v1.SaveStrategyNotesRequest
-	119, // 201: strategies.v1.StrategiesService.ListStrategyNotesRevisions:input_type -> strategies.v1.ListStrategyNotesRevisionsRequest
-	121, // 202: strategies.v1.StrategiesService.ListBacktests:input_type -> strategies.v1.ListBacktestsRequest
-	39,  // 203: strategies.v1.StrategiesService.RunScenarios:input_type -> strategies.v1.RunScenariosRequest
-	50,  // 204: strategies.v1.StrategiesService.StartBacktest:input_type -> strategies.v1.StartBacktestRequest
-	52,  // 205: strategies.v1.StrategiesService.GetBacktest:input_type -> strategies.v1.GetBacktestRequest
-	54,  // 206: strategies.v1.StrategiesService.ListBacktestTrades:input_type -> strategies.v1.ListBacktestTradesRequest
-	58,  // 207: strategies.v1.StrategiesService.ExplainStrategy:input_type -> strategies.v1.ExplainStrategyRequest
-	62,  // 208: strategies.v1.StrategiesService.ProposeDeploy:input_type -> strategies.v1.ProposeDeployRequest
-	69,  // 209: strategies.v1.StrategiesService.DeployBot:input_type -> strategies.v1.DeployBotRequest
-	66,  // 210: strategies.v1.StrategiesService.GetDeployStatus:input_type -> strategies.v1.GetDeployStatusRequest
-	71,  // 211: strategies.v1.StrategiesService.GetDeployProposal:input_type -> strategies.v1.GetDeployProposalRequest
-	77,  // 212: strategies.v1.StrategiesService.ListBots:input_type -> strategies.v1.ListBotsRequest
-	81,  // 213: strategies.v1.StrategiesService.GetBot:input_type -> strategies.v1.GetBotRequest
-	85,  // 214: strategies.v1.StrategiesService.ListBotVersions:input_type -> strategies.v1.ListBotVersionsRequest
-	88,  // 215: strategies.v1.StrategiesService.GetStrategyVersion:input_type -> strategies.v1.GetStrategyVersionRequest
-	125, // 216: strategies.v1.StrategiesService.ListBotLogs:input_type -> strategies.v1.ListBotLogsRequest
-	82,  // 217: strategies.v1.StrategiesService.StopBot:input_type -> strategies.v1.StopBotRequest
-	130, // 218: strategies.v1.StrategiesService.PublishStrategyVersion:input_type -> strategies.v1.PublishStrategyVersionRequest
-	132, // 219: strategies.v1.StrategiesService.UnpublishStrategy:input_type -> strategies.v1.UnpublishStrategyRequest
-	134, // 220: strategies.v1.StrategiesService.ListCommunityStrategies:input_type -> strategies.v1.ListCommunityStrategiesRequest
-	136, // 221: strategies.v1.StrategiesService.GetCommunityStrategy:input_type -> strategies.v1.GetCommunityStrategyRequest
-	30,  // 222: strategies.v1.StrategiesService.GetStrategyReference:output_type -> strategies.v1.GetStrategyReferenceResponse
-	34,  // 223: strategies.v1.StrategiesService.ListStrategyTemplates:output_type -> strategies.v1.ListStrategyTemplatesResponse
-	101, // 224: strategies.v1.StrategiesService.CreateStrategy:output_type -> strategies.v1.CreateStrategyResponse
-	103, // 225: strategies.v1.StrategiesService.SaveDraftVersion:output_type -> strategies.v1.SaveDraftVersionResponse
-	105, // 226: strategies.v1.StrategiesService.GetStrategy:output_type -> strategies.v1.GetStrategyResponse
-	107, // 227: strategies.v1.StrategiesService.ListStrategies:output_type -> strategies.v1.ListStrategiesResponse
-	109, // 228: strategies.v1.StrategiesService.ListStrategyRevisions:output_type -> strategies.v1.ListStrategyRevisionsResponse
-	111, // 229: strategies.v1.StrategiesService.RenameStrategy:output_type -> strategies.v1.RenameStrategyResponse
-	113, // 230: strategies.v1.StrategiesService.DeleteStrategy:output_type -> strategies.v1.DeleteStrategyResponse
-	116, // 231: strategies.v1.StrategiesService.GetStrategyNotes:output_type -> strategies.v1.GetStrategyNotesResponse
-	118, // 232: strategies.v1.StrategiesService.SaveStrategyNotes:output_type -> strategies.v1.SaveStrategyNotesResponse
-	120, // 233: strategies.v1.StrategiesService.ListStrategyNotesRevisions:output_type -> strategies.v1.ListStrategyNotesRevisionsResponse
-	123, // 234: strategies.v1.StrategiesService.ListBacktests:output_type -> strategies.v1.ListBacktestsResponse
-	41,  // 235: strategies.v1.StrategiesService.RunScenarios:output_type -> strategies.v1.RunScenariosResponse
-	51,  // 236: strategies.v1.StrategiesService.StartBacktest:output_type -> strategies.v1.StartBacktestResponse
-	53,  // 237: strategies.v1.StrategiesService.GetBacktest:output_type -> strategies.v1.GetBacktestResponse
-	55,  // 238: strategies.v1.StrategiesService.ListBacktestTrades:output_type -> strategies.v1.ListBacktestTradesResponse
-	59,  // 239: strategies.v1.StrategiesService.ExplainStrategy:output_type -> strategies.v1.ExplainStrategyResponse
-	63,  // 240: strategies.v1.StrategiesService.ProposeDeploy:output_type -> strategies.v1.ProposeDeployResponse
-	70,  // 241: strategies.v1.StrategiesService.DeployBot:output_type -> strategies.v1.DeployBotResponse
-	67,  // 242: strategies.v1.StrategiesService.GetDeployStatus:output_type -> strategies.v1.GetDeployStatusResponse
-	72,  // 243: strategies.v1.StrategiesService.GetDeployProposal:output_type -> strategies.v1.GetDeployProposalResponse
-	78,  // 244: strategies.v1.StrategiesService.ListBots:output_type -> strategies.v1.ListBotsResponse
-	84,  // 245: strategies.v1.StrategiesService.GetBot:output_type -> strategies.v1.GetBotResponse
-	87,  // 246: strategies.v1.StrategiesService.ListBotVersions:output_type -> strategies.v1.ListBotVersionsResponse
-	89,  // 247: strategies.v1.StrategiesService.GetStrategyVersion:output_type -> strategies.v1.GetStrategyVersionResponse
-	126, // 248: strategies.v1.StrategiesService.ListBotLogs:output_type -> strategies.v1.ListBotLogsResponse
-	83,  // 249: strategies.v1.StrategiesService.StopBot:output_type -> strategies.v1.StopBotResponse
-	131, // 250: strategies.v1.StrategiesService.PublishStrategyVersion:output_type -> strategies.v1.PublishStrategyVersionResponse
-	133, // 251: strategies.v1.StrategiesService.UnpublishStrategy:output_type -> strategies.v1.UnpublishStrategyResponse
-	135, // 252: strategies.v1.StrategiesService.ListCommunityStrategies:output_type -> strategies.v1.ListCommunityStrategiesResponse
-	137, // 253: strategies.v1.StrategiesService.GetCommunityStrategy:output_type -> strategies.v1.GetCommunityStrategyResponse
-	222, // [222:254] is the sub-list for method output_type
-	190, // [190:222] is the sub-list for method input_type
-	190, // [190:190] is the sub-list for extension type_name
-	190, // [190:190] is the sub-list for extension extendee
-	0,   // [0:190] is the sub-list for field type_name
+	5,   // 117: strategies.v1.BotFundsReturn.status:type_name -> strategies.v1.BotFundsReturnStatus
+	25,  // 118: strategies.v1.BotFundsReturn.assets:type_name -> strategies.v1.Money
+	151, // 119: strategies.v1.BotFundsReturn.requested_at:type_name -> google.protobuf.Timestamp
+	151, // 120: strategies.v1.BotFundsReturn.finished_at:type_name -> google.protobuf.Timestamp
+	25,  // 121: strategies.v1.BotFundsReturn.held:type_name -> strategies.v1.Money
+	86,  // 122: strategies.v1.ReturnBotFundsResponse.funds_return:type_name -> strategies.v1.BotFundsReturn
+	86,  // 123: strategies.v1.GetBotFundsReturnResponse.funds_return:type_name -> strategies.v1.BotFundsReturn
+	75,  // 124: strategies.v1.GetBotResponse.bot:type_name -> strategies.v1.Bot
+	38,  // 125: strategies.v1.GetBotResponse.money_card:type_name -> strategies.v1.MoneyCard
+	62,  // 126: strategies.v1.GetBotResponse.settings:type_name -> strategies.v1.SettingValue
+	81,  // 127: strategies.v1.GetBotResponse.decisions:type_name -> strategies.v1.BotDecision
+	82,  // 128: strategies.v1.GetBotResponse.errors:type_name -> strategies.v1.BotError
+	151, // 129: strategies.v1.BotVersion.started_at:type_name -> google.protobuf.Timestamp
+	151, // 130: strategies.v1.BotVersion.stopped_at:type_name -> google.protobuf.Timestamp
+	93,  // 131: strategies.v1.ListBotVersionsResponse.versions:type_name -> strategies.v1.BotVersion
+	152, // 132: strategies.v1.GetStrategyVersionResponse.manifest:type_name -> google.protobuf.Struct
+	39,  // 133: strategies.v1.GetStrategyVersionResponse.settings_form:type_name -> strategies.v1.SettingField
+	151, // 134: strategies.v1.GetStrategyVersionResponse.created_at:type_name -> google.protobuf.Timestamp
+	97,  // 135: strategies.v1.GetStrategyVersionResponse.flow:type_name -> strategies.v1.StrategyFlow
+	40,  // 136: strategies.v1.GetStrategyVersionResponse.validation:type_name -> strategies.v1.VersionValidation
+	98,  // 137: strategies.v1.StrategyFlow.nodes:type_name -> strategies.v1.FlowNode
+	99,  // 138: strategies.v1.StrategyFlow.edges:type_name -> strategies.v1.FlowEdge
+	14,  // 139: strategies.v1.FlowNode.kind:type_name -> strategies.v1.FlowNode.Kind
+	100, // 140: strategies.v1.FlowNode.span:type_name -> strategies.v1.SourceSpan
+	104, // 141: strategies.v1.Strategy.origin:type_name -> strategies.v1.StrategyOrigin
+	151, // 142: strategies.v1.Strategy.created_at:type_name -> google.protobuf.Timestamp
+	151, // 143: strategies.v1.Strategy.updated_at:type_name -> google.protobuf.Timestamp
+	103, // 144: strategies.v1.Strategy.bot:type_name -> strategies.v1.StrategyBot
+	102, // 145: strategies.v1.Strategy.listing:type_name -> strategies.v1.StrategyListing
+	15,  // 146: strategies.v1.StrategyListing.state:type_name -> strategies.v1.StrategyListing.State
+	151, // 147: strategies.v1.StrategyListing.published_at:type_name -> google.protobuf.Timestamp
+	12,  // 148: strategies.v1.StrategyBot.status:type_name -> strategies.v1.Bot.Status
+	106, // 149: strategies.v1.StrategyOrigin.duplicate:type_name -> strategies.v1.StrategyDuplicateOrigin
+	105, // 150: strategies.v1.StrategyOrigin.fork:type_name -> strategies.v1.StrategyForkOrigin
+	151, // 151: strategies.v1.StrategyRevision.saved_at:type_name -> google.protobuf.Timestamp
+	16,  // 152: strategies.v1.StrategyRevision.saved_by:type_name -> strategies.v1.StrategyRevision.SavedBy
+	101, // 153: strategies.v1.CreateStrategyResponse.strategy:type_name -> strategies.v1.Strategy
+	40,  // 154: strategies.v1.CreateStrategyResponse.version:type_name -> strategies.v1.VersionValidation
+	152, // 155: strategies.v1.SaveDraftVersionRequest.manifest:type_name -> google.protobuf.Struct
+	40,  // 156: strategies.v1.SaveDraftVersionResponse.version:type_name -> strategies.v1.VersionValidation
+	101, // 157: strategies.v1.GetStrategyResponse.strategy:type_name -> strategies.v1.Strategy
+	96,  // 158: strategies.v1.GetStrategyResponse.head:type_name -> strategies.v1.GetStrategyVersionResponse
+	122, // 159: strategies.v1.GetStrategyResponse.notes:type_name -> strategies.v1.StrategyNotes
+	101, // 160: strategies.v1.ListStrategiesResponse.strategies:type_name -> strategies.v1.Strategy
+	107, // 161: strategies.v1.ListStrategyRevisionsResponse.revisions:type_name -> strategies.v1.StrategyRevision
+	101, // 162: strategies.v1.RenameStrategyResponse.strategy:type_name -> strategies.v1.Strategy
+	151, // 163: strategies.v1.StrategyNotes.saved_at:type_name -> google.protobuf.Timestamp
+	16,  // 164: strategies.v1.StrategyNotes.saved_by:type_name -> strategies.v1.StrategyRevision.SavedBy
+	122, // 165: strategies.v1.GetStrategyNotesResponse.notes:type_name -> strategies.v1.StrategyNotes
+	122, // 166: strategies.v1.SaveStrategyNotesResponse.notes:type_name -> strategies.v1.StrategyNotes
+	122, // 167: strategies.v1.ListStrategyNotesRevisionsResponse.revisions:type_name -> strategies.v1.StrategyNotes
+	59,  // 168: strategies.v1.StrategyBacktest.summary:type_name -> strategies.v1.BacktestSummary
+	26,  // 169: strategies.v1.StrategyBacktest.window:type_name -> strategies.v1.TimeWindow
+	151, // 170: strategies.v1.StrategyBacktest.created_at:type_name -> google.protobuf.Timestamp
+	151, // 171: strategies.v1.StrategyBacktest.finished_at:type_name -> google.protobuf.Timestamp
+	130, // 172: strategies.v1.ListBacktestsResponse.backtests:type_name -> strategies.v1.StrategyBacktest
+	151, // 173: strategies.v1.BotLogEntry.time:type_name -> google.protobuf.Timestamp
+	17,  // 174: strategies.v1.BotLogEntry.kind:type_name -> strategies.v1.BotLogEntry.Kind
+	151, // 175: strategies.v1.ListBotLogsRequest.start_time:type_name -> google.protobuf.Timestamp
+	132, // 176: strategies.v1.ListBotLogsResponse.entries:type_name -> strategies.v1.BotLogEntry
+	8,   // 177: strategies.v1.CommunityBacktest.status:type_name -> strategies.v1.Backtest.Status
+	1,   // 178: strategies.v1.CommunityBacktest.not_backtestable_reason:type_name -> strategies.v1.NotBacktestableReason
+	26,  // 179: strategies.v1.CommunityBacktest.window:type_name -> strategies.v1.TimeWindow
+	44,  // 180: strategies.v1.CommunityBacktest.metrics:type_name -> strategies.v1.BacktestMetrics
+	50,  // 181: strategies.v1.CommunityBacktest.report:type_name -> strategies.v1.BacktestReport
+	6,   // 182: strategies.v1.CommunityStrategySummary.tags:type_name -> strategies.v1.StrategyTag
+	135, // 183: strategies.v1.CommunityStrategySummary.backtest:type_name -> strategies.v1.CommunityBacktest
+	151, // 184: strategies.v1.CommunityStrategySummary.published_at:type_name -> google.protobuf.Timestamp
+	6,   // 185: strategies.v1.CommunityStrategy.tags:type_name -> strategies.v1.StrategyTag
+	151, // 186: strategies.v1.CommunityStrategy.published_at:type_name -> google.protobuf.Timestamp
+	152, // 187: strategies.v1.CommunityStrategy.manifest:type_name -> google.protobuf.Struct
+	39,  // 188: strategies.v1.CommunityStrategy.settings_form:type_name -> strategies.v1.SettingField
+	38,  // 189: strategies.v1.CommunityStrategy.money_card:type_name -> strategies.v1.MoneyCard
+	97,  // 190: strategies.v1.CommunityStrategy.flow:type_name -> strategies.v1.StrategyFlow
+	135, // 191: strategies.v1.CommunityStrategy.backtest:type_name -> strategies.v1.CommunityBacktest
+	137, // 192: strategies.v1.CommunityStrategy.forked_from:type_name -> strategies.v1.CommunityForkSource
+	6,   // 193: strategies.v1.PublishStrategyVersionRequest.tags:type_name -> strategies.v1.StrategyTag
+	102, // 194: strategies.v1.PublishStrategyVersionResponse.listing:type_name -> strategies.v1.StrategyListing
+	102, // 195: strategies.v1.UnpublishStrategyResponse.listing:type_name -> strategies.v1.StrategyListing
+	6,   // 196: strategies.v1.ListCommunityStrategiesRequest.tags:type_name -> strategies.v1.StrategyTag
+	136, // 197: strategies.v1.ListCommunityStrategiesResponse.strategies:type_name -> strategies.v1.CommunityStrategySummary
+	101, // 198: strategies.v1.ForkStrategyResponse.strategy:type_name -> strategies.v1.Strategy
+	40,  // 199: strategies.v1.ForkStrategyResponse.version:type_name -> strategies.v1.VersionValidation
+	7,   // 200: strategies.v1.ReportCommunityStrategyRequest.reason:type_name -> strategies.v1.ReportReason
+	151, // 201: strategies.v1.ReportCommunityStrategyResponse.reported_at:type_name -> google.protobuf.Timestamp
+	138, // 202: strategies.v1.GetCommunityStrategyResponse.strategy:type_name -> strategies.v1.CommunityStrategy
+	31,  // 203: strategies.v1.StrategiesService.GetStrategyReference:input_type -> strategies.v1.GetStrategyReferenceRequest
+	35,  // 204: strategies.v1.StrategiesService.ListStrategyTemplates:input_type -> strategies.v1.ListStrategyTemplatesRequest
+	108, // 205: strategies.v1.StrategiesService.CreateStrategy:input_type -> strategies.v1.CreateStrategyRequest
+	110, // 206: strategies.v1.StrategiesService.SaveDraftVersion:input_type -> strategies.v1.SaveDraftVersionRequest
+	112, // 207: strategies.v1.StrategiesService.GetStrategy:input_type -> strategies.v1.GetStrategyRequest
+	114, // 208: strategies.v1.StrategiesService.ListStrategies:input_type -> strategies.v1.ListStrategiesRequest
+	116, // 209: strategies.v1.StrategiesService.ListStrategyRevisions:input_type -> strategies.v1.ListStrategyRevisionsRequest
+	118, // 210: strategies.v1.StrategiesService.RenameStrategy:input_type -> strategies.v1.RenameStrategyRequest
+	120, // 211: strategies.v1.StrategiesService.DeleteStrategy:input_type -> strategies.v1.DeleteStrategyRequest
+	123, // 212: strategies.v1.StrategiesService.GetStrategyNotes:input_type -> strategies.v1.GetStrategyNotesRequest
+	125, // 213: strategies.v1.StrategiesService.SaveStrategyNotes:input_type -> strategies.v1.SaveStrategyNotesRequest
+	127, // 214: strategies.v1.StrategiesService.ListStrategyNotesRevisions:input_type -> strategies.v1.ListStrategyNotesRevisionsRequest
+	129, // 215: strategies.v1.StrategiesService.ListBacktests:input_type -> strategies.v1.ListBacktestsRequest
+	41,  // 216: strategies.v1.StrategiesService.RunScenarios:input_type -> strategies.v1.RunScenariosRequest
+	52,  // 217: strategies.v1.StrategiesService.StartBacktest:input_type -> strategies.v1.StartBacktestRequest
+	54,  // 218: strategies.v1.StrategiesService.GetBacktest:input_type -> strategies.v1.GetBacktestRequest
+	56,  // 219: strategies.v1.StrategiesService.ListBacktestTrades:input_type -> strategies.v1.ListBacktestTradesRequest
+	60,  // 220: strategies.v1.StrategiesService.ExplainStrategy:input_type -> strategies.v1.ExplainStrategyRequest
+	64,  // 221: strategies.v1.StrategiesService.ProposeDeploy:input_type -> strategies.v1.ProposeDeployRequest
+	71,  // 222: strategies.v1.StrategiesService.DeployBot:input_type -> strategies.v1.DeployBotRequest
+	68,  // 223: strategies.v1.StrategiesService.GetDeployStatus:input_type -> strategies.v1.GetDeployStatusRequest
+	73,  // 224: strategies.v1.StrategiesService.GetDeployProposal:input_type -> strategies.v1.GetDeployProposalRequest
+	79,  // 225: strategies.v1.StrategiesService.ListBots:input_type -> strategies.v1.ListBotsRequest
+	83,  // 226: strategies.v1.StrategiesService.GetBot:input_type -> strategies.v1.GetBotRequest
+	92,  // 227: strategies.v1.StrategiesService.ListBotVersions:input_type -> strategies.v1.ListBotVersionsRequest
+	95,  // 228: strategies.v1.StrategiesService.GetStrategyVersion:input_type -> strategies.v1.GetStrategyVersionRequest
+	133, // 229: strategies.v1.StrategiesService.ListBotLogs:input_type -> strategies.v1.ListBotLogsRequest
+	87,  // 230: strategies.v1.StrategiesService.ReturnBotFunds:input_type -> strategies.v1.ReturnBotFundsRequest
+	89,  // 231: strategies.v1.StrategiesService.GetBotFundsReturn:input_type -> strategies.v1.GetBotFundsReturnRequest
+	84,  // 232: strategies.v1.StrategiesService.StopBot:input_type -> strategies.v1.StopBotRequest
+	139, // 233: strategies.v1.StrategiesService.PublishStrategyVersion:input_type -> strategies.v1.PublishStrategyVersionRequest
+	141, // 234: strategies.v1.StrategiesService.UnpublishStrategy:input_type -> strategies.v1.UnpublishStrategyRequest
+	143, // 235: strategies.v1.StrategiesService.ListCommunityStrategies:input_type -> strategies.v1.ListCommunityStrategiesRequest
+	147, // 236: strategies.v1.StrategiesService.ReportCommunityStrategy:input_type -> strategies.v1.ReportCommunityStrategyRequest
+	145, // 237: strategies.v1.StrategiesService.ForkStrategy:input_type -> strategies.v1.ForkStrategyRequest
+	149, // 238: strategies.v1.StrategiesService.GetCommunityStrategy:input_type -> strategies.v1.GetCommunityStrategyRequest
+	32,  // 239: strategies.v1.StrategiesService.GetStrategyReference:output_type -> strategies.v1.GetStrategyReferenceResponse
+	36,  // 240: strategies.v1.StrategiesService.ListStrategyTemplates:output_type -> strategies.v1.ListStrategyTemplatesResponse
+	109, // 241: strategies.v1.StrategiesService.CreateStrategy:output_type -> strategies.v1.CreateStrategyResponse
+	111, // 242: strategies.v1.StrategiesService.SaveDraftVersion:output_type -> strategies.v1.SaveDraftVersionResponse
+	113, // 243: strategies.v1.StrategiesService.GetStrategy:output_type -> strategies.v1.GetStrategyResponse
+	115, // 244: strategies.v1.StrategiesService.ListStrategies:output_type -> strategies.v1.ListStrategiesResponse
+	117, // 245: strategies.v1.StrategiesService.ListStrategyRevisions:output_type -> strategies.v1.ListStrategyRevisionsResponse
+	119, // 246: strategies.v1.StrategiesService.RenameStrategy:output_type -> strategies.v1.RenameStrategyResponse
+	121, // 247: strategies.v1.StrategiesService.DeleteStrategy:output_type -> strategies.v1.DeleteStrategyResponse
+	124, // 248: strategies.v1.StrategiesService.GetStrategyNotes:output_type -> strategies.v1.GetStrategyNotesResponse
+	126, // 249: strategies.v1.StrategiesService.SaveStrategyNotes:output_type -> strategies.v1.SaveStrategyNotesResponse
+	128, // 250: strategies.v1.StrategiesService.ListStrategyNotesRevisions:output_type -> strategies.v1.ListStrategyNotesRevisionsResponse
+	131, // 251: strategies.v1.StrategiesService.ListBacktests:output_type -> strategies.v1.ListBacktestsResponse
+	43,  // 252: strategies.v1.StrategiesService.RunScenarios:output_type -> strategies.v1.RunScenariosResponse
+	53,  // 253: strategies.v1.StrategiesService.StartBacktest:output_type -> strategies.v1.StartBacktestResponse
+	55,  // 254: strategies.v1.StrategiesService.GetBacktest:output_type -> strategies.v1.GetBacktestResponse
+	57,  // 255: strategies.v1.StrategiesService.ListBacktestTrades:output_type -> strategies.v1.ListBacktestTradesResponse
+	61,  // 256: strategies.v1.StrategiesService.ExplainStrategy:output_type -> strategies.v1.ExplainStrategyResponse
+	65,  // 257: strategies.v1.StrategiesService.ProposeDeploy:output_type -> strategies.v1.ProposeDeployResponse
+	72,  // 258: strategies.v1.StrategiesService.DeployBot:output_type -> strategies.v1.DeployBotResponse
+	69,  // 259: strategies.v1.StrategiesService.GetDeployStatus:output_type -> strategies.v1.GetDeployStatusResponse
+	74,  // 260: strategies.v1.StrategiesService.GetDeployProposal:output_type -> strategies.v1.GetDeployProposalResponse
+	80,  // 261: strategies.v1.StrategiesService.ListBots:output_type -> strategies.v1.ListBotsResponse
+	91,  // 262: strategies.v1.StrategiesService.GetBot:output_type -> strategies.v1.GetBotResponse
+	94,  // 263: strategies.v1.StrategiesService.ListBotVersions:output_type -> strategies.v1.ListBotVersionsResponse
+	96,  // 264: strategies.v1.StrategiesService.GetStrategyVersion:output_type -> strategies.v1.GetStrategyVersionResponse
+	134, // 265: strategies.v1.StrategiesService.ListBotLogs:output_type -> strategies.v1.ListBotLogsResponse
+	88,  // 266: strategies.v1.StrategiesService.ReturnBotFunds:output_type -> strategies.v1.ReturnBotFundsResponse
+	90,  // 267: strategies.v1.StrategiesService.GetBotFundsReturn:output_type -> strategies.v1.GetBotFundsReturnResponse
+	85,  // 268: strategies.v1.StrategiesService.StopBot:output_type -> strategies.v1.StopBotResponse
+	140, // 269: strategies.v1.StrategiesService.PublishStrategyVersion:output_type -> strategies.v1.PublishStrategyVersionResponse
+	142, // 270: strategies.v1.StrategiesService.UnpublishStrategy:output_type -> strategies.v1.UnpublishStrategyResponse
+	144, // 271: strategies.v1.StrategiesService.ListCommunityStrategies:output_type -> strategies.v1.ListCommunityStrategiesResponse
+	148, // 272: strategies.v1.StrategiesService.ReportCommunityStrategy:output_type -> strategies.v1.ReportCommunityStrategyResponse
+	146, // 273: strategies.v1.StrategiesService.ForkStrategy:output_type -> strategies.v1.ForkStrategyResponse
+	150, // 274: strategies.v1.StrategiesService.GetCommunityStrategy:output_type -> strategies.v1.GetCommunityStrategyResponse
+	239, // [239:275] is the sub-list for method output_type
+	203, // [203:239] is the sub-list for method input_type
+	203, // [203:203] is the sub-list for extension type_name
+	203, // [203:203] is the sub-list for extension extendee
+	0,   // [0:203] is the sub-list for field type_name
 }
 
 func init() { file_strategies_v1_strategies_proto_init() }
@@ -11988,23 +13090,24 @@ func file_strategies_v1_strategies_proto_init() {
 		return
 	}
 	file_strategies_v1_strategies_proto_msgTypes[26].OneofWrappers = []any{}
-	file_strategies_v1_strategies_proto_msgTypes[81].OneofWrappers = []any{
+	file_strategies_v1_strategies_proto_msgTypes[86].OneofWrappers = []any{
 		(*StrategyOrigin_TemplateId)(nil),
 		(*StrategyOrigin_Duplicate)(nil),
+		(*StrategyOrigin_Fork)(nil),
 	}
-	file_strategies_v1_strategies_proto_msgTypes[84].OneofWrappers = []any{
+	file_strategies_v1_strategies_proto_msgTypes[90].OneofWrappers = []any{
 		(*CreateStrategyRequest_TemplateId)(nil),
 		(*CreateStrategyRequest_VersionId)(nil),
 	}
-	file_strategies_v1_strategies_proto_msgTypes[86].OneofWrappers = []any{}
-	file_strategies_v1_strategies_proto_msgTypes[101].OneofWrappers = []any{}
+	file_strategies_v1_strategies_proto_msgTypes[92].OneofWrappers = []any{}
+	file_strategies_v1_strategies_proto_msgTypes[107].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_strategies_v1_strategies_proto_rawDesc), len(file_strategies_v1_strategies_proto_rawDesc)),
-			NumEnums:      16,
-			NumMessages:   122,
+			NumEnums:      18,
+			NumMessages:   133,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

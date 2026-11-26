@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"connectrpc.com/connect"
 	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
@@ -112,6 +113,11 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		} `json:"details"`
 		RateLimit       json.RawMessage `json:"rateLimit"`
 		TimestampWindow json.RawMessage `json:"timestampWindow"`
+		// HistoryAvailableFrom is the STATEMENT_HISTORY_UNAVAILABLE
+		// problem's earliest instant the account history holds, RFC 3339.
+		// Raw: an optional extension of any other JSON type must never fail
+		// the decode of the whole problem; problemInstant reads it.
+		HistoryAvailableFrom json.RawMessage `json:"historyAvailableFrom"`
 	}
 	if isJSON || resp.StatusCode == 504 {
 		if json.Unmarshal(decoded, &detail) != nil {
@@ -317,7 +323,13 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		if msg == "" {
 			msg = detail.Code
 		}
-		mapped = &sdkerrors.APIError{Msg: msg, Code: code}
+		apiErr := &sdkerrors.APIError{Msg: msg, Code: code}
+		if code == sdkerrors.CodeStatementHistoryUnavailable {
+			// The problem names where the account history starts, as the
+			// ConnectRPC detail's history_available_from does.
+			apiErr.HistoryAvailableFrom = problemInstant(detail.HistoryAvailableFrom)
+		}
+		mapped = apiErr
 	default:
 		if hasServiceDetail || leftToConnect(resp.StatusCode, isJSON, len(decoded), detail.Message) {
 			return passToConnect(resp, isJSON, decoded)
@@ -346,6 +358,22 @@ func (t timestampSkewRoundTripper) RoundTrip(req *http.Request) (*http.Response,
 		e.Problem = problem
 	}
 	return nil, failedAnswer(resp, mapped)
+}
+
+// problemInstant reads an optional REST problem member that holds an RFC 3339
+// instant: nil for a missing member, one of another JSON type, or a string
+// that is not RFC 3339.
+func problemInstant(raw json.RawMessage) *time.Time {
+	var text string
+	if json.Unmarshal(raw, &text) != nil {
+		return nil
+	}
+	at, err := time.Parse(time.RFC3339Nano, text)
+	if err != nil {
+		return nil
+	}
+	at = at.UTC()
+	return &at
 }
 
 // passToConnect hands a failed answer to connect-go, which decodes a

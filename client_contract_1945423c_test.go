@@ -411,18 +411,19 @@ func TestStatementExportsCreateGetAndList(t *testing.T) {
 	api := &contractAPI{export: &ledgerrdv1.StatementExport{
 		ExportId: 77, SubaccountId: &sub, IdempotencyKey: "statement-2026", Status: ledgerrdv1.StatementExportStatus_STATEMENT_EXPORT_STATUS_READY,
 		Movements: 1 << 40, Bytes: 1<<63 + 5, ReadyAt: timestamppb.New(time.Unix(100, 5)), ExpiresAt: timestamppb.New(time.Unix(200, 0)),
-		CompleteThrough: timestamppb.New(time.Unix(50, 123456789)),
+		CompleteThrough: timestamppb.New(time.Unix(50, 123456789)), Type: ledgerrdv1.StatementExportType_LEDGER,
 	}}
 	defaultSub := codecs.FormatID(sub)
 	client := newContractClient(t, api, &defaultSub)
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	end := start.Add(codecs.StatementExportMaxPeriod)
-	export, err := client.Statements.CreateExport(context.Background(), services.CreateStatementExportOptions{StartTime: start, EndTime: end, AssetID: 3, IdempotencyKey: "statement-2026"})
+	export, err := client.Statements.CreateExport(context.Background(), services.CreateStatementExportOptions{Type: models.StatementExportTypeLedger, StartTime: start, EndTime: end, AssetID: 3, IdempotencyKey: "statement-2026"})
 	if err != nil {
 		t.Fatal(err)
 	}
 	if export.ExportID != codecs.FormatID(77) || export.SubaccountID != defaultSub || export.Status != "ready" || export.Bytes != 1<<63+5 ||
-		export.CompleteThrough == nil || !export.CompleteThrough.Equal(time.Unix(50, 123456789)) || export.FailureReason != "" {
+		export.CompleteThrough == nil || !export.CompleteThrough.Equal(time.Unix(50, 123456789)) || export.FailureReason != "" ||
+		export.Type != models.StatementExportTypeLedger {
 		t.Fatalf("export = %+v", export)
 	}
 	if _, err := client.Statements.GetExport(context.Background(), export.ExportID); err != nil {
@@ -443,7 +444,8 @@ func TestStatementExportsCreateGetAndList(t *testing.T) {
 	}
 	sent := api.sent(t)
 	create := sent[0].(*ledgerrdv1.CreateStatementExportRequest)
-	if create.GetSubaccountId() != sub || !create.GetEndTime().AsTime().Equal(end) || create.GetAssetId() != 3 || create.GetIdempotencyKey() != "statement-2026" {
+	if create.GetSubaccountId() != sub || !create.GetEndTime().AsTime().Equal(end) || create.GetAssetId() != 3 || create.GetIdempotencyKey() != "statement-2026" ||
+		create.GetType() != ledgerrdv1.StatementExportType_LEDGER {
 		t.Fatalf("create = %v", create)
 	}
 	if get := sent[1].(*ledgerrdv1.GetStatementExportRequest); get.GetExportId() != 77 {
@@ -459,16 +461,20 @@ func TestStatementExportsRefuseOutOfContractRequestsBeforeSending(t *testing.T) 
 	client := newContractClient(t, api, nil)
 	start := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
 	zeroSub := "1"
+	statement := models.StatementExportTypeAccountStatement
 	for name, opts := range map[string]services.CreateStatementExportOptions{
-		"no key":              {StartTime: start, EndTime: start.Add(time.Hour)},
-		"key with a space":    {StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "statement 2026"},
-		"key with a slash":    {StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "statement/2026"},
-		"key over 64 chars":   {StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: strings.Repeat("k", 65)},
-		"empty period":        {StartTime: start, EndTime: start, IdempotencyKey: "k"},
-		"end before start":    {StartTime: start, EndTime: start.Add(-time.Hour), IdempotencyKey: "k"},
-		"period over 366 d":   {StartTime: start, EndTime: start.Add(codecs.StatementExportMaxPeriod + time.Nanosecond), IdempotencyKey: "k"},
-		"no start":            {EndTime: start, IdempotencyKey: "k"},
-		"zero sub-account ID": {StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "k", SubAccountID: &zeroSub},
+		"no key":              {Type: statement, StartTime: start, EndTime: start.Add(time.Hour)},
+		"key with a space":    {Type: statement, StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "statement 2026"},
+		"key with a slash":    {Type: statement, StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "statement/2026"},
+		"key over 64 chars":   {Type: statement, StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: strings.Repeat("k", 65)},
+		"empty period":        {Type: statement, StartTime: start, EndTime: start, IdempotencyKey: "k"},
+		"end before start":    {Type: statement, StartTime: start, EndTime: start.Add(-time.Hour), IdempotencyKey: "k"},
+		"period over 366 d":   {Type: statement, StartTime: start, EndTime: start.Add(codecs.StatementExportMaxPeriod + time.Nanosecond), IdempotencyKey: "k"},
+		"no start":            {Type: statement, EndTime: start, IdempotencyKey: "k"},
+		"zero sub-account ID": {Type: statement, StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "k", SubAccountID: &zeroSub},
+		"no type":             {StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "k"},
+		"unspecified type":    {Type: "statement_export_type_unspecified", StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "k"},
+		"unknown type":        {Type: "not_a_type", StartTime: start, EndTime: start.Add(time.Hour), IdempotencyKey: "k"},
 	} {
 		if _, err := client.Statements.CreateExport(context.Background(), opts); !isValidation(err) {
 			t.Fatalf("%s: err = %T %v", name, err, err)

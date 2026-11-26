@@ -3,16 +3,41 @@ package models
 import (
 	"encoding/csv"
 	"io"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/errors"
 )
 
-// StatementExport is a whole-period account statement produced in the
-// background as one CSV file, as Statements.CreateExport, GetExport,
-// CancelExport and ListExports return it. The file is the header row, then
-// every row oldest first; ParseStatementCSV reads it.
+// Statement export type labels: the kind of file an export produces.
+// Statements.CreateExport takes one of them; a type newer than this SDK
+// reads as "unknown(<n>)" on StatementExport.Type.
+const (
+	// StatementExportTypeAccountStatement is an account statement: one row
+	// per entry, account bucket and asset, with the entry's net amount, the
+	// fees paid and the balance after it. ParseStatementCSV reads it.
+	StatementExportTypeAccountStatement = "account_statement"
+	// StatementExportTypeLedger is a ledger: one row per ledger movement,
+	// each transfer leg on its own, with its transfer reason, side,
+	// counterparty and the balance after it. ParseLedgerCSV reads it.
+	StatementExportTypeLedger = "ledger"
+	// StatementExportTypeBalances is the account's balances over the
+	// period: one row per account bucket and asset, with its balance at the
+	// start and at the end of the period and the period's credits and
+	// debits. ParseBalancesCSV reads it. Its period must start inside the
+	// account history, or the create is refused with
+	// errors.CodeStatementHistoryUnavailable.
+	StatementExportTypeBalances = "balances"
+)
+
+// StatementExport is a whole-period account statement, ledger or balances
+// file produced in the background as one CSV file, as Statements.CreateExport,
+// GetExport, CancelExport and ListExports return it. The file is the header
+// row, then its rows: oldest first for an account statement or a ledger, by
+// account bucket and asset for balances. Type says which parser reads it:
+// ParseStatementCSV for "account_statement", ParseLedgerCSV for "ledger",
+// ParseBalancesCSV for "balances".
 //
 // Download a "ready" file within 7 days with an authenticated REST
 // GET /v1/statements/exports/{ExportID}/file (text/csv; it supports Range
@@ -31,6 +56,12 @@ type StatementExport struct {
 	// AssetID is the one asset the statement covers; 0 for every asset.
 	AssetID        uint32 `json:"asset_id,omitempty"`
 	IdempotencyKey string `json:"idempotency_key,omitempty"`
+	// Type is the kind of file the export produces, as requested:
+	// StatementExportTypeAccountStatement, StatementExportTypeLedger or
+	// StatementExportTypeBalances, or
+	// "unknown(n)" for a type newer than this SDK, which reads without
+	// failing. Exports created before types existed are account statements.
+	Type string `json:"type"`
 	// Status is "queued" (waiting for the account history to cover the
 	// period and for the account's other exports), "processing", "ready"
 	// (downloadable until ExpiresAt), "failed" (FailureReason says why),
@@ -53,9 +84,15 @@ type StatementExport struct {
 	// FailureReason is why a failed export failed: "too_large" (the period
 	// holds more than 4,000,000 ledger movements of the account, counting
 	// every asset's even when the export keeps one: split the period) or
-	// "unavailable" (create a new export); empty otherwise, and "unknown(n)"
+	// "unavailable" (create a new export) or "history_unavailable" (a
+	// balances export whose period starts before the account history, which
+	// moved later after the export was created: create a new export starting
+	// at or after HistoryAvailableFrom); empty otherwise, and "unknown(n)"
 	// for a reason newer than this SDK.
 	FailureReason string `json:"failure_reason,omitempty"`
+	// HistoryAvailableFrom is the earliest instant whose balances the account
+	// history holds, set only when FailureReason is "history_unavailable".
+	HistoryAvailableFrom *time.Time `json:"history_available_from,omitempty"`
 }
 
 // IsFinal reports whether the export's Status can no longer change: every
@@ -88,13 +125,15 @@ type StatementExportDownloadURL struct {
 	// ExpiresAt is when URL stops working: 60 seconds after it was signed, or
 	// the file's own expiry if sooner.
 	ExpiresAt time.Time `json:"expires_at"`
-	// Filename is the name the download saves the file as,
-	// statement-<ExportID>.csv.
+	// Filename is the name the download saves the file as, by the export's
+	// type: account-statement-<ExportID>.csv, ledger-<ExportID>.csv or
+	// balances-<ExportID>.csv.
 	Filename string `json:"filename"`
 }
 
-// StatementRow is the effect of one ledger entry on one account bucket in
-// one asset. Amounts are exact decimal strings in whole units of the asset,
+// StatementRow is one row of an account statement file
+// (StatementExportTypeAccountStatement): the effect of one ledger entry on one
+// account bucket in one asset. Amounts are exact decimal strings in whole units of the asset,
 // with up to 18 fractional digits; never parse them as floats.
 type StatementRow struct {
 	// Time of the entry, in UTC with microseconds.
@@ -129,9 +168,11 @@ type StatementRow struct {
 	// unavailable.
 	LinkID string `json:"link_id,omitempty"`
 	// FlowID is the public lifecycle flow ID of a deposit, withdrawal or
-	// internal transfer, as Transfers.List returns it; empty for entries
-	// outside a chain lifecycle flow, such as trades, and for a statement
-	// exported before the column existed.
+	// internal transfer linked to the entry before the export was created;
+	// empty for entries outside a chain lifecycle flow, such as trades, and
+	// for a statement exported before the column existed. A flow linked
+	// later, which Transfers.List then shows, is not in the file: a new
+	// export shows it.
 	FlowID string `json:"flow_id,omitempty"`
 }
 
@@ -198,4 +239,195 @@ func ParseStatementCSV(text string) ([]StatementRow, error) {
 
 func statementError(msg string) error {
 	return &errors.ResponseContractError{Operation: "statement CSV", Msg: msg}
+}
+
+// LedgerRow is one row of a ledger file (StatementExportTypeLedger): one
+// ledger movement, one transfer leg on the account, as Transfers.List
+// returns it. A trade's settlement is several rows, such as its base and
+// quote legs and each fee. Amounts are exact decimal strings in whole units
+// of the asset, with up to 18 fractional digits; never parse them as floats.
+type LedgerRow struct {
+	// Time of the transfer, in UTC with microseconds.
+	Time time.Time `json:"time"`
+	// TransferID identifies the transfer, an unsigned 128-bit decimal, as
+	// Transfers.List returns it. With Account and Side it identifies the row.
+	TransferID string `json:"transfer_id"`
+	// Account is the account bucket: "funding" or "trading".
+	Account string `json:"account"`
+	// Asset is the asset symbol.
+	Asset string `json:"asset"`
+	// Type is the transfer reason, such as "trade_base", "trade_quote",
+	// "maker_fee", "taker_fee", "rebate", "deposit", "withdraw",
+	// "internal_transfer" or "funding_to_trading".
+	Type string `json:"type"`
+	// Side is "debit" when the movement takes from the account bucket,
+	// "credit" when it adds to it.
+	Side string `json:"side"`
+	// Amount is the signed balance change: negative for a debit, positive
+	// for a credit.
+	Amount string `json:"amount"`
+	// Counterparty is the kind of the transfer's other side:
+	// "funding_account", "trading_account", "external_address",
+	// "private_counterparty", "fee_account" or "system_account"; empty when
+	// unknown.
+	Counterparty string `json:"counterparty,omitempty"`
+	// Balance is the bucket's balance in the asset after the movement: the
+	// previous row's Balance of the same bucket and asset, plus Amount.
+	Balance string `json:"balance"`
+	// LinkID correlates related transfer legs (a trade's match ID); empty when
+	// unavailable.
+	LinkID string `json:"link_id,omitempty"`
+	// FlowID is the public lifecycle flow ID of a transfer linked to a chain
+	// lifecycle flow before the export was created; empty otherwise, as for
+	// StatementRow.FlowID.
+	FlowID string `json:"flow_id,omitempty"`
+}
+
+// ledgerColumns are the columns every ledger file has.
+var ledgerColumns = []string{"time", "transfer_id", "account", "asset", "type", "side", "amount", "counterparty", "balance", "link_id", "flow_id"}
+
+// ParseLedgerCSV parses a ledger file, header row first, reading columns by
+// header name: columns a later release appends are ignored. It returns an
+// *errors.ResponseContractError when the header lacks a ledger column (an
+// account statement lacks transfer_id and side) or a row is not valid CSV or
+// has a malformed time. An empty ledger (header only) returns no rows.
+func ParseLedgerCSV(text string) ([]LedgerRow, error) {
+	reader := csv.NewReader(strings.NewReader(text))
+	header, err := reader.Read()
+	if err == io.EOF {
+		return nil, ledgerError("ledger has no header row")
+	}
+	if err != nil {
+		return nil, ledgerError("ledger header: " + err.Error())
+	}
+	index := make(map[string]int, len(header))
+	for i, name := range header {
+		if _, dup := index[name]; !dup {
+			index[name] = i
+		}
+	}
+	for _, name := range ledgerColumns {
+		if _, ok := index[name]; !ok {
+			return nil, ledgerError("ledger header lacks the " + name + " column")
+		}
+	}
+	var rows []LedgerRow
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			return rows, nil
+		}
+		if err != nil {
+			return nil, ledgerError("ledger row: " + err.Error())
+		}
+		at, err := time.Parse(time.RFC3339Nano, record[index["time"]])
+		if err != nil {
+			return nil, ledgerError("ledger row time " + record[index["time"]] + " is not RFC 3339")
+		}
+		rows = append(rows, LedgerRow{
+			Time:         at.UTC(),
+			TransferID:   record[index["transfer_id"]],
+			Account:      record[index["account"]],
+			Asset:        record[index["asset"]],
+			Type:         record[index["type"]],
+			Side:         record[index["side"]],
+			Amount:       record[index["amount"]],
+			Counterparty: record[index["counterparty"]],
+			Balance:      record[index["balance"]],
+			LinkID:       record[index["link_id"]],
+			FlowID:       record[index["flow_id"]],
+		})
+	}
+}
+
+func ledgerError(msg string) error {
+	return &errors.ResponseContractError{Operation: "ledger CSV", Msg: msg}
+}
+
+// BalancesRow is one row of a balances file (StatementExportTypeBalances):
+// one account bucket in one asset over the export's period. Amounts are
+// exact decimal strings in whole units of the asset, with up to 18
+// fractional digits; never parse them as floats. Every row reconciles:
+// ClosingBalance equals OpeningBalance plus Credits minus Debits.
+type BalancesRow struct {
+	// Account is the account bucket: "funding" or "trading".
+	Account string `json:"account"`
+	// Asset is the asset symbol.
+	Asset string `json:"asset"`
+	// OpeningBalance is the bucket's balance in the asset at the export's
+	// StartTime.
+	OpeningBalance string `json:"opening_balance"`
+	// Credits is the total the period's movements added to the bucket, the
+	// sum of the ledger file's credit rows of that bucket and asset; "0" when
+	// none.
+	Credits string `json:"credits"`
+	// Debits is the total the period's movements took from the bucket, as a
+	// positive amount: the sum of the ledger file's debit rows of that bucket
+	// and asset; "0" when none.
+	Debits string `json:"debits"`
+	// ClosingBalance is the bucket's balance in the asset at the export's
+	// CompleteThrough.
+	ClosingBalance string `json:"closing_balance"`
+	// Movements counts the period's ledger movements on the bucket in the
+	// asset.
+	Movements uint64 `json:"movements"`
+}
+
+// balancesColumns are the columns every balances file has.
+var balancesColumns = []string{"account", "asset", "opening_balance", "credits", "debits", "closing_balance", "movements"}
+
+// ParseBalancesCSV parses a balances file, header row first, reading columns
+// by header name: columns a later release appends are ignored. Rows come
+// sorted by account, then asset, and a bucket and asset with a zero balance
+// at both ends and no movement has no row, so a header-only file returns no
+// rows. It returns an *errors.ResponseContractError when the header lacks a
+// balances column or a row is not valid CSV or has a malformed movements
+// count.
+func ParseBalancesCSV(text string) ([]BalancesRow, error) {
+	reader := csv.NewReader(strings.NewReader(text))
+	header, err := reader.Read()
+	if err == io.EOF {
+		return nil, balancesError("balances file has no header row")
+	}
+	if err != nil {
+		return nil, balancesError("balances header: " + err.Error())
+	}
+	index := make(map[string]int, len(header))
+	for i, name := range header {
+		if _, dup := index[name]; !dup {
+			index[name] = i
+		}
+	}
+	for _, name := range balancesColumns {
+		if _, ok := index[name]; !ok {
+			return nil, balancesError("balances header lacks the " + name + " column")
+		}
+	}
+	var rows []BalancesRow
+	for {
+		record, err := reader.Read()
+		if err == io.EOF {
+			return rows, nil
+		}
+		if err != nil {
+			return nil, balancesError("balances row: " + err.Error())
+		}
+		movements, err := strconv.ParseUint(record[index["movements"]], 10, 64)
+		if err != nil {
+			return nil, balancesError("balances row movements " + record[index["movements"]] + " is not a count")
+		}
+		rows = append(rows, BalancesRow{
+			Account:        record[index["account"]],
+			Asset:          record[index["asset"]],
+			OpeningBalance: record[index["opening_balance"]],
+			Credits:        record[index["credits"]],
+			Debits:         record[index["debits"]],
+			ClosingBalance: record[index["closing_balance"]],
+			Movements:      movements,
+		})
+	}
+}
+
+func balancesError(msg string) error {
+	return &errors.ResponseContractError{Operation: "balances CSV", Msg: msg}
 }

@@ -37,6 +37,13 @@ type SubAccount struct {
 	// SmartAccountSaltNonce is the smart-account derivation salt nonce. Nil
 	// unless the server sends it, which it does to the owner only.
 	SmartAccountSaltNonce *uint32 `json:"smart_account_salt_nonce,omitempty"`
+	// StrategyBot is true once a strategy bot has held the sub-account. It is
+	// never cleared, also after the bot's access ends or the sub-account's
+	// policy is cleared, so it does not say which policy the sub-account has
+	// now (read SubaccountPolicyID). Leave such a sub-account out of the
+	// funding sources offered for a new bot: a deploy funded from it is
+	// refused.
+	StrategyBot bool `json:"strategy_bot,omitempty"`
 }
 
 // SubAccountsList lists subaccounts.

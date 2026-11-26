@@ -29,7 +29,8 @@ import (
 // 1945423c, 5c2119f and 0.93.5 added or changed, and the messages nested in their new
 // replies, the lifecycle flow views every flow read and update decodes, and the
 // balance read, profit and loss, trigger cancel-all, activity actor, item and
-// details, index price candle and internal transfer batch abandon messages.
+// details, index price candle and internal transfer batch abandon messages,
+// and the ledger read error detail.
 var contractFieldMessages = []protoreflect.FullName{
 	"auth.v1.AuthErrorDetail",
 	"chain.lifecycle.v1.FlowSummaryView", "chain.lifecycle.v1.FlowTxMatchView", "chain.lifecycle.v1.AssetIds",
@@ -55,7 +56,7 @@ var contractFieldMessages = []protoreflect.FullName{
 	"ledger.read.v1.CancelStatementExportRequest", "ledger.read.v1.CancelStatementExportResponse",
 	"ledger.read.v1.GetStatementExportDownloadUrlRequest", "ledger.read.v1.GetStatementExportDownloadUrlResponse",
 	"orderbook.v1.GetOrderBookRequest", "orderbook.v1.GetOrderBookResponse",
-	"orders.v1.ErrorDetail",
+	"orders.v1.ErrorDetail", "ledger.read.v1.ErrorDetail",
 	"transfer.v1.BatchCreateInternalTransfersRequest", "transfer.v1.InternalTransferBatchLeg",
 	"transfer.v1.BatchCreateInternalTransfersResponse", "transfer.v1.InternalTransferBatchLegResult", "transfer.v1.ResolvedDestination",
 	"transfer.v1.GetInternalTransferBatchRequest", "transfer.v1.GetInternalTransferBatchResponse",
