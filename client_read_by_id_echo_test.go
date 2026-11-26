@@ -14,6 +14,7 @@ import (
 	authv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/auth/v1"
 	lifecyclev1 "github.com/Fabric-Labs/polyester-sdk-go/gen/chain/lifecycle/v1"
 	changelogv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/changelog/v1"
+	ledgerrdv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/ledger/read/v1"
 	orderv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/orders/v1"
 	transferv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/transfer/v1"
 	triggersv1 "github.com/Fabric-Labs/polyester-sdk-go/gen/triggers/v1"
@@ -73,6 +74,9 @@ func TestReadByIDRefusesAReplyForAnotherObject(t *testing.T) {
 		return &lifecyclev1.FlowDetailView{Summary: &lifecyclev1.FlowSummaryView{
 			FlowId: flowID, FlowKind: lifecyclev1.FlowKind_KIND_TRANSFER, Participation: lifecyclev1.FlowParticipation_PARTICIPATION_OWNER,
 		}}
+	}
+	statementExport := func(exportID uint64) *ledgerrdv1.StatementExport {
+		return &ledgerrdv1.StatementExport{ExportId: exportID, Status: ledgerrdv1.StatementExportStatus_STATEMENT_EXPORT_STATUS_QUEUED}
 	}
 	subaccountID := codecs.FormatID(9)
 	const keyID = "ak_0123456789abcdef0123456789abcdef"
@@ -153,6 +157,22 @@ func TestReadByIDRefusesAReplyForAnotherObject(t *testing.T) {
 			&changelogv1.GetDeploymentGroupResponse{Group: &changelogv1.DeploymentGroup{Summary: &changelogv1.DeploymentGroupSummary{Slug: "testnet-v0.92.9"}}},
 			func(c *Client) error {
 				_, err := c.Changelog.GetDeploymentGroup(ctx, "testnet-v0.92.9")
+				return err
+			}},
+		{"GetStatementExport",
+			&ledgerrdv1.GetStatementExportResponse{Export: statementExport(78)},
+			&ledgerrdv1.GetStatementExportResponse{Export: statementExport(77)},
+			func(c *Client) error {
+				_, err := c.Statements.GetExport(ctx, codecs.FormatID(77))
+				return err
+			}},
+		// CancelExport already refused another export; kept here so every
+		// read by ID is covered in one place.
+		{"CancelStatementExport",
+			&ledgerrdv1.CancelStatementExportResponse{Export: statementExport(78)},
+			&ledgerrdv1.CancelStatementExportResponse{Export: statementExport(77)},
+			func(c *Client) error {
+				_, err := c.Statements.CancelExport(ctx, codecs.FormatID(77))
 				return err
 			}},
 	}
