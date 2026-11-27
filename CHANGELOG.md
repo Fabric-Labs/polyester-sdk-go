@@ -1,6 +1,11 @@
 # Changelog
 
 ## Unreleased
+
+## 0.35.0
+
+Git tag: `v0.35.0`. Released 2026-11-27. Built on public contract `11e2cec`.
+
 - **Breaking:** `Statements.CreateExport` requires `CreateStatementExportOptions.Type` (new), the kind of file to produce: `models.StatementExportTypeAccountStatement`, the account statement this SDK created before, `models.StatementExportTypeLedger` (new) or `models.StatementExportTypeBalances` (new). There is no default, since the server refuses a create without a type: an empty or unknown `Type` is refused with an `*errors.ValidationError` before sending. Pass `models.StatementExportTypeAccountStatement` to keep the file you received before. Repeating an idempotency key with another type is refused with `ERROR_CODE_IDEMPOTENCY_KEY_REUSED`, as for any other changed field.
 - `models.StatementExport.Type` (new) echoes the export's type on `CreateExport`, `GetExport`, `CancelExport` and `ListExports`; exports created before types existed read `account_statement`. A type newer than this SDK reads `unknown(n)` and never fails the read, as more types will come.
 - New `models.ParseLedgerCSV` reads a ledger file into `models.LedgerRow`s: one row per ledger movement, each transfer leg on its own, with `TransferID`, `Account`, `Asset`, `Type` (the transfer reason, such as `trade_base`, `trade_quote` or `taker_fee`), `Side` (`debit` or `credit`), a signed `Amount`, `Counterparty`, `Balance` (the previous balance of the same bucket and asset plus `Amount`), `LinkID` and `FlowID`. Like `models.ParseStatementCSV`, it reads columns by header name, ignores columns a later release appends, keeps amounts as exact decimal strings, and returns an `*errors.ResponseContractError` for a header without a ledger column (an account statement's included) or a malformed row.
