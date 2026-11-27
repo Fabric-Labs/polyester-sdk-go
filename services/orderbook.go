@@ -77,6 +77,18 @@ func (s *OrderbookService) Get(ctx context.Context, symbol string, depth int) (m
 	})
 }
 
+// viewSource is the emit that built a queued order book view.
+type viewSource struct {
+	// callback is the callback the emit ran in: a panic in OnEvent for this
+	// view, delivered after that emit returned, fails the subscription with
+	// "<callback> callback panicked".
+	callback string
+}
+
+// orderbookViewQueuedBehind, when set by a test, is called after a view is
+// queued behind one being delivered.
+var orderbookViewQueuedBehind func()
+
 // CreateSubscriptionOptions configures a managed orderbook subscription.
 type CreateSubscriptionOptions struct {
 	// Symbol or SymbolID selects the pair; with SymbolID alone, the symbol and
@@ -208,16 +220,26 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	// are queued in the order they are built, under mu, so both surfaces see
 	// one order and the last view has the latest bucket. Lock order: mu, then
 	// deliverMu; the deliverer holds neither while it calls OnEvent.
+	//
+	// Each view keeps the emit that built it, so an OnEvent panic goes where
+	// it went before views were queued, whoever delivers the view: the emit's
+	// own caller re-panics with it; a view delivered for an emit that has
+	// returned fails the subscription closed with an OnError instead, as a
+	// panic in the stream worker's callbacks always did.
+	type queuedView struct {
+		view   models.OrderbookData
+		source *viewSource
+	}
 	var (
 		deliverMu   sync.Mutex
 		delivering  bool
-		undelivered []models.OrderbookData
+		undelivered []queuedView
 	)
 	// queueView, called with mu held, reports whether the caller delivers.
-	queueView := func(data models.OrderbookData) bool {
+	queueView := func(data models.OrderbookData, source *viewSource) bool {
 		deliverMu.Lock()
 		defer deliverMu.Unlock()
-		undelivered = append(undelivered, data)
+		undelivered = append(undelivered, queuedView{view: data, source: source})
 		if delivering {
 			return false
 		}
@@ -241,9 +263,11 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 	}
 	// deliverQueued delivers the queued views in order until none is left or
 	// the subscription closes, by Close or an Updates() overflow; then the
-	// rest is dropped. A view OnEvent panics on is not queued, as before; the
-	// views behind it are still delivered, and then the first panic goes on.
-	deliverQueued := func(localSub *orderbook.Subscription) {
+	// rest is dropped. A view OnEvent panics on is not queued, as before. A
+	// panic on a view of own, the caller's emit, goes on to the caller once
+	// the views behind it are delivered; one on another emit's view fails the
+	// subscription closed, naming that emit's callback.
+	deliverQueued := func(localSub *orderbook.Subscription, own *viewSource) {
 		var firstPanic any
 		panicked := false
 		for {
@@ -257,7 +281,12 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			next := undelivered[0]
 			undelivered = undelivered[1:]
 			deliverMu.Unlock()
-			if value, didPanic := deliverOne(localSub, next); didPanic && !panicked {
+			value, didPanic := deliverOne(localSub, next.view)
+			switch {
+			case !didPanic:
+			case next.source != own:
+				localSub.Fail(&errors.RealtimeError{Msg: fmt.Sprintf("%s callback panicked: %v", next.source.callback, value)})
+			case !panicked:
 				firstPanic, panicked = value, true
 			}
 		}
@@ -266,7 +295,10 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		}
 	}
 
-	emit := func() {
+	// emitFrom renders the book and delivers the view; callback names the
+	// callback emitFrom runs in, for a panic delivered by another emit.
+	emitFrom := func(callback string) {
+		source := &viewSource{callback: callback}
 		mu.Lock()
 		if subscription == nil || subscription.Closed() {
 			mu.Unlock()
@@ -277,15 +309,18 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		data.Ts = copyTime(bookTs)
 		lastViewUnavailable = !bookAvailable
 		localSub := subscription
-		deliverer := err == nil && queueView(data)
+		deliverer := err == nil && queueView(data, source)
 		mu.Unlock()
+		if err == nil && !deliverer && orderbookViewQueuedBehind != nil {
+			orderbookViewQueuedBehind()
+		}
 		if err != nil {
 			// The bad level stays in the book, so no later update can render it.
 			localSub.Fail(err)
 			return
 		}
 		if deliverer {
-			deliverQueued(localSub)
+			deliverQueued(localSub, source)
 		}
 	}
 
@@ -335,7 +370,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			opts.OnSequenceGap()
 		}
 		if render {
-			emit()
+			emitFrom("apply_live_publications")
 		}
 	}
 
@@ -455,7 +490,7 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 			repeated := !available && lastViewUnavailable && len(buffered) == 0
 			mu.Unlock()
 			if !repeated {
-				emit()
+				emitFrom("apply_snapshot")
 			}
 			recheckUnavailableSnapshot(available)
 		},
@@ -467,7 +502,9 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		MaxBuffered: 200,
 	})
 
-	subscription = orderbook.NewSubscription(stream, emit, func(ticks int) {
+	// SetBucket renders from its caller's goroutine.
+	emitForSetBucket := func() { emitFrom("OnEvent") }
+	subscription = orderbook.NewSubscription(stream, emitForSetBucket, func(ticks int) {
 		mu.Lock()
 		bucketTicks = ticks
 		mu.Unlock()
