@@ -202,6 +202,56 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		bookTs *time.Time
 	)
 
+	// Views wait their turn to reach OnEvent and then Updates(): one built
+	// while another is being delivered, such as by a SetBucket from OnEvent or
+	// from another goroutine, is delivered after it, by whoever delivers. Views
+	// are queued in the order they are built, under mu, so both surfaces see
+	// one order and the last view has the latest bucket. Lock order: mu, then
+	// deliverMu; the deliverer holds neither while it calls OnEvent.
+	var (
+		deliverMu   sync.Mutex
+		delivering  bool
+		undelivered []models.OrderbookData
+	)
+	// queueView, called with mu held, reports whether the caller delivers.
+	queueView := func(data models.OrderbookData) bool {
+		deliverMu.Lock()
+		defer deliverMu.Unlock()
+		undelivered = append(undelivered, data)
+		if delivering {
+			return false
+		}
+		delivering = true
+		return true
+	}
+	deliverQueued := func(localSub *orderbook.Subscription) {
+		defer func() {
+			// A panicking OnEvent drops the views queued behind it, as it did
+			// the view it panicked on, so the next emit delivers again.
+			if recovered := recover(); recovered != nil {
+				deliverMu.Lock()
+				undelivered, delivering = nil, false
+				deliverMu.Unlock()
+				panic(recovered)
+			}
+		}()
+		for {
+			deliverMu.Lock()
+			if len(undelivered) == 0 {
+				delivering = false
+				deliverMu.Unlock()
+				return
+			}
+			next := undelivered[0]
+			undelivered = undelivered[1:]
+			deliverMu.Unlock()
+			if opts.OnEvent != nil {
+				opts.OnEvent(next)
+			}
+			localSub.Enqueue(next)
+		}
+	}
+
 	emit := func() {
 		mu.Lock()
 		if subscription == nil || subscription.Closed() {
@@ -213,16 +263,16 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		data.Ts = copyTime(bookTs)
 		lastViewUnavailable = !bookAvailable
 		localSub := subscription
+		deliverer := err == nil && queueView(data)
 		mu.Unlock()
 		if err != nil {
 			// The bad level stays in the book, so no later update can render it.
 			localSub.Fail(err)
 			return
 		}
-		if opts.OnEvent != nil {
-			opts.OnEvent(data)
+		if deliverer {
+			deliverQueued(localSub)
 		}
-		localSub.Enqueue(data)
 	}
 
 	var recheckUnavailableSnapshot func(available bool)
