@@ -582,6 +582,7 @@ type SnapshotThenStream[TSnapshot any, TPublication any] struct {
 	readPublication       func(TPublication) []TPublication
 	applySnapshot         func(TSnapshot, []TPublication)
 	applyLivePublications func([]TPublication)
+	applyDrained          func([]TPublication)
 	onReconnect           func()
 	onSnapshotRefresh     func()
 	onError               func(error)
@@ -614,6 +615,14 @@ type SnapshotThenStreamConfig[TSnapshot any, TPublication any] struct {
 	ReadPublication       func(TPublication) []TPublication
 	ApplySnapshot         func(TSnapshot, []TPublication)
 	ApplyLivePublications func([]TPublication)
+	// ApplyDrainedPublications, when set, receives the publications that
+	// arrive while ApplySnapshot runs: they are drained before the stream is
+	// marked ready, as part of that snapshot's merge, and may predate it as
+	// the buffered ones passed to ApplySnapshot may. The coordinator decides
+	// under its lock which path a publication takes, so a publication handed
+	// to ApplyLivePublications was dispatched live even if a refresh starts
+	// before the callback runs. Nil sends them to ApplyLivePublications.
+	ApplyDrainedPublications func([]TPublication)
 	// OnReconnect is called after a transport disconnect before snapshot rebuild.
 	OnReconnect func()
 	// OnSnapshotRefresh is called after a successful snapshot rebuild.
@@ -700,6 +709,7 @@ func NewSnapshotThenStream[TSnapshot any, TPublication any](cfg SnapshotThenStre
 		readPublication:       cfg.ReadPublication,
 		applySnapshot:         cfg.ApplySnapshot,
 		applyLivePublications: cfg.ApplyLivePublications,
+		applyDrained:          cfg.ApplyDrainedPublications,
 		onReconnect:           cfg.OnReconnect,
 		onSnapshotRefresh:     cfg.OnSnapshotRefresh,
 		onError:               cfg.OnError,
@@ -1015,11 +1025,22 @@ func (s *SnapshotThenStream[TSnapshot, TPublication]) RefreshSnapshot(ctx contex
 			return nil
 		}
 		s.mu.Unlock()
-		if err := s.applyLive(buffered); err != nil {
+		if err := s.applyDrainedPublications(buffered); err != nil {
 			s.failClosed(err)
 			return err
 		}
 	}
+}
+
+// applyDrainedPublications applies publications drained after the snapshot
+// callback, before the stream is ready: to ApplyDrainedPublications when set,
+// else to ApplyLivePublications.
+func (s *SnapshotThenStream[TSnapshot, TPublication]) applyDrainedPublications(items []TPublication) (err error) {
+	if s.applyDrained == nil {
+		return s.applyLive(items)
+	}
+	s.runCallback(func() { err = callSnapshotApplyLive(s.applyDrained, items) })
+	return err
 }
 
 // RequestSnapshotRefresh coalesces sequence-gap refresh requests into one

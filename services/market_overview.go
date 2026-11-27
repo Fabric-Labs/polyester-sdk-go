@@ -307,8 +307,8 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 	}
 
 	var subscription *mosub.Subscription
-	var stream *realtime.SnapshotThenStream[models.MarketOverviewList, models.MarketOverviewList]
-	stream = realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.MarketOverviewList, models.MarketOverviewList]{
+	callbacks := overviewStreamCallbacks(merged, func() { emit(subscription) })
+	stream := realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.MarketOverviewList, models.MarketOverviewList]{
 		Client:  s.realtime,
 		Channel: channel,
 		Decode:  decodeBatch,
@@ -327,19 +327,11 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 			}
 			return []models.MarketOverviewList{{Markets: markets}}
 		},
-		ApplySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
-			merged.applySnapshot(snapshot, buffered)
-			emit(subscription)
-		},
-		ApplyLivePublications: func(batches []models.MarketOverviewList) {
-			// Publications that arrive while a snapshot is being applied reach
-			// this callback before the stream is ready, as part of that
-			// snapshot's merge; once it is ready, live updates apply as they come.
-			merged.applyLive(batches, !stream.IsReady())
-			emit(subscription)
-		},
-		OnError:     opts.OnError,
-		MaxBuffered: 2000,
+		ApplySnapshot:            callbacks.applySnapshot,
+		ApplyDrainedPublications: callbacks.applyDrained,
+		ApplyLivePublications:    callbacks.applyLive,
+		OnError:                  opts.OnError,
+		MaxBuffered:              2000,
 	})
 
 	subscription = mosub.NewSubscription(stream)
@@ -373,12 +365,48 @@ func (m *overviewMerge) applySnapshot(snapshot models.MarketOverviewList, buffer
 	}
 }
 
-// applyLive merges live publications. settling is true while the snapshot
-// they follow is still being merged, before the stream is ready: they may
-// predate it, as buffered ones may.
-func (m *overviewMerge) applyLive(batches []models.MarketOverviewList, settling bool) {
+// applyDrained merges the publications that arrived while the snapshot was
+// being applied, drained before the stream is ready: they may predate the
+// snapshot, as buffered ones may.
+func (m *overviewMerge) applyDrained(batches []models.MarketOverviewList) {
 	for _, batch := range batches {
-		m.apply(batch.Markets, settling)
+		m.apply(batch.Markets, true)
+	}
+}
+
+// applyLive merges live publications as they come.
+func (m *overviewMerge) applyLive(batches []models.MarketOverviewList) {
+	for _, batch := range batches {
+		m.apply(batch.Markets, false)
+	}
+}
+
+// overviewCallbacks are the snapshot-then-stream callbacks of a managed
+// market overview subscription.
+type overviewCallbacks struct {
+	applySnapshot func(models.MarketOverviewList, []models.MarketOverviewList)
+	applyDrained  func([]models.MarketOverviewList)
+	applyLive     func([]models.MarketOverviewList)
+}
+
+// overviewStreamCallbacks merges into merged and emits the set after each
+// change. The coordinator picks the callback under its lock: buffered and
+// drained publications, which may predate the snapshot, are merged with the
+// freshness guard; live ones are merged as they come.
+func overviewStreamCallbacks(merged *overviewMerge, emit func()) overviewCallbacks {
+	return overviewCallbacks{
+		applySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
+			merged.applySnapshot(snapshot, buffered)
+			emit()
+		},
+		applyDrained: func(batches []models.MarketOverviewList) {
+			merged.applyDrained(batches)
+			emit()
+		},
+		applyLive: func(batches []models.MarketOverviewList) {
+			merged.applyLive(batches)
+			emit()
+		},
 	}
 }
 
