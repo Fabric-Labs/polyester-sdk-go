@@ -21,6 +21,13 @@ Stable releases are cut only when testnet moves.
    `## X.Y.Z` and update the version in the README install snippet.
 2. After it merges, push an annotated tag on that commit of `main`:
    `git tag -a vX.Y.Z -m vX.Y.Z && git push origin vX.Y.Z`.
+3. Create the GitHub release with notes that name the backend release:
+   `python3 scripts/devnet_release.py stable-notes --version X.Y.Z --notes notes.md`
+   then `gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file notes.md`.
+   The notes open with `Targets Polyester backend <release>`, read from
+   `manifest.json` `backendRelease` at the tag, then the install line and a
+   link to the version's `CHANGELOG.md` section. The command fails when the tag,
+   that section or the backend release is missing.
 
 No workflow runs for tags; the tag is the release.
 
@@ -43,7 +50,9 @@ has no entries (right after a stable release) it stops there.
   module proxy serves it, and checks that `@latest` on the proxy is still a
   stable release.
 - **GitHub release.** One pre-release per target version is kept, on the newest
-  devnet tag of that version, with the `## Unreleased` entries as its notes.
+  devnet tag of that version, with the `## Unreleased` entries as its notes,
+  after the line `Targets Polyester backend <release>` from `manifest.json`
+  `backendRelease` at the snapshot's commit (a commit without it fails).
   When they would make the notes longer than 120,000 characters (GitHub refuses
   a release body over 125,000), the notes link `CHANGELOG.md` at the snapshot's
   commit instead; the entries are never cut. Each new tag gets the pre-release
