@@ -293,14 +293,11 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		limit = 50
 	}
 	channel := "public:spot:market_overview:updates:proto"
-	bySymbolID := map[uint32]models.MarketOverviewEntry{}
+	merged := newOverviewMerge(matches)
 	decodeBatch := decode.MarketOverviewBatchDecoder(s.catalogs)
 
 	emit := func(sub *mosub.Subscription) {
-		rows := make([]models.MarketOverviewEntry, 0, len(bySymbolID))
-		for _, row := range bySymbolID {
-			rows = append(rows, row)
-		}
+		rows := merged.rows()
 		if opts.OnEvent != nil {
 			opts.OnEvent(rows)
 		}
@@ -309,29 +306,9 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		}
 	}
 
-	applyRows := func(rows []models.MarketOverviewEntry, buffered bool) {
-		for _, row := range rows {
-			if matches(row) {
-				previous, ok := bySymbolID[row.SymbolID]
-				// A row buffered while the snapshot loaded may predate it: one
-				// whose last trade is older than the row it would replace was
-				// published before that row and does not replace it. An equal
-				// last-trade time still does, with the index, volume and book
-				// changes made since.
-				if buffered && ok && overviewTradeTsNs(row) < overviewTradeTsNs(previous) {
-					continue
-				}
-				// Live publications carry no sparklines: keep the snapshot's.
-				if ok && len(row.Sparklines) == 0 {
-					row.Sparklines = previous.Sparklines
-				}
-				bySymbolID[row.SymbolID] = row
-			}
-		}
-	}
-
 	var subscription *mosub.Subscription
-	stream := realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.MarketOverviewList, models.MarketOverviewList]{
+	var stream *realtime.SnapshotThenStream[models.MarketOverviewList, models.MarketOverviewList]
+	stream = realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.MarketOverviewList, models.MarketOverviewList]{
 		Client:  s.realtime,
 		Channel: channel,
 		Decode:  decodeBatch,
@@ -351,17 +328,14 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 			return []models.MarketOverviewList{{Markets: markets}}
 		},
 		ApplySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
-			clear(bySymbolID)
-			applyRows(snapshot.Markets, false)
-			for _, batch := range buffered {
-				applyRows(batch.Markets, true)
-			}
+			merged.applySnapshot(snapshot, buffered)
 			emit(subscription)
 		},
 		ApplyLivePublications: func(batches []models.MarketOverviewList) {
-			for _, batch := range batches {
-				applyRows(batch.Markets, false)
-			}
+			// Publications that arrive while a snapshot is being applied reach
+			// this callback before the stream is ready, as part of that
+			// snapshot's merge; once it is ready, live updates apply as they come.
+			merged.applyLive(batches, !stream.IsReady())
 			emit(subscription)
 		},
 		OnError:     opts.OnError,
@@ -375,6 +349,66 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		return nil, err
 	}
 	return subscription, nil
+}
+
+// overviewMerge is the market set a managed market overview subscription
+// emits: a snapshot, then the publications buffered while it loaded or
+// arriving while it is applied, then live updates.
+type overviewMerge struct {
+	matches    func(models.MarketOverviewEntry) bool
+	bySymbolID map[uint32]models.MarketOverviewEntry
+}
+
+func newOverviewMerge(matches func(models.MarketOverviewEntry) bool) *overviewMerge {
+	return &overviewMerge{matches: matches, bySymbolID: map[uint32]models.MarketOverviewEntry{}}
+}
+
+// applySnapshot replaces the set with snapshot and merges the publications
+// buffered while it loaded.
+func (m *overviewMerge) applySnapshot(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
+	clear(m.bySymbolID)
+	m.apply(snapshot.Markets, false)
+	for _, batch := range buffered {
+		m.apply(batch.Markets, true)
+	}
+}
+
+// applyLive merges live publications. settling is true while the snapshot
+// they follow is still being merged, before the stream is ready: they may
+// predate it, as buffered ones may.
+func (m *overviewMerge) applyLive(batches []models.MarketOverviewList, settling bool) {
+	for _, batch := range batches {
+		m.apply(batch.Markets, settling)
+	}
+}
+
+// apply merges rows. With guard, a row whose last trade is older than the row
+// it would replace was published before that row and does not replace it. An
+// equal last-trade time still does, with the index, volume and book changes
+// made since.
+func (m *overviewMerge) apply(rows []models.MarketOverviewEntry, guard bool) {
+	for _, row := range rows {
+		if !m.matches(row) {
+			continue
+		}
+		previous, ok := m.bySymbolID[row.SymbolID]
+		if guard && ok && overviewTradeTsNs(row) < overviewTradeTsNs(previous) {
+			continue
+		}
+		// Live publications carry no sparklines: keep the snapshot's.
+		if ok && len(row.Sparklines) == 0 {
+			row.Sparklines = previous.Sparklines
+		}
+		m.bySymbolID[row.SymbolID] = row
+	}
+}
+
+func (m *overviewMerge) rows() []models.MarketOverviewEntry {
+	rows := make([]models.MarketOverviewEntry, 0, len(m.bySymbolID))
+	for _, row := range m.bySymbolID {
+		rows = append(rows, row)
+	}
+	return rows
 }
 
 // overviewTradeTsNs is a row's last-trade time in epoch nanoseconds, 0 when

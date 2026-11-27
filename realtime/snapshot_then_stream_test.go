@@ -182,3 +182,49 @@ func TestSnapshotCallbacksPanicFailClosedWithoutLockingTheCoordinator(t *testing
 	// These calls prove the mutex was released before invoking consumer code.
 	sts.Close()
 }
+
+// A publication that arrives while the snapshot is being applied is delivered
+// to ApplyLivePublications before the stream is ready, so a callback can tell
+// it, by IsReady, from the live updates that follow; one arriving after the
+// refresh is delivered once ready.
+func TestPublicationsDrainedDuringApplyArriveBeforeReady(t *testing.T) {
+	applyStarted := make(chan struct{})
+	releaseApply := make(chan struct{})
+	var mu sync.Mutex
+	readyAt := map[int]bool{}
+	var sts *SnapshotThenStream[string, int]
+	sts = NewSnapshotThenStream[string, int](SnapshotThenStreamConfig[string, int]{
+		FetchSnapshot:   func(context.Context) (string, error) { return "snap", nil },
+		ReadPublication: func(p int) []int { return []int{p} },
+		ApplySnapshot: func(string, []int) {
+			close(applyStarted)
+			<-releaseApply
+		},
+		ApplyLivePublications: func(items []int) {
+			ready := sts.IsReady()
+			mu.Lock()
+			for _, item := range items {
+				readyAt[item] = ready
+			}
+			mu.Unlock()
+		},
+		Decode: func([]byte) (int, error) { return 0, nil },
+	})
+	done := make(chan error, 1)
+	go func() { done <- sts.RefreshSnapshot(context.Background()) }()
+	<-applyStarted
+	sts.handlePublication(7)
+	close(releaseApply)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	sts.handlePublication(8)
+	mu.Lock()
+	defer mu.Unlock()
+	if ready, ok := readyAt[7]; !ok || ready {
+		t.Fatalf("publication during apply: delivered=%v ready=%v, want delivered before ready", ok, ready)
+	}
+	if ready, ok := readyAt[8]; !ok || !ready {
+		t.Fatalf("publication after refresh: delivered=%v ready=%v, want delivered once ready", ok, ready)
+	}
+}
