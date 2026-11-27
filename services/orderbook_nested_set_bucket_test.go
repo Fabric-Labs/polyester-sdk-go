@@ -2,14 +2,17 @@ package services
 
 import (
 	"context"
+	stderrors "errors"
 	"net/http"
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
+	sdkerrors "github.com/Fabric-Labs/polyester-sdk-go/errors"
 	ob "github.com/Fabric-Labs/polyester-sdk-go/gen/orderbook/v1"
 	"github.com/Fabric-Labs/polyester-sdk-go/internal/hardening"
 	"github.com/Fabric-Labs/polyester-sdk-go/models"
@@ -169,9 +172,10 @@ func TestOrderbookSetBucketAfterOnEventStaysInOrder(t *testing.T) {
 	}
 }
 
-// After OnEvent panics, the views queued behind the one it panicked on are
-// dropped with it, and the next change is delivered on both surfaces.
-func TestOrderbookViewsAreDeliveredAgainAfterOnEventPanics(t *testing.T) {
+// When OnEvent panics, the view it panicked on is not queued, as before, but
+// the view queued from it is still delivered on both surfaces, and the panic
+// still reaches the SetBucket caller.
+func TestOrderbookAViewQueuedBeforeOnEventPanicsIsStillDelivered(t *testing.T) {
 	sub, seen := nestedBucketSubscription(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
 		if view.Bids[0].Price.Ticks() == nestedCent {
 			if err := sub.SetBucket(""); err != nil {
@@ -191,13 +195,76 @@ func TestOrderbookViewsAreDeliveredAgainAfterOnEventPanics(t *testing.T) {
 		}()
 		_ = sub.SetBucket("0.01")
 	}()
+	if got := nextBid(t, sub); got != nestedRaw {
+		t.Fatalf("Updates() delivered %d after the panic, want the queued view %d", got, nestedRaw)
+	}
 	if err := sub.SetBucket("0.001"); err != nil {
 		t.Fatal(err)
 	}
 	if got := nextBid(t, sub); got != nestedMilli {
-		t.Fatalf("Updates() delivered %d after the panic, want %d", got, nestedMilli)
+		t.Fatalf("Updates() delivered %d, want %d", got, nestedMilli)
 	}
-	if got, want := seen(), []int64{nestedRaw, nestedCent, nestedMilli}; !slices.Equal(got, want) {
+	if got, want := seen(), []int64{nestedRaw, nestedCent, nestedRaw, nestedMilli}; !slices.Equal(got, want) {
 		t.Fatalf("OnEvent saw %v, want %v", got, want)
+	}
+}
+
+// An OnEvent that queues a SetBucket and then closes the subscription gets no
+// further OnEvent, and nothing is queued on Updates() after Close returns.
+func TestOrderbookNoDeliveryAfterOnEventCloses(t *testing.T) {
+	sub, seen := nestedBucketSubscription(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
+		if view.Bids[0].Price.Ticks() == nestedCent {
+			if err := sub.SetBucket(""); err != nil {
+				t.Error(err)
+			}
+			sub.Close()
+		}
+	})
+	if got := nextBid(t, sub); got != nestedRaw {
+		t.Fatalf("snapshot view bid %d", got)
+	}
+	if err := sub.SetBucket("0.01"); err != nil {
+		t.Fatal(err)
+	}
+	if got, want := seen(), []int64{nestedRaw, nestedCent}; !slices.Equal(got, want) {
+		t.Fatalf("OnEvent saw %v after Close, want %v", got, want)
+	}
+	for view := range sub.Updates() {
+		t.Fatalf("Updates() delivered %+v after Close", view)
+	}
+}
+
+// A view whose enqueue overflows Updates() closes the subscription: the view
+// queued from its OnEvent is not delivered.
+func TestOrderbookNoDeliveryAfterAnOverflowCloses(t *testing.T) {
+	var armed atomic.Bool
+	sub, seen := nestedBucketSubscription(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
+		if armed.CompareAndSwap(true, false) {
+			if err := sub.SetBucket(""); err != nil {
+				t.Error(err)
+			}
+		}
+	})
+	// The snapshot's view plus 199 more fill the 200-view Updates() buffer.
+	for i := range 199 {
+		bucket := "0.001"
+		if i%2 == 1 {
+			bucket = ""
+		}
+		if err := sub.SetBucket(bucket); err != nil {
+			t.Fatal(err)
+		}
+	}
+	armed.Store(true)
+	if err := sub.SetBucket("0.01"); err != nil {
+		t.Fatal(err)
+	}
+	var overflow *sdkerrors.QueueOverflowError
+	if !stderrors.As(sub.Err(), &overflow) {
+		t.Fatalf("Err() = %v, want a queue overflow", sub.Err())
+	}
+	called := seen()
+	if len(called) != 201 || called[200] != nestedCent {
+		t.Fatalf("OnEvent saw %d views ending %v, want 201 ending with the overflowing one", len(called), called[len(called)-1:])
 	}
 }

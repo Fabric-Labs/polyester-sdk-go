@@ -224,31 +224,45 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		delivering = true
 		return true
 	}
-	deliverQueued := func(localSub *orderbook.Subscription) {
+	// deliverOne hands one view to OnEvent and then Updates(), unless the
+	// subscription has closed, and returns what OnEvent panicked with.
+	deliverOne := func(localSub *orderbook.Subscription, view models.OrderbookData) (panicked any, didPanic bool) {
 		defer func() {
-			// A panicking OnEvent drops the views queued behind it, as it did
-			// the view it panicked on, so the next emit delivers again.
 			if recovered := recover(); recovered != nil {
-				deliverMu.Lock()
-				undelivered, delivering = nil, false
-				deliverMu.Unlock()
-				panic(recovered)
+				panicked, didPanic = recovered, true
 			}
 		}()
+		if opts.OnEvent != nil {
+			opts.OnEvent(view)
+		}
+		// OnEvent may have closed the subscription; Enqueue then does nothing.
+		localSub.Enqueue(view)
+		return nil, false
+	}
+	// deliverQueued delivers the queued views in order until none is left or
+	// the subscription closes, by Close or an Updates() overflow; then the
+	// rest is dropped. A view OnEvent panics on is not queued, as before; the
+	// views behind it are still delivered, and then the first panic goes on.
+	deliverQueued := func(localSub *orderbook.Subscription) {
+		var firstPanic any
+		panicked := false
 		for {
+			closed := localSub.Closed()
 			deliverMu.Lock()
-			if len(undelivered) == 0 {
-				delivering = false
+			if closed || len(undelivered) == 0 {
+				undelivered, delivering = nil, false
 				deliverMu.Unlock()
-				return
+				break
 			}
 			next := undelivered[0]
 			undelivered = undelivered[1:]
 			deliverMu.Unlock()
-			if opts.OnEvent != nil {
-				opts.OnEvent(next)
+			if value, didPanic := deliverOne(localSub, next); didPanic && !panicked {
+				firstPanic, panicked = value, true
 			}
-			localSub.Enqueue(next)
+		}
+		if panicked {
+			panic(firstPanic)
 		}
 	}
 
