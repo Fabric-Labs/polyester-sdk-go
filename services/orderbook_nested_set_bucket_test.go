@@ -143,17 +143,16 @@ func gapDelta() []byte {
 	})
 }
 
-// gate blocks an OnEvent until it is opened, and is opened at the end of the
-// test whatever happens, so a failure cannot leave a goroutine blocked.
+// gate blocks an OnEvent until it is opened. A test defers release right
+// after newGate: deferred calls run before t.Cleanup, so the gate is open
+// before the subscription's Close, which waits for a blocked worker.
 type gate struct {
 	entered, opened chan struct{}
 	enter, open     sync.Once
 }
 
-func newGate(t *testing.T) *gate {
-	g := &gate{entered: make(chan struct{}), opened: make(chan struct{})}
-	t.Cleanup(g.release)
-	return g
+func newGate() *gate {
+	return &gate{entered: make(chan struct{}), opened: make(chan struct{})}
 }
 
 // wait, from the OnEvent, reports that it is blocked and blocks.
@@ -189,7 +188,8 @@ func reportedError(t *testing.T, reported <-chan error) error {
 // worker delivers it itself, the panic fails the subscription closed with an
 // OnError, and does not escape through the unrelated SetBucket call.
 func TestOrderbookALiveViewPanicDeliveredByASetBucketCallerFailsTheStream(t *testing.T) {
-	blocked := newGate(t)
+	blocked := newGate()
+	defer blocked.release()
 	gap := make(chan struct{}, 1)
 	reported := make(chan error, 1)
 	sub, _, push := nestedBucketStream(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
@@ -234,7 +234,8 @@ func TestOrderbookALiveViewPanicDeliveredByASetBucketCallerFailsTheStream(t *tes
 // the subscription closed with an OnError naming OnEvent; it does not panic
 // the worker on behalf of a SetBucket call that has returned.
 func TestOrderbookASetBucketViewPanicDeliveredByTheWorkerFailsTheStream(t *testing.T) {
-	blocked := newGate(t)
+	blocked := newGate()
+	defer blocked.release()
 	reported := make(chan error, 1)
 	sub, _, push := nestedBucketStream(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
 		switch {
@@ -250,9 +251,17 @@ func TestOrderbookASetBucketViewPanicDeliveredByTheWorkerFailsTheStream(t *testi
 
 	push(liveDelta())
 	receive(t, blocked.entered, "the live view's OnEvent")
-	// Queued behind the live view; SetBucket returns without delivering it.
-	if err := sub.SetBucket("0.001"); err != nil {
-		t.Fatal(err)
+	// Queued behind the live view, SetBucket returns without delivering it.
+	// A SetBucket that waited would fail here, and reach the deferred release.
+	returned := make(chan error, 1)
+	go func() { returned <- sub.SetBucket("0.001") }()
+	select {
+	case err := <-returned:
+		if err != nil {
+			t.Fatal(err)
+		}
+	case <-time.After(10 * time.Second):
+		t.Fatal("SetBucket waited for the blocked live view")
 	}
 	blocked.release()
 
