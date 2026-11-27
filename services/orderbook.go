@@ -85,10 +85,6 @@ type viewSource struct {
 	callback string
 }
 
-// orderbookViewQueuedBehind, when set by a test, is called after a view is
-// queued behind one being delivered.
-var orderbookViewQueuedBehind func()
-
 // CreateSubscriptionOptions configures a managed orderbook subscription.
 type CreateSubscriptionOptions struct {
 	// Symbol or SymbolID selects the pair; with SymbolID alone, the symbol and
@@ -311,9 +307,6 @@ func (s *OrderbookService) CreateSubscription(ctx context.Context, opts CreateSu
 		localSub := subscription
 		deliverer := err == nil && queueView(data, source)
 		mu.Unlock()
-		if err == nil && !deliverer && orderbookViewQueuedBehind != nil {
-			orderbookViewQueuedBehind()
-		}
 		if err != nil {
 			// The bad level stays in the book, so no later update can render it.
 			localSub.Fail(err)

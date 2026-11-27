@@ -35,13 +35,13 @@ const (
 // subscription and the bids OnEvent has seen so far.
 func nestedBucketSubscription(t *testing.T, onView func(*orderbook.Subscription, models.OrderbookData)) (*orderbook.Subscription, func() []int64) {
 	t.Helper()
-	sub, seen, _ := nestedBucketStream(t, onView, nil)
+	sub, seen, _ := nestedBucketStream(t, onView, func(*CreateSubscriptionOptions) {})
 	return sub, seen
 }
 
-// nestedBucketStream is nestedBucketSubscription with OnError and a function
-// that publishes a frame on the subscription's channel.
-func nestedBucketStream(t *testing.T, onView func(*orderbook.Subscription, models.OrderbookData), onError func(error)) (*orderbook.Subscription, func() []int64, func([]byte)) {
+// nestedBucketStream is nestedBucketSubscription with configure applied to
+// the options, and a function that publishes a frame on its channel.
+func nestedBucketStream(t *testing.T, onView func(*orderbook.Subscription, models.OrderbookData), configure func(*CreateSubscriptionOptions)) (*orderbook.Subscription, func() []int64, func([]byte)) {
 	t.Helper()
 	upgrader := websocket.Upgrader{Subprotocols: []string{"centrifuge-protobuf"}}
 	done := make(chan struct{})
@@ -104,7 +104,9 @@ func nestedBucketStream(t *testing.T, onView func(*orderbook.Subscription, model
 			onView(current, view)
 		}
 	}
-	created, err := svc.CreateSubscription(context.Background(), CreateSubscriptionOptions{Symbol: "DOGE-USDT", Depth: 20, OnEvent: onEvent, OnError: onError})
+	opts := CreateSubscriptionOptions{Symbol: "DOGE-USDT", Depth: 20, OnEvent: onEvent}
+	configure(&opts)
+	created, err := svc.CreateSubscription(context.Background(), opts)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -133,13 +135,34 @@ func liveDelta() []byte {
 	})
 }
 
-// queuedBehind reports each view queued behind one being delivered.
-func queuedBehind(t *testing.T) <-chan struct{} {
-	queued := make(chan struct{}, 8)
-	orderbookViewQueuedBehind = func() { queued <- struct{}{} }
-	t.Cleanup(func() { orderbookViewQueuedBehind = nil })
-	return queued
+// gapDelta does not continue sequence 2: the stream worker reports a gap.
+func gapDelta() []byte {
+	return bookTicketFrame(&ob.OrderBookDelta{
+		SymbolId: 1, BookSeqStart: 5, BookSeqEnd: 6,
+		Bids: []*ob.PriceLevel{{PriceTicks: nestedRaw, QtyScaled: 3}},
+	})
 }
+
+// gate blocks an OnEvent until it is opened, and is opened at the end of the
+// test whatever happens, so a failure cannot leave a goroutine blocked.
+type gate struct {
+	entered, opened chan struct{}
+	enter, open     sync.Once
+}
+
+func newGate(t *testing.T) *gate {
+	g := &gate{entered: make(chan struct{}), opened: make(chan struct{})}
+	t.Cleanup(g.release)
+	return g
+}
+
+// wait, from the OnEvent, reports that it is blocked and blocks.
+func (g *gate) wait() {
+	g.enter.Do(func() { close(g.entered) })
+	<-g.opened
+}
+
+func (g *gate) release() { g.open.Do(func() { close(g.opened) }) }
 
 func receive(t *testing.T, ch <-chan struct{}, what string) {
 	t.Helper()
@@ -150,23 +173,36 @@ func receive(t *testing.T, ch <-chan struct{}, what string) {
 	}
 }
 
+func reportedError(t *testing.T, reported <-chan error) error {
+	t.Helper()
+	select {
+	case err := <-reported:
+		return err
+	case <-time.After(10 * time.Second):
+		t.Fatal("OnError was not called")
+		return nil
+	}
+}
+
 // A live delta's view, queued behind a SetBucket's blocked OnEvent and
 // delivered by that SetBucket caller, panics in OnEvent. As when the stream
 // worker delivers it itself, the panic fails the subscription closed with an
 // OnError, and does not escape through the unrelated SetBucket call.
 func TestOrderbookALiveViewPanicDeliveredByASetBucketCallerFailsTheStream(t *testing.T) {
-	queued := queuedBehind(t)
-	entered, release := make(chan struct{}), make(chan struct{})
+	blocked := newGate(t)
+	gap := make(chan struct{}, 1)
 	reported := make(chan error, 1)
 	sub, _, push := nestedBucketStream(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
 		switch {
 		case view.BookSeq == "1" && view.Bids[0].Price.Ticks() == nestedCent:
-			close(entered)
-			<-release
+			blocked.wait()
 		case view.BookSeq == "2":
 			panic("live view panicked")
 		}
-	}, func(err error) { reported <- err })
+	}, func(opts *CreateSubscriptionOptions) {
+		opts.OnError = func(err error) { reported <- err }
+		opts.OnSequenceGap = func() { gap <- struct{}{} }
+	})
 	nextBid(t, sub)
 
 	escaped := make(chan any, 1)
@@ -174,24 +210,22 @@ func TestOrderbookALiveViewPanicDeliveredByASetBucketCallerFailsTheStream(t *tes
 		defer func() { escaped <- recover() }()
 		_ = sub.SetBucket("0.01")
 	}()
-	receive(t, entered, "the SetBucket OnEvent")
+	receive(t, blocked.entered, "the SetBucket OnEvent")
 	push(liveDelta())
-	receive(t, queued, "the live view to queue behind it")
-	close(release)
+	// The stream worker handles the gap only once its emit for the live
+	// delta has returned, so the live view is queued behind the blocked one.
+	push(gapDelta())
+	receive(t, gap, "the sequence gap after the live view was queued")
+	blocked.release()
 
 	if recovered := <-escaped; recovered != nil {
 		t.Fatalf("the live view's panic escaped through SetBucket: %v", recovered)
 	}
-	select {
-	case err := <-reported:
-		if !strings.Contains(err.Error(), "apply_live_publications callback panicked: live view panicked") {
-			t.Fatalf("OnError got %v", err)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("OnError was not called")
+	if err := reportedError(t, reported); !strings.Contains(err.Error(), "apply_live_publications callback panicked: live view panicked") {
+		t.Fatalf("OnError got %v", err)
 	}
-	if sub.Err() == nil {
-		t.Fatal("Err() is nil after the live view panicked")
+	if sub.Err() == nil || !sub.Closed() {
+		t.Fatalf("after the live view panicked: Err() = %v, Closed() = %v", sub.Err(), sub.Closed())
 	}
 }
 
@@ -200,37 +234,66 @@ func TestOrderbookALiveViewPanicDeliveredByASetBucketCallerFailsTheStream(t *tes
 // the subscription closed with an OnError naming OnEvent; it does not panic
 // the worker on behalf of a SetBucket call that has returned.
 func TestOrderbookASetBucketViewPanicDeliveredByTheWorkerFailsTheStream(t *testing.T) {
-	entered, release := make(chan struct{}), make(chan struct{})
+	blocked := newGate(t)
 	reported := make(chan error, 1)
 	sub, _, push := nestedBucketStream(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
 		switch {
 		case view.BookSeq == "2" && view.Bids[0].Price.Ticks() == nestedRaw:
-			close(entered)
-			<-release
+			blocked.wait()
 		case view.BookSeq == "2" && view.Bids[0].Price.Ticks() == nestedMilli:
 			panic("bucket view panicked")
 		}
-	}, func(err error) { reported <- err })
+	}, func(opts *CreateSubscriptionOptions) {
+		opts.OnError = func(err error) { reported <- err }
+	})
 	nextBid(t, sub)
 
 	push(liveDelta())
-	receive(t, entered, "the live view's OnEvent")
+	receive(t, blocked.entered, "the live view's OnEvent")
 	// Queued behind the live view; SetBucket returns without delivering it.
 	if err := sub.SetBucket("0.001"); err != nil {
 		t.Fatal(err)
 	}
-	close(release)
+	blocked.release()
 
-	select {
-	case err := <-reported:
-		if !strings.Contains(err.Error(), "OnEvent callback panicked: bucket view panicked") {
-			t.Fatalf("OnError got %v", err)
-		}
-	case <-time.After(10 * time.Second):
-		t.Fatal("OnError was not called")
+	if err := reportedError(t, reported); !strings.Contains(err.Error(), "OnEvent callback panicked: bucket view panicked") {
+		t.Fatalf("OnError got %v", err)
 	}
-	if sub.Err() == nil {
-		t.Fatal("Err() is nil after the bucket view panicked")
+	if sub.Err() == nil || !sub.Closed() {
+		t.Fatalf("after the bucket view panicked: Err() = %v, Closed() = %v", sub.Err(), sub.Closed())
+	}
+}
+
+// OnEvent calls SetBucket, and OnEvent for that nested view panics. The
+// nested SetBucket has returned by then, so the panic fails the subscription
+// closed with an OnError naming OnEvent, and the outer SetBucket, whose own
+// view did not panic, returns normally.
+func TestOrderbookANestedSetBucketViewPanicFailsTheStream(t *testing.T) {
+	var grouped atomic.Bool
+	reported := make(chan error, 1)
+	sub, _, _ := nestedBucketStream(t, func(sub *orderbook.Subscription, view models.OrderbookData) {
+		switch {
+		case view.Bids[0].Price.Ticks() == nestedCent:
+			grouped.Store(true)
+			if err := sub.SetBucket(""); err != nil {
+				t.Error(err)
+			}
+		case grouped.Load() && view.Bids[0].Price.Ticks() == nestedRaw:
+			panic("nested view panicked")
+		}
+	}, func(opts *CreateSubscriptionOptions) {
+		opts.OnError = func(err error) { reported <- err }
+	})
+	nextBid(t, sub)
+
+	if err := sub.SetBucket("0.01"); err != nil {
+		t.Fatal(err)
+	}
+	if err := reportedError(t, reported); !strings.Contains(err.Error(), "OnEvent callback panicked: nested view panicked") {
+		t.Fatalf("OnError got %v", err)
+	}
+	if sub.Err() == nil || !sub.Closed() {
+		t.Fatalf("after the nested view panicked: Err() = %v, Closed() = %v", sub.Err(), sub.Closed())
 	}
 }
 
