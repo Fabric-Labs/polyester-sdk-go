@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -308,11 +309,20 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		}
 	}
 
-	applyRows := func(rows []models.MarketOverviewEntry) {
+	applyRows := func(rows []models.MarketOverviewEntry, buffered bool) {
 		for _, row := range rows {
 			if matches(row) {
+				previous, ok := bySymbolID[row.SymbolID]
+				// A row buffered while the snapshot loaded may predate it: one
+				// whose last trade is older than the row it would replace was
+				// published before that row and does not replace it. An equal
+				// last-trade time still does, with the index, volume and book
+				// changes made since.
+				if buffered && ok && overviewTradeTsNs(row) < overviewTradeTsNs(previous) {
+					continue
+				}
 				// Live publications carry no sparklines: keep the snapshot's.
-				if previous, ok := bySymbolID[row.SymbolID]; ok && len(row.Sparklines) == 0 {
+				if ok && len(row.Sparklines) == 0 {
 					row.Sparklines = previous.Sparklines
 				}
 				bySymbolID[row.SymbolID] = row
@@ -342,15 +352,15 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		},
 		ApplySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
 			clear(bySymbolID)
-			applyRows(snapshot.Markets)
+			applyRows(snapshot.Markets, false)
 			for _, batch := range buffered {
-				applyRows(batch.Markets)
+				applyRows(batch.Markets, true)
 			}
 			emit(subscription)
 		},
 		ApplyLivePublications: func(batches []models.MarketOverviewList) {
 			for _, batch := range batches {
-				applyRows(batch.Markets)
+				applyRows(batch.Markets, false)
 			}
 			emit(subscription)
 		},
@@ -365,6 +375,16 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		return nil, err
 	}
 	return subscription, nil
+}
+
+// overviewTradeTsNs is a row's last-trade time in epoch nanoseconds, 0 when
+// the market has no trade.
+func overviewTradeTsNs(row models.MarketOverviewEntry) uint64 {
+	ts, err := strconv.ParseUint(row.LastTradeTsNs, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return ts
 }
 
 func (s *MarketOverviewService) Subscribe(ctx context.Context) (*realtime.Subscription[models.MarketOverviewList], error) {
