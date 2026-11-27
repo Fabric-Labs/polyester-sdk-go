@@ -2,6 +2,7 @@ package services
 
 import (
 	"context"
+	"strconv"
 	"strings"
 
 	"github.com/Fabric-Labs/polyester-sdk-go/catalogs"
@@ -292,14 +293,11 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		limit = 50
 	}
 	channel := "public:spot:market_overview:updates:proto"
-	bySymbolID := map[uint32]models.MarketOverviewEntry{}
+	merged := newOverviewMerge(matches)
 	decodeBatch := decode.MarketOverviewBatchDecoder(s.catalogs)
 
 	emit := func(sub *mosub.Subscription) {
-		rows := make([]models.MarketOverviewEntry, 0, len(bySymbolID))
-		for _, row := range bySymbolID {
-			rows = append(rows, row)
-		}
+		rows := merged.rows()
 		if opts.OnEvent != nil {
 			opts.OnEvent(rows)
 		}
@@ -308,19 +306,8 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		}
 	}
 
-	applyRows := func(rows []models.MarketOverviewEntry) {
-		for _, row := range rows {
-			if matches(row) {
-				// Live publications carry no sparklines: keep the snapshot's.
-				if previous, ok := bySymbolID[row.SymbolID]; ok && len(row.Sparklines) == 0 {
-					row.Sparklines = previous.Sparklines
-				}
-				bySymbolID[row.SymbolID] = row
-			}
-		}
-	}
-
 	var subscription *mosub.Subscription
+	callbacks := overviewStreamCallbacks(merged, func() { emit(subscription) })
 	stream := realtime.NewSnapshotThenStream(realtime.SnapshotThenStreamConfig[models.MarketOverviewList, models.MarketOverviewList]{
 		Client:  s.realtime,
 		Channel: channel,
@@ -340,22 +327,11 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 			}
 			return []models.MarketOverviewList{{Markets: markets}}
 		},
-		ApplySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
-			clear(bySymbolID)
-			applyRows(snapshot.Markets)
-			for _, batch := range buffered {
-				applyRows(batch.Markets)
-			}
-			emit(subscription)
-		},
-		ApplyLivePublications: func(batches []models.MarketOverviewList) {
-			for _, batch := range batches {
-				applyRows(batch.Markets)
-			}
-			emit(subscription)
-		},
-		OnError:     opts.OnError,
-		MaxBuffered: 2000,
+		ApplySnapshot:            callbacks.applySnapshot,
+		ApplyDrainedPublications: callbacks.applyDrained,
+		ApplyLivePublications:    callbacks.applyLive,
+		OnError:                  opts.OnError,
+		MaxBuffered:              2000,
 	})
 
 	subscription = mosub.NewSubscription(stream)
@@ -365,6 +341,112 @@ func (s *MarketOverviewService) CreateSubscription(ctx context.Context, opts Mar
 		return nil, err
 	}
 	return subscription, nil
+}
+
+// overviewMerge is the market set a managed market overview subscription
+// emits: a snapshot, then the publications buffered while it loaded or
+// arriving while it is applied, then live updates.
+type overviewMerge struct {
+	matches    func(models.MarketOverviewEntry) bool
+	bySymbolID map[uint32]models.MarketOverviewEntry
+}
+
+func newOverviewMerge(matches func(models.MarketOverviewEntry) bool) *overviewMerge {
+	return &overviewMerge{matches: matches, bySymbolID: map[uint32]models.MarketOverviewEntry{}}
+}
+
+// applySnapshot replaces the set with snapshot and merges the publications
+// buffered while it loaded.
+func (m *overviewMerge) applySnapshot(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
+	clear(m.bySymbolID)
+	m.apply(snapshot.Markets, false)
+	for _, batch := range buffered {
+		m.apply(batch.Markets, true)
+	}
+}
+
+// applyDrained merges the publications that arrived while the snapshot was
+// being applied, drained before the stream is ready: they may predate the
+// snapshot, as buffered ones may.
+func (m *overviewMerge) applyDrained(batches []models.MarketOverviewList) {
+	for _, batch := range batches {
+		m.apply(batch.Markets, true)
+	}
+}
+
+// applyLive merges live publications as they come.
+func (m *overviewMerge) applyLive(batches []models.MarketOverviewList) {
+	for _, batch := range batches {
+		m.apply(batch.Markets, false)
+	}
+}
+
+// overviewCallbacks are the snapshot-then-stream callbacks of a managed
+// market overview subscription.
+type overviewCallbacks struct {
+	applySnapshot func(models.MarketOverviewList, []models.MarketOverviewList)
+	applyDrained  func([]models.MarketOverviewList)
+	applyLive     func([]models.MarketOverviewList)
+}
+
+// overviewStreamCallbacks merges into merged and emits the set after each
+// change. The coordinator picks the callback under its lock: buffered and
+// drained publications, which may predate the snapshot, are merged with the
+// freshness guard; live ones are merged as they come.
+func overviewStreamCallbacks(merged *overviewMerge, emit func()) overviewCallbacks {
+	return overviewCallbacks{
+		applySnapshot: func(snapshot models.MarketOverviewList, buffered []models.MarketOverviewList) {
+			merged.applySnapshot(snapshot, buffered)
+			emit()
+		},
+		applyDrained: func(batches []models.MarketOverviewList) {
+			merged.applyDrained(batches)
+			emit()
+		},
+		applyLive: func(batches []models.MarketOverviewList) {
+			merged.applyLive(batches)
+			emit()
+		},
+	}
+}
+
+// apply merges rows. With guard, a row whose last trade is older than the row
+// it would replace was published before that row and does not replace it. An
+// equal last-trade time still does, with the index, volume and book changes
+// made since.
+func (m *overviewMerge) apply(rows []models.MarketOverviewEntry, guard bool) {
+	for _, row := range rows {
+		if !m.matches(row) {
+			continue
+		}
+		previous, ok := m.bySymbolID[row.SymbolID]
+		if guard && ok && overviewTradeTsNs(row) < overviewTradeTsNs(previous) {
+			continue
+		}
+		// Live publications carry no sparklines: keep the snapshot's.
+		if ok && len(row.Sparklines) == 0 {
+			row.Sparklines = previous.Sparklines
+		}
+		m.bySymbolID[row.SymbolID] = row
+	}
+}
+
+func (m *overviewMerge) rows() []models.MarketOverviewEntry {
+	rows := make([]models.MarketOverviewEntry, 0, len(m.bySymbolID))
+	for _, row := range m.bySymbolID {
+		rows = append(rows, row)
+	}
+	return rows
+}
+
+// overviewTradeTsNs is a row's last-trade time in epoch nanoseconds, 0 when
+// the market has no trade.
+func overviewTradeTsNs(row models.MarketOverviewEntry) uint64 {
+	ts, err := strconv.ParseUint(row.LastTradeTsNs, 10, 64)
+	if err != nil {
+		return 0
+	}
+	return ts
 }
 
 func (s *MarketOverviewService) Subscribe(ctx context.Context) (*realtime.Subscription[models.MarketOverviewList], error) {
