@@ -5,6 +5,7 @@ import (
 	stderrors "errors"
 	"io"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -133,5 +134,23 @@ func TestOverviewListWithRefusesUnknownValues(t *testing.T) {
 		if len(sent()) != 0 {
 			t.Fatalf("%s: sent %d requests", name, len(sent()))
 		}
+	}
+}
+
+// List checks its arguments in the order it always has: a bad limit is
+// refused before too many page tokens.
+func TestOverviewListChecksTheLimitBeforeThePageTokens(t *testing.T) {
+	service, sent := overviewListCapture(t)
+	_, err := service.List(context.Background(), nil, -1, "", false, "a", "b")
+	var validation *sdkerrors.ValidationError
+	if !stderrors.As(err, &validation) || !strings.Contains(validation.Msg, "limit") || strings.Contains(validation.Msg, "page token") {
+		t.Fatalf("List(limit=-1, two tokens): err = %v, want the limit refusal", err)
+	}
+	_, err = service.List(context.Background(), nil, 50, "", false, "a", "b")
+	if !stderrors.As(err, &validation) || validation.Msg != "at most one page token is allowed" {
+		t.Fatalf("List(two tokens): err = %v", err)
+	}
+	if len(sent()) != 0 {
+		t.Fatalf("sent %d requests", len(sent()))
 	}
 }

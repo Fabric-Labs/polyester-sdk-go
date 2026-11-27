@@ -65,6 +65,10 @@ type ListMarketOverviewParams struct {
 // each row's Sparklines holds the sparklines the server sent. Use ListWith to
 // choose the sort or the sparkline intervals.
 func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool, pageToken ...string) (models.MarketOverviewList, error) {
+	// The limit is checked before the page token count, as List always has.
+	if _, err := PaginationLimit(limit, "limit"); err != nil {
+		return models.MarketOverviewList{}, err
+	}
 	if len(pageToken) > 1 {
 		return models.MarketOverviewList{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
 	}
@@ -75,9 +79,10 @@ func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limi
 	return s.ListWith(ctx, params)
 }
 
-// ListWith reads one overview page selected by params. An unknown OrderBy,
-// Sort or sparkline interval is refused with an *errors.ValidationError before
-// anything is sent. Each page is cut from current values, so a market whose
+// ListWith reads one overview page selected by params. Params are checked in
+// this order, and the first refusal is returned as an *errors.ValidationError
+// before anything is sent: Limit, OrderBy, Sort, each sparkline interval, then
+// the symbols. Each page is cut from current values, so a market whose
 // sort value changes between pages can appear twice or not at all; for a
 // consistent list, read one page with the largest Limit.
 func (s *MarketOverviewService) ListWith(ctx context.Context, params ListMarketOverviewParams) (models.MarketOverviewList, error) {
