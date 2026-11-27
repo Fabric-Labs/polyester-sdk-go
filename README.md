@@ -2275,6 +2275,32 @@ bucket, from the listing's bucket on. Every timeframe except `1s` has index
 price candles. Pass `NextPageToken` to read older candles with the same
 arguments; the server refuses a page token from `GetCandles`.
 
+`MarketOverview.ListWith` reads a market overview page with the sort and
+sparklines chosen in `services.ListMarketOverviewParams`. `OrderBy` is the sort
+key (`change_24h_bps`, the absolute 24h change; `volume_24h_usd`; `last_price`;
+`date_added`, the listing time) and `Sort` the direction (`asc` or `desc`); empty,
+the server sorts by descending 24h USD volume. `SparklineIntervals` picks the
+sparklines `IncludeSparklines` returns (`SPARKLINE_1H`, `SPARKLINE_24H`,
+`SPARKLINE_1W`, `SPARKLINE_1M`; 24h when empty). An unknown value is refused with
+an `*errors.ValidationError` before sending. A `NextPageToken` is bound to the
+symbols and sort it was returned for: send it back with the same ones.
+
+```go
+import "github.com/Fabric-Labs/polyester-sdk-go/services"
+
+newest, err := client.MarketOverview.ListWith(ctx, services.ListMarketOverviewParams{
+	Limit:   10,
+	OrderBy: "date_added",
+	Sort:    "desc",
+})
+if err != nil {
+	log.Fatal(err)
+}
+for _, market := range newest.Markets {
+	fmt.Println(market.Symbol, market.ListedTsNs)
+}
+```
+
 Merged market overview stream (snapshot + live updates). With `Symbols` set,
 only those markets are emitted, from the snapshot and from live updates:
 

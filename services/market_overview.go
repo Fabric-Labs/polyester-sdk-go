@@ -33,25 +33,76 @@ func (s *MarketOverviewService) client() marketoverviewv1connect.MarketOverviewS
 	return marketoverviewv1connect.NewMarketOverviewServiceClient(s.transport.HTTP, s.transport.Config.APIURL, s.transport.ConnectOptions(false)...)
 }
 
+// ListMarketOverviewParams selects a market overview page for ListWith.
+type ListMarketOverviewParams struct {
+	// Symbols lists only these markets; nil or empty lists every market.
+	Symbols []string
+	// Limit is the page size; 0 asks for the server's default (50).
+	Limit int
+	// PageToken continues from an earlier page's NextPageToken. A token is
+	// bound to the symbols, OrderBy and Sort it was returned for: send it with
+	// the same ones, or the server refuses it. "" reads the first page.
+	PageToken string
+	// IncludeSparklines asks for each row's sparklines.
+	IncludeSparklines bool
+	// OrderBy is the sort key: "change_24h_bps" (the absolute 24h change),
+	// "volume_24h_usd" (markets without a USD volume sort last either way),
+	// "last_price" or "date_added" (listing time). "" sends none: the server
+	// sorts by descending 24h USD volume.
+	OrderBy string
+	// Sort is "asc" or "desc"; "" sends none, for the server's default.
+	Sort string
+	// SparklineIntervals picks the sparklines IncludeSparklines returns:
+	// SPARKLINE_1H, SPARKLINE_24H, SPARKLINE_1W or SPARKLINE_1M, as
+	// models.MarketOverviewSparkline.Interval reads them. Empty asks for the
+	// server's default, the 24h one.
+	SparklineIntervals []string
+}
+
 // List reads one overview page. The legacy string argument before
 // includeSparklines is ignored; pass the returned NextPageToken as the optional
 // final argument to continue with the same filters. With includeSparklines,
-// each row's Sparklines holds the sparklines the server sent.
+// each row's Sparklines holds the sparklines the server sent. Use ListWith to
+// choose the sort or the sparkline intervals.
 func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limit int, _ string, includeSparklines bool, pageToken ...string) (models.MarketOverviewList, error) {
-	parsedLimit, err := PaginationLimit(limit, "limit")
-	if err != nil {
-		return models.MarketOverviewList{}, err
-	}
 	if len(pageToken) > 1 {
 		return models.MarketOverviewList{}, &errors.ValidationError{Msg: "at most one page token is allowed"}
 	}
-	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: parsedLimit, IncludeSparklines: includeSparklines}
+	params := ListMarketOverviewParams{Symbols: symbols, Limit: limit, IncludeSparklines: includeSparklines}
+	if len(pageToken) == 1 {
+		params.PageToken = pageToken[0]
+	}
+	return s.ListWith(ctx, params)
+}
+
+// ListWith reads one overview page selected by params. An unknown OrderBy,
+// Sort or sparkline interval is refused with an *errors.ValidationError before
+// anything is sent. Each page is cut from current values, so a market whose
+// sort value changes between pages can appear twice or not at all; for a
+// consistent list, read one page with the largest Limit.
+func (s *MarketOverviewService) ListWith(ctx context.Context, params ListMarketOverviewParams) (models.MarketOverviewList, error) {
+	parsedLimit, err := PaginationLimit(params.Limit, "limit")
+	if err != nil {
+		return models.MarketOverviewList{}, err
+	}
+	req := &marketoverviewv1.ListMarketOverviewRequest{Limit: parsedLimit, IncludeSparklines: params.IncludeSparklines, PageToken: params.PageToken}
 	if err := codecs.CheckPageLimit(req); err != nil {
 		return models.MarketOverviewList{}, err
 	}
-	if len(pageToken) == 1 {
-		req.PageToken = pageToken[0]
+	if req.OrderBy, err = marketOverviewOrderBy(params.OrderBy); err != nil {
+		return models.MarketOverviewList{}, err
 	}
+	if req.Sort, err = marketOverviewSort(params.Sort); err != nil {
+		return models.MarketOverviewList{}, err
+	}
+	for _, label := range params.SparklineIntervals {
+		interval, err := marketOverviewSparklineInterval(label)
+		if err != nil {
+			return models.MarketOverviewList{}, err
+		}
+		req.SparklineIntervals = append(req.SparklineIntervals, interval)
+	}
+	symbols := params.Symbols
 	// Rows are labelled and scaled from the catalogs; only a symbol filter needs them.
 	if err := awaitCatalogs(ctx, s.catalogs, namesSymbol(nil, symbols...)); err != nil {
 		return models.MarketOverviewList{}, err
@@ -70,6 +121,51 @@ func (s *MarketOverviewService) List(ctx context.Context, symbols []string, limi
 	return UnaryPublicDecoded(ctx, s.transport, s.client().ListMarketOverview, req, func(msg *marketoverviewv1.ListMarketOverviewResponse) (models.MarketOverviewList, error) {
 		return decode.MarketOverviewListFromProto(msg, s.catalogs)
 	})
+}
+
+func marketOverviewOrderBy(label string) (marketoverviewv1.MarketOrderBy, error) {
+	switch strings.ToLower(strings.TrimSpace(label)) {
+	case "":
+		return marketoverviewv1.MarketOrderBy_MARKET_ORDER_BY_UNSPECIFIED, nil
+	case "change_24h_bps":
+		return marketoverviewv1.MarketOrderBy_ORDER_BY_CHANGE_24H_BPS, nil
+	case "volume_24h_usd":
+		return marketoverviewv1.MarketOrderBy_ORDER_BY_VOLUME_24H_USD, nil
+	case "last_price":
+		return marketoverviewv1.MarketOrderBy_ORDER_BY_LAST_PRICE, nil
+	case "date_added":
+		return marketoverviewv1.MarketOrderBy_ORDER_BY_DATE_ADDED, nil
+	default:
+		return 0, &errors.ValidationError{Msg: "market_overview.list order_by must be change_24h_bps, volume_24h_usd, last_price or date_added, or empty for the server's default, not " + label}
+	}
+}
+
+func marketOverviewSort(label string) (marketoverviewv1.SortDirection, error) {
+	switch strings.ToLower(strings.TrimSpace(label)) {
+	case "":
+		return marketoverviewv1.SortDirection_SORT_DIRECTION_UNSPECIFIED, nil
+	case "asc":
+		return marketoverviewv1.SortDirection_SORT_ASC, nil
+	case "desc":
+		return marketoverviewv1.SortDirection_SORT_DESC, nil
+	default:
+		return 0, &errors.ValidationError{Msg: "market_overview.list sort must be asc or desc, or empty for the server's default, not " + label}
+	}
+}
+
+func marketOverviewSparklineInterval(label string) (marketoverviewv1.SparklineInterval, error) {
+	switch strings.TrimSpace(label) {
+	case "SPARKLINE_1H":
+		return marketoverviewv1.SparklineInterval_SPARKLINE_1H, nil
+	case "SPARKLINE_24H":
+		return marketoverviewv1.SparklineInterval_SPARKLINE_24H, nil
+	case "SPARKLINE_1W":
+		return marketoverviewv1.SparklineInterval_SPARKLINE_1W, nil
+	case "SPARKLINE_1M":
+		return marketoverviewv1.SparklineInterval_SPARKLINE_1M, nil
+	default:
+		return 0, &errors.ValidationError{Msg: "market_overview.list sparkline interval must be SPARKLINE_1H, SPARKLINE_24H, SPARKLINE_1W or SPARKLINE_1M, not " + label}
+	}
 }
 
 const maxSpotVolumeHistorySymbolIDs = 2000

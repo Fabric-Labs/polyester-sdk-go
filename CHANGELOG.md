@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- New `MarketOverview.ListWith(ctx, services.ListMarketOverviewParams)` sends the contract's `ListMarketOverviewRequest` sort and sparkline choices, fields 4, 5 and 7: `OrderBy` (`change_24h_bps`, the absolute 24h change; `volume_24h_usd`; `last_price`; `date_added`, the listing time), `Sort` (`asc` or `desc`) and `SparklineIntervals` (`SPARKLINE_1H`, `SPARKLINE_24H`, `SPARKLINE_1W`, `SPARKLINE_1M`, as `models.MarketOverviewSparkline.Interval` reads them), next to `Symbols`, `Limit`, `PageToken` and `IncludeSparklines`. Empty, nothing is sent and the server keeps its defaults: descending 24h USD volume, and the 24h sparkline. An unknown value returns an `*errors.ValidationError` before anything is sent. A `NextPageToken` is bound to the symbols and sort it was returned for. `MarketOverview.List` is unchanged and sends the same request as before. Affected: `MarketOverview.ListWith`, `services.ListMarketOverviewParams` (new).
+
 ## 0.35.0
 
 Git tag: `v0.35.0`. Released 2026-11-27. Built on public contract `11e2cec`.
