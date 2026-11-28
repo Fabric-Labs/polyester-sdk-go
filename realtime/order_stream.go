@@ -98,7 +98,10 @@ func (OrderStreamError) isOrderStreamEvent()        {}
 // every account of this client, and subscriptions of the same account share
 // one server subscription: a later one starts from the current state.
 // Sequence gaps, expiring tokens and reconnects resume from the last applied
-// position.
+// position: consumers get OrderStreamDisconnected, then OrderStreamConnected.
+// Each such resume adds 1 to Resubscribes(), and the next TakeResubscribed()
+// returns true, then false until another resume; a consumer's first
+// OrderStreamConnected counts nothing.
 //
 // The subscription ends, closing Messages with Err set, when the server
 // refuses it (for example FORBIDDEN), when the API key is refused, on close

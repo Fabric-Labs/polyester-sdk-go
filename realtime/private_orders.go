@@ -740,6 +740,17 @@ func (p *privateOrderStream) onFrame(conn *privateConn, messageType int, data []
 		s.ready = false
 		p.bySub[s.sub] = s
 		if s.state != subConnected {
+			// A resume after a gap counts as a reconnect, as the generic run
+			// loop counts one, for each consumer that had its first
+			// OrderStreamConnected, before it is told. One that joined during
+			// the gap (catchUp) connects for the first time now.
+			if s.state == subDisconnected {
+				for c := range s.consumers {
+					if !c.catchUp {
+						c.sub.noteHandshakeReady(false)
+					}
+				}
+			}
 			s.state = subConnected
 			p.deliver(s, OrderStreamConnected{})
 		}
