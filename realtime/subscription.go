@@ -17,9 +17,7 @@ import (
 // After a transport reconnect a Centrifugo subscription is re-established
 // without a server-side resume cursor. Resubscribes()/TakeResubscribed()
 // signal that gap: publications may have been lost between disconnect and the
-// new subscribe. The private order stream (Client.SubscribeOrders) resumes
-// from its cursor instead and reports reconnects as events; a gap it cannot
-// resume arrives as a new OrderSnapshot.
+// new subscribe.
 //
 // Close cancels the subscription context and waits until the run loop has
 // fully stopped (websocket teardown included). Close called from the
